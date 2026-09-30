@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { ArrowRight, BookOpen, Building2, Calendar, FileText, GraduationCap, ShieldCheck, Sparkles, UserCheck, Users } from "lucide-react";
+import { ArrowRight, BookOpen, Building2, Calendar, FileText, GraduationCap, Sparkles, UserCheck, Users } from "lucide-react";
 import { apiFetch } from "@/lib/api/client";
 import { RoleHome } from "@/lib/api/schemas";
 import { ChartCard } from "@/components/charts/chart-card";

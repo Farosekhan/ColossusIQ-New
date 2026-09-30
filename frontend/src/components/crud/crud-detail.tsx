@@ -21,11 +21,14 @@ import { streamOfType } from "@/config/streams";
 import { clearFlash, setFlash, useFlash } from "./flash";
 import { DepartmentDetail } from "./department-detail";
 
-export function CrudDetail({ mod, role, resource, recordId }: { mod: ModuleDef; role: Role; resource: ResourceDef; recordId: string }) {
-  if (resource.key === "departments") {
-    return <DepartmentDetail mod={mod} role={role} resource={resource} recordId={recordId} />;
+export function CrudDetail(props: { mod: ModuleDef; role: Role; resource: ResourceDef; recordId: string }) {
+  if (props.resource.key === "departments") {
+    return <DepartmentDetail mod={props.mod} role={props.role} resource={props.resource} recordId={props.recordId} />;
   }
+  return <GenericCrudDetail {...props} />;
+}
 
+function GenericCrudDetail({ mod, role, resource, recordId }: { mod: ModuleDef; role: Role; resource: ResourceDef; recordId: string }) {
   const router = useRouter();
   const qc = useQueryClient();
   const base = `/${role}/${mod.slug}`;
