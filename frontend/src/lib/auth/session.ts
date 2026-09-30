@@ -42,6 +42,9 @@ function fromB64url(s: string): Uint8Array {
 function getSecret(): string {
   const secret = process.env.SESSION_SECRET;
   if (!secret || secret.length < 32) {
+    if (process.env.NODE_ENV !== "production") {
+      return "dev-session-secret-change-in-production-at-least-32-chars";
+    }
     throw new Error("SESSION_SECRET must be set to at least 32 characters");
   }
   return secret;
@@ -62,17 +65,18 @@ export async function signSession(payload: SessionPayload, secret = getSecret())
 
 export async function verifySession(
   token: string | undefined | null,
-  secret = getSecret(),
+  secret?: string,
   now = Math.floor(Date.now() / 1000),
 ): Promise<SessionPayload | null> {
   if (!token || token.length > 4096) return null;
+  const resolvedSecret = secret ?? getSecret();
   const parts = token.split(".");
   if (parts.length !== 2) return null;
   const [body, sig] = parts as [string, string];
   try {
     const ok = await crypto.subtle.verify(
       "HMAC",
-      await hmacKey(secret),
+      await hmacKey(resolvedSecret),
       fromB64url(sig) as BufferSource,
       encoder.encode(body),
     );
