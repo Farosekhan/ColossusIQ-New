@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Logo } from "@/components/ui/logo";
 import { Fi, ModuleIcon } from "@/components/ui/icon";
 import type { IconName } from "@/config/modules";
@@ -48,12 +48,9 @@ export function AppShell({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mentorOpen, setMentorOpen] = useState(false);
 
-  // Close the mobile drawer on navigation (state adjusted during render, per React guidance).
-  const [lastPath, setLastPath] = useState(pathname);
-  if (pathname !== lastPath) {
-    setLastPath(pathname);
+  useEffect(() => {
     setMobileOpen(false);
-  }
+  }, [pathname]);
 
   return (
     <div className="flex min-h-dvh">
