@@ -12,6 +12,7 @@ import { analyzeResume, chatReply, evaluateDescriptive, generate, interviewTurn 
 import { MCQ_KEY, MOCK_TESTS, MOCK_TEST_SUMMARIES, PROJECTS } from "./fixtures";
 import { ROLE_HOMES } from "./homes";
 import { roleHomeFor, studentCourses, studentDashboard } from "./stream-content";
+import { dynamicInstitutionHome } from "./institution-home";
 import { moduleData } from "./module-data";
 import { dispatchRecords } from "./records-router";
 import { dispatchLearning } from "./learning";
@@ -192,6 +193,9 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
     case "GET home/:id": {
       const role = b;
       if (!role || role !== session.role || !(ROLES as readonly string[]).includes(role) || role === "student") return forbidden();
+      if (role === "institution") {
+        return ok(await dynamicInstitutionHome(session));
+      }
       const home = ROLE_HOMES[role as Exclude<typeof session.role, "student">];
       const inCollege = session.college !== ALL_COLLEGES;
       return ok(roleHomeFor(home, role, inCollege ? await collegeStream(session.college) : null, inCollege ? String((await getCollege(session.college))?.name ?? "College") : null));

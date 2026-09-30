@@ -4,6 +4,7 @@ import { isRole, ROLE_META } from "@/lib/auth/roles";
 import { StudentHome } from "@/components/portal/student-home";
 import { RoleHomeView } from "@/components/portal/role-home";
 import { UniversityHome } from "@/components/portal/university-home";
+import { InstitutionHome } from "@/components/portal/institution-home";
 
 export async function generateMetadata({ params }: { params: Promise<{ role: string }> }): Promise<Metadata> {
   const { role } = await params;
@@ -15,5 +16,6 @@ export default async function RoleHomePage({ params }: { params: Promise<{ role:
   if (!isRole(role)) notFound();
   if (role === "student") return <StudentHome />;
   if (role === "admin") return <UniversityHome />;
+  if (role === "institution") return <InstitutionHome />;
   return <RoleHomeView role={role} />;
 }

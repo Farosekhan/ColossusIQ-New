@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { MODULES } from "@/config/modules";
-import { ModuleData } from "@/lib/api/schemas";
+import { ModuleData, RoleHome } from "@/lib/api/schemas";
 import { moduleData, _hasData } from "@/lib/api/mock/module-data";
 import { dispatch } from "@/lib/api/mock/router";
 import { looksLikeInjection, chatReply } from "@/lib/api/mock/ai";
@@ -55,6 +55,18 @@ describe("mock API authorisation", () => {
   });
   it("rejects oversized chat messages", async () => {
     expect((await dispatch("POST", ["ai", "chat"], { agent: "mentor", message: "a".repeat(2001) }, session("student"), q)).status).toBe(400);
+  });
+  it("serves dynamic institution home matching RoleHome schema", async () => {
+    const res = await dispatch("GET", ["home", "institution"], undefined, session("institution"), q);
+    expect(res.status).toBe(200);
+    const parsed = RoleHome.safeParse(res.body);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.greeting).toContain("Anna Institute of Technology");
+      expect(parsed.data.kpis.length).toBeGreaterThan(0);
+      expect(parsed.data.charts.length).toBe(2);
+      expect(parsed.data.departments?.length).toBeGreaterThan(0);
+    }
   });
 });
 

@@ -334,6 +334,32 @@ export const RoleHome = z.object({
   charts: z.array(ChartSpec),
   insights: z.array(Insight),
   queue: z.array(z.object({ title: z.string(), meta: z.string(), href: z.string(), tone: Tone })),
+  college: z
+    .object({
+      id: z.string(),
+      name: z.string(),
+      code: z.string().optional(),
+      type: z.string().optional(),
+      city: z.string().optional(),
+      principal: z.string().optional(),
+      capacity: z.number().optional(),
+      status: z.string().optional(),
+    })
+    .optional(),
+  departments: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        head: z.string().optional(),
+        faculty: z.number(),
+        students: z.number(),
+        readiness: z.number(),
+        programmes: z.number().optional(),
+        status: z.string().optional(),
+      }),
+    )
+    .optional(),
 });
 export type RoleHome = z.infer<typeof RoleHome>;
 
