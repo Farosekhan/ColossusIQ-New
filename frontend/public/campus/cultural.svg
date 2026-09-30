@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="Cultural festival on stage">
+  <rect width="800" height="500" fill="#20163f"/>
+  <g fill="#6d4bd8" opacity=".45"><path d="M150 0 L60 330 H240Z"/><path d="M650 0 L560 330 H740Z"/><path d="M400 0 L310 330 H490Z"/></g>
+  <path d="M0 0 H800 V70 Q700 110 600 70 Q500 110 400 70 Q300 110 200 70 Q100 110 0 70Z" fill="#b42318"/>
+  <path d="M0 0 H90 V380 Q60 300 0 300Z M800 0 H710 V380 Q740 300 800 300Z" fill="#8f1b13"/>
+  <rect x="60" y="330" width="680" height="40" fill="#c9962b"/>
+  <rect y="370" width="800" height="130" fill="#141d42"/>
+  <g transform="translate(330 250)"><circle r="16" fill="#8b5a3c"/><path d="M-26 80 L0 16 L26 80Z" fill="#e0b453"/><path d="M-10 30 l-34 -26 M10 30 l34 -26" stroke="#8b5a3c" stroke-width="7" stroke-linecap="round"/></g>
+  <g transform="translate(470 250)"><circle r="16" fill="#6b4029"/><path d="M-26 80 L0 16 L26 80Z" fill="#3cc2b3"/><path d="M-10 30 l-34 20 M10 30 l34 -30" stroke="#6b4029" stroke-width="7" stroke-linecap="round"/></g>
+  <g fill="#3a2f66"><circle cx="100" cy="440" r="22"/><circle cx="170" cy="450" r="22"/><circle cx="240" cy="440" r="22"/><circle cx="310" cy="452" r="22"/><circle cx="380" cy="440" r="22"/><circle cx="450" cy="450" r="22"/><circle cx="520" cy="440" r="22"/><circle cx="590" cy="452" r="22"/><circle cx="660" cy="440" r="22"/><circle cx="730" cy="450" r="22"/></g>
+  <g fill="#f3c77a"><circle cx="120" cy="120" r="4"/><circle cx="260" cy="160" r="3"/><circle cx="540" cy="130" r="4"/><circle cx="690" cy="170" r="3"/><circle cx="400" cy="150" r="3"/></g>
+</svg>

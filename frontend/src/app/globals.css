@@ -1,0 +1,394 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ------------------------------------------------------------------
+   "Scholar Indigo" design tokens.
+   Institutions can white-label by overriding --brand / --brand-strong
+   on <html> (see TenantBranding in the portal layout).
+------------------------------------------------------------------- */
+:root {
+  --brand: #1e2a5a;
+  --brand-strong: #141d42;
+  --brand-soft: #e8ebf6;
+  --brand-2: #4a5bd4;
+  --violet: #6d4bd8;
+  --violet-soft: #eee8fc;
+  --gold: #c9962b;
+  --gold-soft: #f7eed8;
+  --teal: #0f766e;
+  --teal-soft: #dcf1ee;
+  --rose: #b42318;
+  --rose-soft: #fbe6e4;
+  --amber: #b45309;
+  --amber-soft: #fdf0dc;
+  --sky: #1d5fa8;
+  --sky-soft: #e0ecf8;
+
+  --bg: #faf8f3;
+  --surface: #ffffff;
+  --surface-2: #f3f0e8;
+  --line: #e4dfd3;
+  --ink: #1b2233;
+  --ink-2: #4a5268;
+  --ink-3: #6b7285;
+  --on-brand: #ffffff;
+  --ring: #c9962b;
+  --shadow: 0 1px 2px rgb(27 34 51 / 0.05), 0 8px 24px -6px rgb(30 42 90 / 0.10);
+  color-scheme: light;
+}
+
+.dark {
+  --brand: #8e9ce0;
+  --brand-strong: #b3bdf0;
+  --brand-soft: #232a47;
+  --brand-2: #7f8cf0;
+  --violet: #b19cf5;
+  --violet-soft: #2a2347;
+  --gold: #e0b453;
+  --gold-soft: #3a2f16;
+  --teal: #3cc2b3;
+  --teal-soft: #123532;
+  --rose: #f2877c;
+  --rose-soft: #3d1c1a;
+  --amber: #f0a950;
+  --amber-soft: #3a2a14;
+  --sky: #7db4ee;
+  --sky-soft: #16283d;
+
+  --bg: #0f1320;
+  --surface: #161b2b;
+  --surface-2: #1d2336;
+  --line: #2b3249;
+  --ink: #e8eaf2;
+  --ink-2: #b6bcd0;
+  --ink-3: #8a91a8;
+  --on-brand: #0f1320;
+  --ring: #e0b453;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 16px rgb(0 0 0 / 0.25);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-teal: var(--teal);
+  --color-teal-soft: var(--teal-soft);
+  --color-rose: var(--rose);
+  --color-rose-soft: var(--rose-soft);
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+  --color-sky: var(--sky);
+  --color-sky-soft: var(--sky-soft);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-on-brand: var(--on-brand);
+  --color-ring: var(--ring);
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--face-display);
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --color-brand-2: var(--brand-2);
+  --color-violet: var(--violet);
+  --color-violet-soft: var(--violet-soft);
+  --shadow-card: var(--shadow);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-sans);
+  letter-spacing: -0.02em;
+}
+
+/* Flaticon glyphs sit on the text baseline by default; centre them like SVG icons. */
+.fi {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.fi::before {
+  line-height: 1;
+}
+
+/* Brand gradients */
+.bg-brand-gradient {
+  background-image: linear-gradient(135deg, #1e2a5a 0%, #34459f 55%, #5b4bc4 100%);
+}
+.bg-sidebar {
+  background-image: linear-gradient(180deg, #141d42 0%, #1b2657 60%, #231f5c 100%);
+}
+.bg-hero-glow {
+  background-image:
+    radial-gradient(600px 300px at 90% -10%, rgb(201 150 43 / 0.22), transparent 60%),
+    radial-gradient(500px 280px at 0% 110%, rgb(109 75 216 / 0.22), transparent 60%),
+    linear-gradient(135deg, #1e2a5a 0%, #2e3d8f 60%, #4b3fae 100%);
+}
+.text-gradient {
+  background-image: linear-gradient(90deg, var(--brand) 0%, var(--brand-2) 50%, var(--violet) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px -12px rgb(30 42 90 / 0.25);
+  border-color: color-mix(in oklab, var(--brand) 25%, var(--line));
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.animate-fade-up {
+  animation: fade-up 0.35s ease both;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+::selection {
+  background: var(--gold-soft);
+  color: var(--ink);
+}
+
+/* Notebook-grid pattern for heroes and empty areas */
+.bg-notebook {
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--brand) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--brand) 7%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.15) transparent;
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Course lesson reader: larger headings and comfortable reading measure */
+.lesson-content { max-width: 72ch; }
+.lesson-content h3 { font-size: 1.15rem; margin-top: 1.75rem; margin-bottom: 0.5rem; }
+.lesson-content p, .lesson-content li { color: var(--ink-2); }
+
+/* ───────────── Type faces ─────────────
+   The app (lessons, Teaching Studio, infographics, smart board) uses Poppins throughout for a clean,
+   professional look. The public marketing pages keep the editorial "Scholar's Ledger" pairing:
+   Fraunces for display type and JetBrains Mono for small labels. */
+:root {
+  --face-display: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  --face-label: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+}
+.marketing {
+  --face-display: var(--font-fraunces), "Iowan Old Style", Georgia, serif;
+  --face-label: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Display headings */
+.display {
+  font-family: var(--face-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+}
+.display em,
+.display-italic {
+  font-style: normal;
+  font-weight: 600;
+}
+.marketing .display {
+  font-variation-settings: "opsz" 144, "SOFT" 50;
+  font-weight: 520;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+}
+.marketing .display em,
+.marketing .display-italic {
+  font-style: italic;
+  font-variation-settings: "opsz" 144, "SOFT" 100;
+  font-weight: 440;
+}
+
+/* Small uppercase section labels */
+.eyebrow {
+  font-family: var(--face-label);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.marketing .eyebrow {
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+}
+.marketing h2 {
+  font-family: var(--face-display);
+  font-variation-settings: "opsz" 96, "SOFT" 50;
+  font-weight: 520;
+  letter-spacing: -0.03em;
+}
+
+/* Ruled exam paper with faint blue lines. */
+.bg-ruled {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 35px,
+    color-mix(in oklab, var(--sky) 13%, transparent) 35px 36px
+  );
+}
+/* Red double margin rule of an answer sheet. */
+.margin-rule {
+  border-left: 1px solid color-mix(in oklab, var(--rose) 40%, transparent);
+  box-shadow: -4px 0 0 -3px color-mix(in oklab, var(--rose) 40%, transparent);
+}
+
+/* Hand-drawn underline that draws itself once. */
+@keyframes draw {
+  from { stroke-dashoffset: 420; }
+  to { stroke-dashoffset: 0; }
+}
+.swoosh path {
+  stroke-dasharray: 420;
+  animation: draw 1.2s 0.4s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+/* Infinite marquee (content is duplicated; the copy is aria-hidden). */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 45s linear infinite;
+}
+.marquee:hover .animate-marquee {
+  animation-play-state: paused;
+}
+
+/* Slowly rotating seal. */
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow {
+  animation: spin-slow 28s linear infinite;
+}
+
+/* Admission-ticket CTA: perforation line + punched notches. */
+.ticket {
+  --notch: 18px;
+  position: relative;
+}
+.ticket-perforation {
+  background-image: linear-gradient(to bottom, color-mix(in oklab, #fff 45%, transparent) 50%, transparent 0);
+  background-size: 2px 12px;
+  background-repeat: repeat-y;
+}
+.ticket-notch {
+  position: absolute;
+  width: calc(var(--notch) * 2);
+  height: calc(var(--notch) * 2);
+  border-radius: 9999px;
+  background: var(--bg);
+}
+
+/* Paper card: slight warmth and a crisp shadow, used for the index-card collage. */
+.paper {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.6) inset, 0 24px 48px -24px rgb(20 29 66 / 0.35), 0 2px 6px -2px rgb(20 29 66 / 0.12);
+}
+.dark .paper {
+  box-shadow: 0 24px 48px -24px rgb(0 0 0 / 0.7), 0 2px 6px -2px rgb(0 0 0 / 0.4);
+}
+
+/* Chapter numerals (soft italic serif on marketing pages). */
+.numeral-outline {
+  font-family: var(--face-display);
+  font-weight: 600;
+  color: color-mix(in oklab, var(--brand) 26%, transparent);
+  transition: color 0.2s ease;
+}
+.marketing .numeral-outline {
+  font-style: italic;
+  font-variation-settings: "opsz" 144, "SOFT" 100;
+  font-weight: 400;
+}
+.group:hover .numeral-outline {
+  color: var(--gold);
+}
+
+/* Smart board: markdown on dark boards */
+.board-md,
+.board-md * {
+  color: rgb(255 255 255 / 0.92) !important;
+}
+.board-md table,
+.board-md th,
+.board-md td {
+  border-color: rgb(255 255 255 / 0.2) !important;
+}
+
+/* Printing a lesson outline, roadmap or infographic prints only that sheet. */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible !important;
+  }
+  .print-area {
+    position: absolute;
+    inset: 0 0 auto 0;
+    box-shadow: none !important;
+    border: 0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+}

@@ -1,0 +1,197 @@
+"use client";
+
+import { fieldLabel, type FieldDef, type RecordValue } from "@/config/resources";
+import { streamOptions, type Stream } from "@/config/streams";
+import { Fi } from "@/components/ui/icon";
+import { Badge, inputClass, toneForStatus } from "@/components/ui/primitives";
+import { cn } from "@/lib/utils";
+import { mediaUrl } from "@/lib/media";
+import { ImageField } from "./image-field";
+
+/** Renders one form control for a resource field. Values stay typed (number/boolean/string[]). */
+export function FieldInput({
+  field,
+  value,
+  error,
+  onChange,
+  disabled,
+  stream = null,
+}: {
+  field: FieldDef;
+  value: RecordValue;
+  error?: string;
+  onChange: (v: RecordValue) => void;
+  disabled?: boolean;
+  /** The owning college's stream: narrows programme/department/term lists and relabels entrance scores. */
+  stream?: Stream | null;
+}) {
+  const label = fieldLabel(field, stream);
+  const options = field.streamOptions && stream ? streamOptions(field.streamOptions, stream) : field.options;
+  const id = `f-${field.name}`;
+  const describedBy = error ? `${id}-err` : field.help ? `${id}-help` : undefined;
+  const common = { id, disabled, "aria-invalid": Boolean(error), "aria-describedby": describedBy, "aria-required": field.required };
+
+  let control: React.ReactNode;
+  switch (field.type) {
+    case "toggle":
+      control = (
+        <button
+          type="button"
+          role="switch"
+          aria-checked={value === true}
+          {...common}
+          onClick={() => onChange(!(value === true))}
+          className={cn(
+            "flex w-full items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left text-sm transition-colors",
+            value === true ? "border-teal/40 bg-teal-soft/60" : "border-line bg-surface hover:border-brand/30",
+          )}
+        >
+          <span className="text-ink">{label}</span>
+          <span className={cn("relative h-6 w-11 shrink-0 rounded-full transition-colors", value === true ? "bg-teal" : "bg-line")}>
+            <span className={cn("absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform", value === true ? "translate-x-5" : "translate-x-0.5")} />
+          </span>
+        </button>
+      );
+      break;
+    case "checklist": {
+      const arr = Array.isArray(value) ? value : [];
+      control = (
+        <div role="group" aria-labelledby={`${id}-label`} className="grid gap-2 sm:grid-cols-2">
+          {field.options?.map((opt) => {
+            const on = arr.includes(opt);
+            return (
+              <label key={opt} className={cn("flex cursor-pointer items-center gap-3 rounded-xl border px-3.5 py-2.5 text-sm transition-colors", on ? "border-brand/40 bg-brand-soft" : "border-line hover:border-brand/30")}>
+                <input
+                  type="checkbox"
+                  className="size-4 accent-[var(--brand)]"
+                  checked={on}
+                  disabled={disabled}
+                  onChange={() => onChange(on ? arr.filter((x) => x !== opt) : [...arr, opt])}
+                />
+                <span className="text-ink">{opt}</span>
+              </label>
+            );
+          })}
+        </div>
+      );
+      break;
+    }
+    case "image":
+      control = <ImageField id={id} value={typeof value === "string" ? value : ""} onChange={(v) => onChange(v)} disabled={disabled} invalid={Boolean(error)} />;
+      break;
+    case "select":
+      control = (
+        <select {...common} className={inputClass} value={typeof value === "string" ? value : ""} onChange={(e) => onChange(e.target.value)}>
+          {!field.required || !value ? <option value="">{field.required ? "Select…" : "— None —"}</option> : null}
+          {/* Keep a legacy value visible even if it is no longer offered for this stream. */}
+          {typeof value === "string" && value && !options?.includes(value) ? <option value={value}>{value} (not offered)</option> : null}
+          {options?.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </select>
+      );
+      break;
+    case "textarea":
+      control = (
+        <textarea
+          {...common}
+          rows={4}
+          maxLength={field.maxLength}
+          placeholder={field.placeholder}
+          className={inputClass}
+          value={typeof value === "string" ? value : ""}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      );
+      break;
+    case "number":
+      control = (
+        <input
+          {...common}
+          type="number"
+          inputMode="decimal"
+          step="any"
+          min={field.min}
+          max={field.max}
+          placeholder={field.placeholder}
+          className={inputClass}
+          value={typeof value === "number" ? value : ""}
+          onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+        />
+      );
+      break;
+    default:
+      control = (
+        <input
+          {...common}
+          type={field.type === "tel" ? "tel" : field.type}
+          inputMode={field.type === "tel" ? "numeric" : undefined}
+          autoComplete={field.type === "email" ? "email" : field.type === "tel" ? "tel" : "off"}
+          maxLength={field.type === "tel" ? 10 : field.maxLength ?? 120}
+          min={field.minDate}
+          max={field.maxDate}
+          placeholder={field.placeholder}
+          className={inputClass}
+          value={typeof value === "string" ? value : ""}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      );
+  }
+
+  return (
+    <div className={cn("space-y-1.5", field.wide && "sm:col-span-2")}>
+      {field.type !== "toggle" ? (
+        <label id={`${id}-label`} htmlFor={field.type === "checklist" || field.type === "image" ? undefined : id} className="flex items-center gap-1 text-sm font-medium text-ink">
+          {label}
+          {field.required ? (
+            <span className="text-rose" aria-hidden>
+              *
+            </span>
+          ) : null}
+        </label>
+      ) : null}
+      {control}
+      {error ? (
+        <p id={`${id}-err`} className="flex items-center gap-1 text-xs text-rose" role="alert">
+          <Fi name="exclamation" className="text-[10px]" /> {error}
+        </p>
+      ) : field.help ? (
+        <p id={`${id}-help`} className="text-xs text-ink-3">
+          {field.help}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+export function formatDate(iso: string): string {
+  const d = new Date(iso.length === 10 ? `${iso}T00:00:00` : iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/** Read-only display of a field value (all text rendered as React text nodes). */
+export function ValueView({ field, value }: { field: FieldDef; value: RecordValue | undefined }) {
+  if (value === null || value === undefined || value === "" || (Array.isArray(value) && value.length === 0)) return <span className="text-ink-3">—</span>;
+  if (field.type === "toggle") return value ? <Badge tone="teal">Yes</Badge> : <Badge tone="neutral">No</Badge>;
+  if (field.type === "image") {
+    const src = mediaUrl(value);
+    // eslint-disable-next-line @next/next/no-img-element
+    return src ? <img src={src} alt="" className="h-12 w-20 rounded-lg border border-line object-cover" /> : <span className="text-ink-3">—</span>;
+  }
+  if (Array.isArray(value))
+    return (
+      <span className="flex flex-wrap gap-1.5">
+        {value.map((v) => (
+          <Badge key={v} tone="brand">
+            <Fi name="check" className="text-[9px]" /> {v}
+          </Badge>
+        ))}
+      </span>
+    );
+  if (field.type === "date" && typeof value === "string") return <span>{formatDate(value)}</span>;
+  if (field.column === "badge" || field.name === "status") return <Badge tone={toneForStatus(String(value))}>{String(value)}</Badge>;
+  if (field.type === "textarea") return <span className="whitespace-pre-wrap">{String(value)}</span>;
+  return <span className="break-words">{String(value)}</span>;
+}

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" role="img" aria-label="College main building">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2e3d8f"/><stop offset=".6" stop-color="#6d5fc4"/><stop offset="1" stop-color="#f3c77a"/></linearGradient>
+    <linearGradient id="bld" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fdf7ea"/><stop offset="1" stop-color="#e9dcc0"/></linearGradient>
+  </defs>
+  <rect width="1200" height="600" fill="url(#sky)"/>
+  <circle cx="960" cy="150" r="70" fill="#ffd98a" opacity=".85"/>
+  <g fill="#fff" opacity=".35"><ellipse cx="220" cy="120" rx="90" ry="22"/><ellipse cx="300" cy="105" rx="60" ry="18"/><ellipse cx="760" cy="90" rx="80" ry="18"/></g>
+  <path d="M0 470 Q300 430 600 460 T1200 450 V600 H0Z" fill="#3b7a57"/>
+  <path d="M0 500 Q320 470 640 495 T1200 490 V600 H0Z" fill="#2f6647"/>
+  <g transform="translate(300 170)">
+    <rect x="0" y="120" width="600" height="190" fill="url(#bld)"/>
+    <rect x="200" y="40" width="200" height="270" fill="#fff8ec"/>
+    <path d="M190 45 L300 -20 L410 45Z" fill="#b8412f"/>
+    <rect x="285" y="-50" width="30" height="40" fill="#1e2a5a"/>
+    <path d="M300 -80 v30" stroke="#1e2a5a" stroke-width="4"/>
+    <path d="M300 -80 l30 8 -30 8z" fill="#c9962b"/>
+    <circle cx="300" cy="95" r="22" fill="#1e2a5a"/><path d="M300 80 v16 l10 6" stroke="#fff" stroke-width="3" fill="none"/>
+    <g fill="#1e2a5a" opacity=".85">
+      <rect x="30" y="150" width="40" height="55" rx="20"/><rect x="95" y="150" width="40" height="55" rx="20"/><rect x="465" y="150" width="40" height="55" rx="20"/><rect x="530" y="150" width="40" height="55" rx="20"/>
+      <rect x="30" y="230" width="40" height="55"/><rect x="95" y="230" width="40" height="55"/><rect x="465" y="230" width="40" height="55"/><rect x="530" y="230" width="40" height="55"/>
+      <rect x="225" y="140" width="35" height="50" rx="17"/><rect x="340" y="140" width="35" height="50" rx="17"/>
+    </g>
+    <rect x="262" y="210" width="76" height="100" rx="38" fill="#7a4a2a"/>
+    <g fill="#e9dcc0"><rect x="150" y="120" width="14" height="190"/><rect x="436" y="120" width="14" height="190"/></g>
+    <rect x="-20" y="305" width="640" height="14" fill="#cbbfa3"/>
+  </g>
+  <g fill="#245a3c"><circle cx="160" cy="430" r="55"/><circle cx="210" cy="445" r="40"/><circle cx="1030" cy="425" r="60"/><circle cx="980" cy="445" r="38"/></g>
+  <g fill="#5a3b22"><rect x="155" y="440" width="10" height="50"/><rect x="1025" y="440" width="10" height="50"/></g>
+  <path d="M560 600 L585 480 H615 L640 600Z" fill="#d8c7a0"/>
+</svg>

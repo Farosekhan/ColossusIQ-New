@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" role="img" aria-label="Teaching hospital">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e5f8a"/><stop offset=".7" stop-color="#7cc3d8"/><stop offset="1" stop-color="#dff3ee"/></linearGradient>
+  </defs>
+  <rect width="1200" height="600" fill="url(#sky)"/>
+  <g fill="#fff" opacity=".4"><ellipse cx="250" cy="110" rx="100" ry="24"/><ellipse cx="900" cy="90" rx="90" ry="20"/></g>
+  <rect y="480" width="1200" height="120" fill="#2f6647"/>
+  <g transform="translate(250 120)">
+    <rect x="0" y="120" width="220" height="240" fill="#f4f7fb"/>
+    <rect x="480" y="120" width="220" height="240" fill="#f4f7fb"/>
+    <rect x="200" y="20" width="300" height="340" fill="#ffffff"/>
+    <rect x="310" y="45" width="80" height="80" rx="12" fill="#b42318"/>
+    <path d="M350 60 v50 M325 85 h50" stroke="#fff" stroke-width="16" stroke-linecap="round"/>
+    <g fill="#7cc3d8">
+      <rect x="225" y="150" width="50" height="40"/><rect x="325" y="150" width="50" height="40"/><rect x="425" y="150" width="50" height="40"/>
+      <rect x="225" y="215" width="50" height="40"/><rect x="325" y="215" width="50" height="40"/><rect x="425" y="215" width="50" height="40"/>
+      <rect x="25" y="150" width="45" height="35"/><rect x="95" y="150" width="45" height="35"/><rect x="155" y="150" width="45" height="35"/>
+      <rect x="25" y="210" width="45" height="35"/><rect x="95" y="210" width="45" height="35"/><rect x="155" y="210" width="45" height="35"/>
+      <rect x="500" y="150" width="45" height="35"/><rect x="560" y="150" width="45" height="35"/><rect x="630" y="150" width="45" height="35"/>
+      <rect x="500" y="210" width="45" height="35"/><rect x="560" y="210" width="45" height="35"/><rect x="630" y="210" width="45" height="35"/>
+    </g>
+    <rect x="290" y="280" width="120" height="80" fill="#0f766e"/>
+    <rect x="270" y="268" width="160" height="16" fill="#1e2a5a"/>
+    <text x="350" y="281" fill="#fff" font-family="Arial, sans-serif" font-size="12" font-weight="700" text-anchor="middle">EMERGENCY</text>
+  </g>
+  <g transform="translate(980 470)">
+    <rect x="-70" y="-50" width="140" height="60" rx="10" fill="#fff"/>
+    <rect x="-70" y="-50" width="50" height="35" rx="6" fill="#7cc3d8"/>
+    <path d="M20 -35 v24 M8 -23 h24" stroke="#b42318" stroke-width="7"/>
+    <circle cx="-40" cy="12" r="12" fill="#1e2a5a"/><circle cx="40" cy="12" r="12" fill="#1e2a5a"/>
+  </g>
+  <g fill="#245a3c"><circle cx="150" cy="470" r="50"/><circle cx="1080" cy="460" r="45"/></g>
+</svg>

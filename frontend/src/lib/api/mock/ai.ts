@@ -1,0 +1,275 @@
+import "server-only";
+import type { ChatReply, EvaluationResult, GenerateReply, InterviewTurn, ResumeAnalysis } from "@/lib/api/schemas";
+
+/*
+ * Deterministic stand-ins for the AI Orchestrator. They exist so every screen is fully
+ * interactive without a model provider. In live mode these endpoints are served by the real
+ * AI gateway (intent detection → context builder → agent router → tools → validation).
+ */
+
+const lower = (s: string) => s.toLowerCase();
+
+/** Very small prompt-injection heuristic, mirroring the server-side guard the real gateway runs. */
+export function looksLikeInjection(text: string): boolean {
+  return /(ignore (all|previous|prior) (instructions|rules)|system prompt|you are now|reveal (your|the) (prompt|instructions)|developer mode|jailbreak)/i.test(
+    text,
+  );
+}
+
+export function chatReply(agent: string, message: string): ChatReply {
+  const m = lower(message);
+  if (looksLikeInjection(message)) {
+    return {
+      agent,
+      message:
+        "I can't change my instructions or reveal internal configuration. I'm happy to help with your studies, projects or career — what would you like to work on?",
+      sources: [],
+      confidence: 1,
+    };
+  }
+
+  if (agent === "knowledge" || agent === "policy" || /placement office|exam application|internal assessment|attendance|register for sports|policy/.test(m)) {
+    if (/placement office/.test(m))
+      return inst(agent, "The **Training & Placement Office** is in **Block A, Ground Floor, Room A-012**, open 9:30–17:00 on working days.", ["Student Handbook 2026, §4.2"]);
+    if (/exam application|exam fee/.test(m))
+      return inst(agent, "Exam applications open through the student portal two weeks before each end-semester exam.\n\n1. Log in → **Exams → Apply**\n2. Verify subjects and arrears\n3. Pay the fee online before the deadline (late fee applies after that)\n\nThe current cycle closes on **10 October 2026**.", ["Circular 42/2026 — Exam fee", "Regulations 2021, §11"]);
+    if (/internal assessment|ia rules/.test(m))
+      return inst(agent, "Internal assessment carries **40 marks**: two IA tests (best of two scaled to 20), assignments (10) and attendance/participation (10). A student who misses an IA for a valid reason may request a retest within 7 days with HOD approval.", ["Internal Assessment Rules (CSE), §2–3"]);
+    if (/attendance/.test(m))
+      return inst(agent, "A minimum of **75% attendance** per course is required for end-semester exam eligibility. Medical condonation up to 10% may be granted by the Principal with valid documentation.", ["Regulations 2021, §9.1"]);
+    if (/sport/.test(m))
+      return inst(agent, "Register through **Campus Life → Sports**. Trials for cricket, kabaddi and athletics are open this month; contact the Physical Director at the Sports Office, Ground Floor, Block D.", ["Sports Calendar 2026–27"]);
+    if (agent === "policy" || agent === "knowledge")
+      return {
+        agent,
+        message:
+          "I couldn't find this in the approved institutional documents, so I won't guess. Please contact the Registrar's office, or ask an administrator to add the relevant policy to the knowledge base.",
+        sources: [],
+        confidence: 0.4,
+      };
+  }
+
+  if (/what should i study|study today|today/.test(m))
+    return gen(agent, "Here's your focus for today, based on your exam in 9 days and recent quiz results:\n\n1. **25 min — Normalization (3NF & BCNF)**: your weakest topic (42% mastery).\n2. **10-question adaptive quiz** on functional dependencies.\n3. **30 min — Python practice** to keep your streak.\n4. Evening: **HR interview practice** (your interview readiness is 48%).\n\nWant me to add these to your planner?", 0.86);
+  if (/scoring low|low score|why am i/.test(m))
+    return gen(agent, "Across your last three DBMS assessments, **14 of 23 lost marks** came from Unit 3 (normalization and decomposition). The pattern: you define 3NF correctly but rarely justify a **lossless-join** decomposition.\n\n**Suggested fix:** two worked examples today, then a descriptive practice question that I'll evaluate with the rubric your faculty uses.", 0.81);
+  if (/skills|software engineer/.test(m))
+    return gen(agent, "For an entry-level **Software Engineer** role at product companies, the most requested skills are:\n\n- Data structures & algorithms\n- One backend language (Java / Python / Go) + REST APIs\n- SQL and database design\n- Git, testing and basic cloud deployment\n- Communication in technical interviews\n\nYou're job-ready in Python; your biggest gaps are **DSA practice** and **interview communication**.", 0.83);
+  if (/viva|tomorrow/.test(m) || agent === "viva")
+    return gen(agent, "Let's begin. **Question 1:** In one minute, explain the problem Smart Campus AI solves and why an AI approach is appropriate rather than a rules-based system.\n\n_After your answer I'll ask a follow-up on your architecture choices._", 0.9);
+  if (/90-day|placement plan/.test(m))
+    return gen(agent, "**Your 90-day placement plan**\n\n| Weeks | Focus | Target |\n|---|---|---|\n| 1–4 | DSA (arrays → graphs), SQL | 120 problems |\n| 5–8 | Projects + resume, 2 mock interviews/week | Resume ATS ≥ 80 |\n| 9–12 | Company-specific prep, HR practice | Interview readiness ≥ 75% |\n\nI'll track progress weekly and adjust.", 0.84);
+  if (agent === "gd")
+    return gen(agent, "**Asha (for):** AI tools can personalise feedback during exams for accessibility needs.\n\n**Vikram (against):** Exams measure individual understanding; AI assistance blurs that.\n\n**Neha (moderator):** Good points. Let's hear from you — take a clear position and support it with one example.", 0.88);
+  if (agent === "language")
+    return gen(agent, "Let's practise! **Hindi greetings**\n\n- नमस्ते (*namaste*) — Hello\n- आप कैसे हैं? (*aap kaise hain?*) — How are you?\n- मैं ठीक हूँ (*main theek hoon*) — I am fine\n\nNow you try: say *\"Hello, how are you?\"* in Hindi.", 0.92);
+  if (agent === "research")
+    return gen(agent, "**Possible research questions — IoT for agriculture**\n\n1. Can low-cost capacitive sensors match lab-grade soil-moisture accuracy within ±5%?\n2. How does LoRaWAN coverage affect data completeness in rural Tamil Nadu farms?\n3. Does a vernacular voice interface increase farmer adoption of sensor advice?\n\n_Verify related work in IEEE Xplore or Google Scholar before finalising — I haven't cited specific papers._", 0.72);
+  if (/explain|what is|how does/.test(m))
+    return gen(agent, `Here's a clear explanation:\n\n**Concept.** ${message.replace(/^(explain|what is|how does)\s*/i, "").slice(0, 120) || "This topic"} is best understood by starting from the problem it solves.\n\n**Example.** Consider a table \`Student(RollNo, Name, DeptId, DeptName)\`. Because \`DeptName\` depends on \`DeptId\` rather than the key, updates can become inconsistent.\n\n**Practice.** Try identifying the functional dependencies in \`Order(OrderId, CustomerId, CustomerCity)\`.\n\nWould you like a quiz on this?`, 0.78);
+
+  return gen(agent, "I can help with that. To give you a precise answer, tell me which subject, project or goal this relates to — or pick one of the suggestions above.", 0.6);
+}
+
+function inst(agent: string, message: string, titles: string[]): ChatReply {
+  return { agent, message, sources: titles.map((title) => ({ title, kind: "institution" as const })), confidence: 0.93 };
+}
+function gen(agent: string, message: string, confidence: number): ChatReply {
+  return { agent, message, sources: [{ title: "General AI explanation — verify important facts", kind: "general" }], confidence };
+}
+
+/* ── generators ─────────────────────────────────── */
+export function generate(module: string, inputs: Record<string, string>): GenerateReply {
+  const v = (key: string, d = "") => (inputs[key] ?? d).slice(0, 200);
+  switch (module) {
+    case "study-planner": {
+      const days = Math.min(Math.max(parseInt(v("days", "20"), 10) || 20, 3), 90);
+      const subjects = v("subjects", "DBMS, Operating Systems, Computer Networks").split(",").map((s) => s.trim()).filter(Boolean).slice(0, 8);
+      const hours = Math.min(Math.max(parseInt(v("hours", "4"), 10) || 4, 1), 12);
+      const lines = Array.from({ length: Math.min(days, 14) }, (_, i) => {
+        const subj = subjects[i % subjects.length] ?? "Revision";
+        const kind = i % 5 === 4 ? "Mock test + weak-topic remediation" : i >= days - 2 ? "Quick revision cards" : "New topics + practice";
+        return `| Day ${i + 1} | ${subj} | ${kind} | ${hours}h |`;
+      });
+      return {
+        agent: "study-planner",
+        markdown: `### Your ${days}-day exam plan\n\n**Subject priority:** ${subjects.join(" → ")} (weakest first)\n\n| Day | Subject | Focus | Time |\n|---|---|---|---|\n${lines.join("\n")}\n${days > 14 ? `| … | … | pattern continues to day ${days} | |\n` : ""}\n**Revision slots:** every 5th day, plus the final 2 days.\n\n**Mock tests:** ${Math.max(1, Math.floor(days / 5))} full-length tests scheduled.\n\n**Final strategy:** last-minute mode switches to formula sheets, flashcards and one timed paper.`,
+      };
+    }
+    case "project-ideas":
+      return {
+        agent: "project",
+        markdown: `### Project concepts — ${v("category", "AI/ML")} · ${v("department", "CSE")}\n\n**1. Smart Attendance with Privacy-Preserving Face Matching**\nOn-device embeddings, no raw images stored. *Feasibility:* high · *Budget:* ₹${v("budget", "5000")} · *Team:* ${v("team", "3")}\n\n**2. Campus Energy Advisor**\nIoT meters + forecasting model recommending HVAC schedules. *Feasibility:* medium\n\n**3. Vernacular Lecture Summariser**\nSpeech-to-text + summarisation for Tamil/Hindi lectures. *Feasibility:* medium\n\n**Next steps:** pick one → problem definition → market research → architecture (I can generate SRS, UML and API design).`,
+      };
+    case "job-prep":
+      return {
+        agent: "career",
+        markdown: `### ${v("weeks", "8")}-week plan — ${v("role", "Software Engineer")} at a ${lower(v("company", "product company"))}\n\n**Required skills:** DSA, one backend language, SQL, system basics, communication\n\n| Week | Coding | Aptitude | Communication |\n|---|---|---|---|\n| 1–2 | Arrays, strings, hashing | Percentages, ratios | STAR stories ×3 |\n| 3–4 | Trees, graphs | Time & work | Mock HR interview |\n| 5–6 | DP, SQL joins/windows | Puzzles | Technical explanation drill |\n| 7–8 | Company PYQs, mock OAs | Full mocks | 2 full mock interviews |\n\n**Resume:** quantify project impact; add GitHub link.\n**Portfolio:** deploy one project publicly.`,
+      };
+    case "copilot":
+      return {
+        agent: "faculty-copilot",
+        markdown: `### ${v("tool", "Lesson plan")}: ${v("topic", "Database normalization")} (${v("duration", "45")} min · ${v("level", "UG Year 3")})\n\n**Learning outcomes** — students will be able to identify FDs, test for 3NF/BCNF and decompose losslessly.\n\n| Time | Activity |\n|---|---|\n| 0–5 | Hook: an update anomaly in a real college table |\n| 5–20 | Concepts: FDs, 2NF, 3NF, BCNF with one running example |\n| 20–32 | Pair activity: decompose \`Enrolment(...)\` |\n| 32–40 | Quick quiz (5 MCQs, auto-generated) |\n| 40–45 | Exit ticket + remedial pointer |\n\n**Assessment:** rubric attached (definition 3, example 3, decomposition 3, presentation 1).\n\n_Review and adapt before use — AI-generated material._`,
+      };
+    case "question-generator":
+      return {
+        agent: "exam",
+        markdown: `### ${v("course", "Course")} — ${v("units", "Units 1–5")} · ${v("marks", "50")} marks\n\n**Part A (5 × 2 = 10)**\n1. Define functional dependency. (CO2, Remember)\n2. What is a superkey? (CO1, Remember)\n3. State two ACID properties. (CO4, Understand)\n4. Differentiate 3NF and BCNF. (CO3, Understand)\n5. What is a B+ tree? (CO5, Remember)\n\n**Part B (2 × 13 + 1 × 14 = 40)**\n6. (a) Decompose \`R(A,B,C,D,E)\` with the given FDs into BCNF and verify lossless join. (CO3, Apply) **or** (b) …\n7. (a) Explain conflict serialisability with a precedence graph. (CO4, Analyse)\n8. Design an ER model for a hostel management system and map it to relations. (CO1, Create)\n\n**Blueprint coverage:** CO1 22% · CO2 12% · CO3 30% · CO4 24% · CO5 12%`,
+      };
+    case "event-generator":
+      return {
+        agent: "event",
+        markdown: `### TechNova Day — one-day technology event (500 students)\n\n**Theme:** "Build for Bharat"\n\n| Time | Session |\n|---|---|\n| 09:00 | Inauguration & keynote |\n| 10:00 | Parallel workshops: GenAI, IoT, Cloud |\n| 13:00 | Lunch & project expo |\n| 14:00 | 3-hour mini hackathon |\n| 17:00 | Prize distribution |\n\n**Volunteer roles:** registration (8), hall managers (6), tech support (4), hospitality (6)\n\n**Budget estimate (₹${v("budget", "150000")}):** venue & AV 25% · food 40% · prizes 20% · printing & promo 10% · contingency 5%\n\n**Promotion:** poster copy, 3 social posts and email invite drafted. Registration and feedback forms ready to publish.`,
+      };
+    case "document-ai":
+      return {
+        agent: "document",
+        markdown: `### ${v("task", "Summary")}\n\n${v("text") ? `Based on the ${Math.min(v("text").length, 200)} characters you provided:\n\n` : ""}- **Key idea 1:** Normal forms reduce redundancy and update anomalies.\n- **Key idea 2:** 3NF removes transitive dependencies; BCNF requires every determinant to be a key.\n- **Key idea 3:** Decompositions should be lossless-join and ideally dependency preserving.\n\n**Flashcards:** 3NF ↔ no transitive dependency · BCNF ↔ determinant is a superkey\n\n_AI-generated — check against your course material._`,
+      };
+    default:
+      return { agent: module, markdown: "Generated output will appear here." };
+  }
+}
+
+/* ── descriptive evaluation ─────────────────────── */
+const KEY_POINTS: Record<string, Array<[string, RegExp]>> = {
+  "dbms-normalization:q5": [
+    ["Definition referencing functional dependencies", /functional dependenc|fd|x\s*->|x\s*→|superkey|prime attribute/i],
+    ["Mentions transitive dependency", /transitive/i],
+    ["Gives an example relation", /\(.*,.*\)|table|relation/i],
+    ["Shows a decomposition", /decompos|split|break/i],
+    ["Justifies lossless join", /lossless/i],
+  ],
+  "os-deadlocks:q3": [
+    ["Defines a safe state", /safe state|safe sequence/i],
+    ["Uses Need = Max − Allocation", /need|max|allocation/i],
+    ["Describes Work/Finish vectors", /work|finish/i],
+    ["Explains iteration until all finish", /all process|until|repeat/i],
+  ],
+};
+
+export function evaluateDescriptive(testId: string, questionId: string, answer: string, max: number): EvaluationResult {
+  const points = KEY_POINTS[`${testId}:${questionId}`] ?? [["Relevant content", /\w{4,}/]];
+  const hits = points.filter(([, re]) => re.test(answer));
+  const misses = points.filter(([, re]) => !re.test(answer));
+  const words = answer.trim().split(/\s+/).filter(Boolean).length;
+  const coverage = hits.length / points.length;
+  const lengthFactor = Math.min(1, words / 60);
+  const raw = max * (0.75 * coverage + 0.25 * lengthFactor);
+  const scoreVal = Math.round(raw * 2) / 2;
+  const confidence = Math.round((words < 15 ? 0.55 : 0.7 + 0.25 * coverage) * 100) / 100;
+  const per = max / points.length;
+  return {
+    score: scoreVal,
+    max,
+    confidence,
+    rubric: points.map(([criterion, re]) => ({ criterion, awarded: re.test(answer) ? Math.round(per * 10) / 10 : 0, max: Math.round(per * 10) / 10 })),
+    evidence: hits.map(([c]) => `✓ ${c}`),
+    missing: misses.map(([c]) => c),
+    feedback:
+      misses.length === 0
+        ? "Complete answer covering every expected point. Consider tightening the wording."
+        : `Good start. To improve, address: ${misses.map(([c]) => c.toLowerCase()).join("; ")}.`,
+    reviewRequired: confidence < 0.8 || words < 15,
+  };
+}
+
+/* ── interview ──────────────────────────────────── */
+const INTERVIEW_QUESTIONS: Record<string, string[]> = {
+  technical: [
+    "Walk me through a project you're proud of. What was your specific contribution?",
+    "What's the difference between a process and a thread? When would you prefer one over the other?",
+    "How would you design a URL shortener? Start with the core data model.",
+    "Explain database indexing. When can an index make performance worse?",
+  ],
+  hr: [
+    "Tell me about yourself in under two minutes.",
+    "Describe a time you disagreed with a teammate. How did you resolve it?",
+    "Why do you want to join our company?",
+    "Where do you see yourself in three years?",
+  ],
+  behavioral: [
+    "Tell me about a time you failed. What did you learn?",
+    "Describe a situation where you had to learn something quickly.",
+    "Give an example of when you showed leadership without a formal role.",
+  ],
+};
+
+export function interviewTurn(mode: string, sessionId: string, index: number, lastAnswer: string | null): InterviewTurn {
+  const qs = INTERVIEW_QUESTIONS[mode] ?? INTERVIEW_QUESTIONS.technical!;
+  const feedback = lastAnswer === null ? null : answerFeedback(lastAnswer);
+  if (index >= qs.length) {
+    return {
+      sessionId,
+      question: "",
+      index,
+      total: qs.length,
+      feedback,
+      done: true,
+      scorecard: {
+        overall: 64,
+        dimensions: [
+          { name: "Content", score: 70 },
+          { name: "Technical accuracy", score: 66 },
+          { name: "Clarity", score: 61 },
+          { name: "Structure", score: 58 },
+          { name: "Confidence indicators", score: 63 },
+          { name: "Relevance", score: 72 },
+        ],
+        strengths: ["Relevant examples from your own projects", "Honest about gaps"],
+        improvements: ["Use STAR structure for behavioural answers", "Reduce filler words (\"basically\", \"like\")", "State trade-offs explicitly in design answers"],
+      },
+    };
+  }
+  return { sessionId, question: qs[index] ?? "", index, total: qs.length, feedback, done: false, scorecard: null };
+}
+
+function answerFeedback(answer: string): string {
+  const words = answer.trim().split(/\s+/).filter(Boolean).length;
+  const fillers = (answer.match(/\b(basically|like|actually|um|uh)\b/gi) ?? []).length;
+  const parts: string[] = [];
+  if (words < 25) parts.push("Your answer was brief — add a concrete example.");
+  else if (words > 220) parts.push("Good detail, but aim to be more concise (under 2 minutes).");
+  else parts.push("Good length and relevance.");
+  if (fillers > 1) parts.push(`Noticed ${fillers} filler words.`);
+  if (/\b(result|impact|improv|reduc|increas)\w*/i.test(answer)) parts.push("Nice — you mentioned an outcome.");
+  else parts.push("Try ending with the result or impact.");
+  return parts.join(" ");
+}
+
+/* ── resume ─────────────────────────────────────── */
+const ROLE_KEYWORDS: Record<string, string[]> = {
+  "Software Engineer": ["data structures", "algorithms", "java", "python", "sql", "git", "rest", "api", "testing", "docker"],
+  "Data Analyst": ["sql", "excel", "python", "pandas", "power bi", "tableau", "statistics", "dashboard", "visualization"],
+  "Data Scientist": ["python", "machine learning", "statistics", "pandas", "scikit-learn", "sql", "deep learning", "visualization"],
+};
+
+export function analyzeResume(text: string, role: string): ResumeAnalysis {
+  const t = lower(text);
+  const keywords = ROLE_KEYWORDS[role] ?? ROLE_KEYWORDS["Software Engineer"]!;
+  const found = keywords.filter((kw) => t.includes(kw));
+  const missing = keywords.filter((kw) => !t.includes(kw));
+  const has = (re: RegExp) => re.test(t);
+  const sections: ResumeAnalysis["sections"] = [
+    { name: "Contact & links", status: has(/@|linkedin|github/) ? "good" : "missing", note: has(/github/) ? "GitHub link present." : "Add GitHub / portfolio link." },
+    { name: "Education", status: has(/b\.?e|b\.?tech|cgpa|university|college/) ? "good" : "missing", note: "Include CGPA and expected graduation." },
+    { name: "Skills", status: found.length >= 4 ? "good" : "improve", note: `${found.length} of ${keywords.length} role keywords found.` },
+    { name: "Projects", status: has(/project/) ? (has(/\d+%|\d+ users|reduced|improved/) ? "good" : "improve") : "missing", note: "Quantify impact (e.g. \"reduced latency 30%\")." },
+    { name: "Experience / internships", status: has(/intern|experience/) ? "good" : "improve", note: "List internships, freelance or open-source work." },
+    { name: "Certifications & achievements", status: has(/certif|award|hackathon|winner/) ? "good" : "improve", note: "Add verified certifications and competition results." },
+  ];
+  const sectionScore = sections.reduce((a, s) => a + (s.status === "good" ? 1 : s.status === "improve" ? 0.5 : 0), 0) / sections.length;
+  const atsScore = Math.round(35 + 40 * (found.length / keywords.length) + 25 * sectionScore);
+  return {
+    atsScore: Math.min(98, atsScore),
+    keywordsFound: found,
+    keywordsMissing: missing,
+    sections,
+    suggestions: [
+      "Start each bullet with a strong action verb (Built, Designed, Reduced).",
+      "Keep to one page for fresher roles; use a simple single-column layout for ATS parsing.",
+      missing.length ? `Where genuinely true, mention: ${missing.slice(0, 4).join(", ")}.` : "Keyword coverage is strong for this role.",
+      "Avoid tables, text boxes and images — many ATS parsers skip them.",
+    ],
+  };
+}

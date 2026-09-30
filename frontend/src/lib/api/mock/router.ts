@@ -1,0 +1,346 @@
+import "server-only";
+import { z } from "zod";
+import type { SessionPayload } from "@/lib/auth/session";
+import { can, ROLES } from "@/lib/auth/roles";
+import { findModule, modulesForRole, type ModuleDef } from "@/config/modules";
+import { RESOURCES } from "@/config/resources";
+import { ALL_COLLEGES, TOGGLEABLE_GROUPS, UNIVERSITY } from "@/config/tenancy";
+import { getStore } from "@/lib/data";
+import { collegeStream, enabledGroups, getCollege, listColleges } from "./records";
+import { cleanText } from "@/lib/security/sanitize";
+import { analyzeResume, chatReply, evaluateDescriptive, generate, interviewTurn } from "./ai";
+import { MCQ_KEY, MOCK_TESTS, MOCK_TEST_SUMMARIES, PROJECTS } from "./fixtures";
+import { ROLE_HOMES } from "./homes";
+import { roleHomeFor, studentCourses, studentDashboard } from "./stream-content";
+import { moduleData } from "./module-data";
+import { dispatchRecords } from "./records-router";
+import { dispatchLearning } from "./learning";
+import { dispatchCourses } from "./course-builder";
+import { dispatchTeaching } from "./teaching";
+import { audit, recentAudit } from "./audit";
+
+export interface MockResult {
+  status: number;
+  body: unknown;
+}
+
+const ok = (body: unknown): MockResult => ({ status: 200, body });
+const err = (status: number, code: string, message: string): MockResult => ({ status, body: { error: { code, message } } });
+const notFound = () => err(404, "not_found", "Resource not found.");
+const forbidden = () => err(403, "forbidden", "You do not have permission to perform this action.");
+
+/* ── request body schemas (server-side validation) ── */
+const ChatBody = z.object({ agent: z.string().max(40).regex(/^[a-z-]+$/), message: z.string().min(1).max(2000) });
+const GenerateBody = z.object({
+  module: z.string().max(60).regex(/^[a-z-]+$/),
+  inputs: z.record(z.string().max(40), z.string().max(4000)).refine((o) => Object.keys(o).length <= 12),
+});
+const SubmitBody = z.object({ answers: z.record(z.string().max(10), z.union([z.number().int().min(0).max(10), z.string().max(8000)])) });
+const InterviewStart = z.object({ mode: z.enum(["technical", "hr", "behavioral"]) });
+const InterviewRespond = z.object({ sessionId: z.string().max(64), answer: z.string().min(1).max(6000) });
+const ResumeBody = z.object({ text: z.string().min(20).max(20000), role: z.string().max(60) });
+const OverrideBody = z.object({ finalScore: z.number().min(0).max(100), reason: z.string().min(5).max(500) });
+
+/** Is this module's area switched on for the caller's college? (Super Admin at "all" scope sees everything.) */
+export async function moduleEnabled(mod: ModuleDef, session: SessionPayload): Promise<boolean> {
+  const stream = session.college === ALL_COLLEGES ? null : await collegeStream(session.college);
+  if (mod.streams && stream && !mod.streams.includes(stream)) return false;
+  if (!(TOGGLEABLE_GROUPS as readonly string[]).includes(mod.group)) return true;
+  const groups = await enabledGroups(session.college);
+  return groups === "all" || groups.includes(mod.group);
+}
+
+async function universityOverview() {
+  const colleges = (await listColleges()).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  const count = (key: string, collegeId: string, where?: Record<string, string>) => getStore().records.count(RESOURCES[key]!, collegeId, where);
+  const rows = await Promise.all(
+    colleges.map(async (c) => {
+      const counts = {
+        applications: await count("admissions", c.id),
+        enrolled: await count("admissions", c.id, { status: "Enrolled" }),
+        staff: await count("staff", c.id, { status: "Active" }),
+        users: await count("users", c.id),
+        courses: await count("courses", c.id, { status: "Active" }),
+        events: await count("events", c.id),
+      };
+      const capacity = typeof c.studentCapacity === "number" ? c.studentCapacity : 0;
+      return {
+        id: c.id,
+        name: String(c.name),
+        city: String(c.city),
+        type: String(c.type),
+        status: String(c.status),
+        plan: String(c.plan),
+        principal: String(c.principal),
+        capacity,
+        modules: Array.isArray(c.modules) ? (c.modules as string[]) : [],
+        counts,
+      };
+    }),
+  );
+  const sum = (k: keyof (typeof rows)[number]["counts"]) => rows.reduce((a, r) => a + r.counts[k], 0);
+  return {
+    university: UNIVERSITY.name,
+    totals: {
+      colleges: rows.length,
+      active: rows.filter((r) => r.status === "Active").length,
+      onboarding: rows.filter((r) => r.status === "Onboarding").length,
+      suspended: rows.filter((r) => r.status === "Suspended").length,
+      capacity: rows.reduce((a, r) => a + r.capacity, 0),
+      applications: sum("applications"),
+      enrolled: sum("enrolled"),
+      staff: sum("staff"),
+      users: sum("users"),
+      courses: sum("courses"),
+    },
+    colleges: rows,
+    recentAudit: await recentAudit(8),
+  };
+}
+
+const PATTERNS = [
+  "GET university/overview",
+  "GET colleges/options",
+  "GET notifications",
+  "GET search",
+  "GET home/:id",
+  "GET modules/:id",
+  "GET students/me/dashboard",
+  "GET courses",
+  "GET courses/:id",
+  "GET assessments",
+  "GET assessments/:id",
+  "POST assessments/:id/submit",
+  "POST ai/evaluate",
+  "GET projects",
+  "POST ai/chat",
+  "POST ai/generate",
+  "POST ai/interview/start",
+  "POST ai/interview/respond",
+  "POST ai/resume/analyze",
+  "GET evaluations/queue",
+  "POST evaluations/:id/approve",
+  "POST evaluations/:id/override",
+  "GET audit/recent",
+] as const;
+
+const ID = /^[A-Za-z0-9_-]{1,64}$/;
+
+/** Matches "METHOD a/:id/b" patterns; `:id` only accepts safe identifier characters. */
+function matchRoute(method: string, segs: string[]): { route: (typeof PATTERNS)[number]; id?: string } | null {
+  for (const pattern of PATTERNS) {
+    const [pm, pp] = pattern.split(" ") as [string, string];
+    if (pm !== method) continue;
+    const parts = pp.split("/");
+    if (parts.length !== segs.length) continue;
+    let id: string | undefined;
+    let matched = true;
+    for (let i = 0; i < parts.length; i++) {
+      const seg = segs[i] ?? "";
+      if (parts[i] === ":id") {
+        if (!ID.test(seg)) { matched = false; break; }
+        id = seg;
+      } else if (parts[i] !== seg) { matched = false; break; }
+    }
+    if (matched) return { route: pattern, id };
+  }
+  return null;
+}
+
+const LEARNING_AREAS = new Set(["learning", "quizzes", "certificates", "placement"]);
+
+export async function dispatch(method: string, segs: string[], rawBody: unknown, session: SessionPayload, query: URLSearchParams): Promise<MockResult> {
+  if (segs[0] === "records") return dispatchRecords(method, segs, rawBody, session, query);
+  if (segs[0] === "learning-courses") return dispatchCourses(method, segs, rawBody, session);
+  if (segs[0] === "teaching") return dispatchTeaching(method, segs, rawBody, session);
+  if (LEARNING_AREAS.has(segs[0] ?? "")) return dispatchLearning(method, segs, rawBody, session);
+  const found = matchRoute(method, segs);
+  if (!found) return notFound();
+  const b = found.id;
+  const c = segs[2];
+  const collegeOf = () => (session.college === ALL_COLLEGES ? null : session.college);
+
+  switch (found.route) {
+    /* ── university (multi-college) ── */
+    case "GET university/overview":
+      if (session.role !== "admin") return forbidden();
+      return ok(await universityOverview());
+    case "GET colleges/options": {
+      const all = (await listColleges()).map((c) => ({ id: c.id, name: String(c.name), status: String(c.status), city: String(c.city), type: String(c.type) }));
+      const visible = session.college === ALL_COLLEGES || session.role === "admin" ? all : all.filter((c) => c.id === session.college);
+      return ok({ scope: session.college, colleges: visible.sort((a, b) => a.name.localeCompare(b.name)) });
+    }
+
+    /* ── session & shell ── */
+    case "GET notifications":
+      return ok(await getStore().notifications.forUser(session));
+    case "GET search": {
+      const q = cleanText(query.get("q") ?? "", 80).toLowerCase();
+      if (q.length < 2) return ok([]);
+      const enabled = await Promise.all(modulesForRole(session.role).map(async (m) => ((await moduleEnabled(m, session)) ? m : null)));
+      const mods = enabled
+        .filter((m): m is ModuleDef => m !== null)
+        .filter((m) => m.title.toLowerCase().includes(q) || m.description.toLowerCase().includes(q))
+        .slice(0, 8)
+        .map((m) => ({ title: m.title, kind: m.group, href: `/${session.role}/${m.slug}` }));
+      const courses =
+        session.role === "student"
+          ? studentCourses(await collegeStream(session.college)).filter((cz) => cz.title.toLowerCase().includes(q)).map((cz) => ({ title: cz.title, kind: "Course", href: `/student/courses?id=${cz.id}` }))
+          : [];
+      return ok([...courses, ...mods].slice(0, 10));
+    }
+    case "GET home/:id": {
+      const role = b;
+      if (!role || role !== session.role || !(ROLES as readonly string[]).includes(role) || role === "student") return forbidden();
+      const home = ROLE_HOMES[role as Exclude<typeof session.role, "student">];
+      const inCollege = session.college !== ALL_COLLEGES;
+      return ok(roleHomeFor(home, role, inCollege ? await collegeStream(session.college) : null, inCollege ? String((await getCollege(session.college))?.name ?? "College") : null));
+    }
+    case "GET modules/:id": {
+      const mod = b ? findModule(b) : undefined;
+      if (!mod) return notFound();
+      if (!mod.roles.includes(session.role)) return forbidden();
+      if (!(await moduleEnabled(mod, session))) return err(403, "module_disabled", "This module is not enabled for your college.");
+      const data = await moduleData(mod.slug, session.college);
+      return data ? ok(data) : notFound();
+    }
+
+    /* ── student ── */
+    case "GET students/me/dashboard":
+      if (session.role !== "student") return forbidden();
+      return ok(studentDashboard(await collegeStream(session.college)));
+    case "GET courses":
+      if (session.role !== "student") return forbidden();
+      return ok(studentCourses(await collegeStream(session.college)).map((course) => Object.fromEntries(Object.entries(course).filter(([key]) => key !== "topics"))));
+    case "GET courses/:id": {
+      if (session.role !== "student") return forbidden();
+      const course = studentCourses(await collegeStream(session.college)).find((cz) => cz.id === b);
+      return course ? ok(course) : notFound();
+    }
+    case "GET assessments":
+      if (!can(session.role, "assessment:attempt")) return forbidden();
+      return ok(MOCK_TEST_SUMMARIES);
+    case "GET assessments/:id": {
+      if (!can(session.role, "assessment:attempt")) return forbidden();
+      const test = MOCK_TESTS.find((t) => t.id === b);
+      return test ? ok(test) : notFound();
+    }
+    case "POST assessments/:id/submit": {
+      if (!can(session.role, "assessment:attempt")) return forbidden();
+      const test = MOCK_TESTS.find((t) => t.id === b);
+      if (!test) return notFound();
+      const parsed = SubmitBody.safeParse(rawBody);
+      if (!parsed.success) return err(400, "invalid_body", "Invalid submission.");
+      const key = MCQ_KEY[test.id] ?? {};
+      let mcqScore = 0;
+      let mcqMax = 0;
+      const answers: Array<{ questionId: string; correct: boolean | null; explanation: string }> = [];
+      const descriptive = [];
+      for (const q of test.questions) {
+        const given = parsed.data.answers[q.id];
+        if (q.type === "mcq") {
+          mcqMax += q.marks;
+          const k = key[q.id];
+          const correct = typeof given === "number" && k ? given === k.answer : false;
+          if (correct) mcqScore += q.marks;
+          answers.push({ questionId: q.id, correct, explanation: k?.explanation ?? "" });
+        } else {
+          const text = typeof given === "string" ? cleanText(given, 8000) : "";
+          descriptive.push({ questionId: q.id, ...evaluateDescriptive(test.id, q.id, text, q.marks) });
+          answers.push({ questionId: q.id, correct: null, explanation: "Evaluated by the Answer Evaluation Agent — see rubric below." });
+        }
+      }
+      return ok({
+        attemptId: `att-${Date.now().toString(36)}`,
+        mcqScore,
+        mcqMax,
+        answers,
+        descriptive,
+        nextActions: [
+          "Revise the explanations for any incorrect answers.",
+          "Take the adaptive follow-up quiz on your weakest concept.",
+          "Your faculty will confirm the descriptive score — AI marks are provisional.",
+        ],
+      });
+    }
+    case "POST ai/evaluate": {
+      if (!can(session.role, "assessment:attempt") && !can(session.role, "assessment:create")) return forbidden();
+      const body = z.object({ answer: z.string().min(1).max(8000), testId: z.string().max(60), questionId: z.string().max(10), max: z.number().min(1).max(100) }).safeParse(rawBody);
+      if (!body.success) return err(400, "invalid_body", "Invalid request.");
+      return ok(evaluateDescriptive(body.data.testId, body.data.questionId, cleanText(body.data.answer, 8000), body.data.max));
+    }
+    case "GET projects":
+      if (session.role !== "student" && session.role !== "faculty") return forbidden();
+      return ok(PROJECTS);
+
+    /* ── AI ── */
+    case "POST ai/chat": {
+      if (!can(session.role, "ai:chat")) return forbidden();
+      const parsed = ChatBody.safeParse(rawBody);
+      if (!parsed.success) return err(400, "invalid_body", "Message must be 1–2000 characters.");
+      return ok(chatReply(parsed.data.agent, cleanText(parsed.data.message, 2000)));
+    }
+    case "POST ai/generate": {
+      if (!can(session.role, "ai:chat")) return forbidden();
+      const parsed = GenerateBody.safeParse(rawBody);
+      if (!parsed.success) return err(400, "invalid_body", "Invalid generator input.");
+      const mod = findModule(parsed.data.module);
+      if (!mod || !mod.roles.includes(session.role) || !(await moduleEnabled(mod, session))) return forbidden();
+      const inputs = Object.fromEntries(Object.entries(parsed.data.inputs).map(([key, v]) => [key, cleanText(v, 4000)]));
+      return ok(generate(parsed.data.module, inputs));
+    }
+    case "POST ai/interview/start": {
+      if (session.role !== "student") return forbidden();
+      const parsed = InterviewStart.safeParse(rawBody);
+      if (!parsed.success) return err(400, "invalid_body", "Invalid interview mode.");
+      const id = await getStore().interviews.start(session, parsed.data.mode);
+      return ok(interviewTurn(parsed.data.mode, id, 0, null));
+    }
+    case "POST ai/interview/respond": {
+      if (session.role !== "student") return forbidden();
+      const parsed = InterviewRespond.safeParse(rawBody);
+      if (!parsed.success) return err(400, "invalid_body", "Answer must be 1–6000 characters.");
+      const s = await getStore().interviews.get(parsed.data.sessionId);
+      if (!s || s.owner !== session.sub) return notFound(); // object-level authorisation
+      const answer = cleanText(parsed.data.answer, 6000);
+      const turn = interviewTurn(s.mode, parsed.data.sessionId, s.index + 1, answer);
+      await getStore().interviews.advance(parsed.data.sessionId, answer, turn);
+      return ok(turn);
+    }
+    case "POST ai/resume/analyze": {
+      if (session.role !== "student") return forbidden();
+      const parsed = ResumeBody.safeParse(rawBody);
+      if (!parsed.success) return err(400, "invalid_body", "Paste at least 20 characters of resume text.");
+      const result = analyzeResume(cleanText(parsed.data.text, 20000), parsed.data.role);
+      await getStore().resumes.save(session, cleanText(parsed.data.role, 60), result);
+      return ok(result);
+    }
+
+    /* ── faculty evaluation review ── */
+    case "GET evaluations/queue":
+      if (!can(session.role, "assessment:override-score")) return forbidden();
+      return ok(await getStore().evaluations.queue(session));
+    case "POST evaluations/:id/approve":
+    case "POST evaluations/:id/override": {
+      if (!can(session.role, "assessment:override-score")) return forbidden();
+      const current = (await getStore().evaluations.queue(session)).find((i) => i.id === b);
+      if (!current) return notFound();
+      let decision: { finalScore: number; reason?: string };
+      if (c === "approve") decision = { finalScore: current.result.score };
+      else {
+        const parsed = OverrideBody.safeParse(rawBody);
+        if (!parsed.success) return err(400, "invalid_body", "Provide a score and a reason of at least 5 characters.");
+        if (parsed.data.finalScore > current.result.max) return err(400, "invalid_body", `Score cannot exceed ${current.result.max}.`);
+        decision = { finalScore: parsed.data.finalScore, reason: cleanText(parsed.data.reason, 500) };
+      }
+      const item = await getStore().evaluations.decide(session, current.id, decision);
+      if (!item) return notFound();
+      await audit(session.name, c === "approve" ? "Score approved" : "Score override", `${item.assessment} · ${item.rollNo}`, { collegeId: collegeOf(), actorSub: session.sub });
+      return ok(item);
+    }
+    case "GET audit/recent":
+      if (!can(session.role, "audit:read") && !can(session.role, "assessment:override-score")) return forbidden();
+      return ok(await recentAudit(50, session.college));
+  }
+  return notFound();
+}

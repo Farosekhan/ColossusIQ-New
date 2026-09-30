@@ -1,0 +1,53 @@
+{
+  "name": "collossusiq-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --webpack",
+    "dev:turbo": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "audit": "npm audit --omit=dev",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "prisma db execute --file db/seed/0001_seed.sql --schema prisma/schema.prisma",
+    "db:test": "prisma db execute --file db/tests/constraints.sql --schema prisma/schema.prisma",
+    "prisma:validate": "prisma validate",
+    "postinstall": "prisma generate",
+    "prisma:generate": "prisma generate",
+    "db:dev-accounts": "tsx db/scripts/dev-accounts.ts"
+  },
+  "dependencies": {
+    "@flaticon/flaticon-uicons": "3.3.1",
+    "@node-rs/argon2": "^2.2.1",
+    "@prisma/client": "6.19.3",
+    "@tanstack/react-query": "5.103.2",
+    "lucide-react": "1.47.0",
+    "next": "16.3.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-markdown": "10.1.0",
+    "recharts": "2.15.4",
+    "rehype-sanitize": "6.0.0",
+    "remark-gfm": "4.0.1",
+    "server-only": "0.0.1",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "20.19.43",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.6",
+    "eslint-plugin-security": "4.0.1",
+    "postcss": "8.5.28",
+    "prisma": "6.19.3",
+    "tailwindcss": "4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "6.0.3",
+    "vitest": "3.2.7"
+  }
+}

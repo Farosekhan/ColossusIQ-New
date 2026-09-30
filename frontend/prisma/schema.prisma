@@ -1,0 +1,1417 @@
+// ════════════════════════════════════════════════════════════════════════════════════════════
+//  CollossusIQ — Prisma schema (PostgreSQL 15+)
+//
+//  The SQL migration is the source of truth: db/migrations/0001_init.sql
+//  (copied to prisma/migrations/20260929000000_init/migration.sql as the Prisma baseline).
+//  This file mirrors it for typed queries. Things Prisma cannot express live only in SQL:
+//    • CHECK constraints (phone/code formats, ranges, JSON shapes, date order)
+//    • triggers: updated_at/version bump, stream matching, quiz attempt limit,
+//      admission status history, append-only audit tables
+//    • row-level security (college isolation via app_set_context) and the ciq_app role
+//    • DEFERRABLE position uniques (units, lessons, quiz questions) for reordering
+//    • the v_placement_readiness view body
+//  Change the schema in a new SQL migration first, then update this file to match
+//  (`npx prisma db pull --print` shows the introspected shape) and run `npm run prisma:validate`.
+//  Do not use `prisma migrate dev` to author changes — it cannot see the SQL-only objects above.
+//
+//  Every query must run inside a transaction that first calls
+//    SELECT app_set_context($collegeId, 'college' | 'all', $userId)
+//  otherwise RLS returns no rows for college-scoped tables.
+// ════════════════════════════════════════════════════════════════════════════════════════════
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions", "views"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgcrypto, citext]
+}
+
+model AdmissionDocument {
+  admissionId String                @map("admission_id") @db.Uuid
+  document    AdmissionDocumentType
+  verifiedAt  DateTime              @default(now()) @map("verified_at") @db.Timestamptz(6)
+  admission   Admission             @relation(fields: [admissionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([admissionId, document])
+  @@map("admission_documents")
+}
+
+model AdmissionStatusHistory {
+  id            BigInt           @id @default(autoincrement())
+  admissionId   String           @map("admission_id") @db.Uuid
+  fromStatus    AdmissionStatus? @map("from_status")
+  toStatus      AdmissionStatus  @map("to_status")
+  changedBy     String?          @map("changed_by") @db.Uuid
+  changedAt     DateTime         @default(now()) @map("changed_at") @db.Timestamptz(6)
+  admission     Admission        @relation(fields: [admissionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  changedByUser User?            @relation(fields: [changedBy], references: [id], onUpdate: NoAction)
+
+  @@index([admissionId, changedAt])
+  @@map("admission_status_history")
+}
+
+model Admission {
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId               String                   @unique @default(dbgenerated("((('ADM-'::text || to_char(now(), 'YY'::text)) || '-'::text) || nextval('seq_admission_public'::regclass))")) @map("public_id")
+  collegeId              String                   @map("college_id") @db.Uuid
+  fullName               String                   @map("full_name")
+  dob                    DateTime                 @db.Date
+  gender                 Gender
+  email                  String                   @db.Citext
+  phone                  String
+  city                   String?
+  state                  HomeState                @default(Tamil_Nadu)
+  board                  SchoolBoard
+  hscPercent             Decimal                  @map("hsc_percent") @db.Decimal(5, 2)
+  entranceScore          Decimal?                 @map("entrance_score") @db.Decimal(6, 2)
+  programmeId            Int                      @map("programme_id")
+  quota                  AdmissionQuota
+  category               ReservationCategory
+  scholarship            Boolean                  @default(false)
+  hostel                 Boolean                  @default(false)
+  guardianName           String                   @map("guardian_name")
+  guardianPhone          String                   @map("guardian_phone")
+  guardianOccupation     String?                  @map("guardian_occupation")
+  status                 AdmissionStatus          @default(Enquiry)
+  source                 String                   @default("office")
+  notes                  String?
+  version                Int                      @default(1)
+  createdAt              DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime                 @default(now()) @map("updated_at") @db.Timestamptz(6)
+  admissionDocuments     AdmissionDocument[]
+  admissionStatusHistory AdmissionStatusHistory[]
+  college                College                  @relation(fields: [collegeId], references: [id], onUpdate: NoAction)
+  programme              Programme                @relation(fields: [programmeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  student                Student?
+
+  @@index([collegeId, createdAt(sort: Desc)])
+  @@index([collegeId, status])
+  @@map("admissions")
+}
+
+model AuditLog {
+  id          BigInt   @id @default(autoincrement())
+  at          DateTime @default(now()) @db.Timestamptz(6)
+  collegeId   String?  @map("college_id") @db.Uuid
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  actorName   String   @map("actor_name")
+  action      String
+  targetType  String?  @map("target_type")
+  targetId    String?  @map("target_id")
+  ip          String?  @db.Inet
+  actorUser   User?    @relation(fields: [actorUserId], references: [id], onUpdate: NoAction)
+  college     College? @relation(fields: [collegeId], references: [id], onUpdate: NoAction)
+
+  @@index([collegeId, at(sort: Desc)])
+  @@map("audit_log")
+}
+
+model BoosterStepCompletion {
+  userId      String   @map("user_id") @db.Uuid
+  track       String
+  step        String
+  completedAt DateTime @default(now()) @map("completed_at") @db.Timestamptz(6)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([userId, track, step])
+  @@map("booster_step_completions")
+}
+
+model Certificate {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId       String           @unique @default(dbgenerated("((('CIQ-'::text || to_char(now(), 'YYYY'::text)) || '-'::text) || upper(encode(gen_random_bytes(4), 'hex'::text)))")) @map("public_id")
+  kind           CertificateKind
+  quizId         String           @map("quiz_id") @db.Uuid
+  attemptId      String           @unique @map("attempt_id") @db.Uuid
+  studentId      String           @map("student_id") @db.Uuid
+  collegeId      String           @map("college_id") @db.Uuid
+  studentName    String           @map("student_name")
+  title          String
+  course         String
+  departmentName String           @map("department_name")
+  marks          Int              @db.SmallInt
+  total          Int              @db.SmallInt
+  percentage     Decimal          @db.Decimal(5, 2)
+  grade          CertificateGrade
+  gradeLabel     String           @map("grade_label")
+  issuedAt       DateTime         @default(now()) @map("issued_at") @db.Timestamptz(6)
+  signature      String
+  supersededAt   DateTime?        @map("superseded_at") @db.Timestamptz(6)
+  supersededById String?          @map("superseded_by_id") @db.Uuid
+  attempt        QuizAttempt      @relation(fields: [attemptId], references: [id], onUpdate: NoAction)
+  college        College          @relation(fields: [collegeId], references: [id], onUpdate: NoAction)
+  quiz           Quiz             @relation(fields: [quizId], references: [id], onUpdate: NoAction)
+  student        Student          @relation(fields: [studentId], references: [id], onUpdate: NoAction)
+  supersededBy   Certificate?     @relation("CertificateSupersession", fields: [supersededById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  supersedes     Certificate[]    @relation("CertificateSupersession")
+
+  @@index([collegeId, issuedAt(sort: Desc)])
+  @@map("certificates")
+}
+
+model ClassSummary {
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId          String             @unique @default(dbgenerated("hex_id('CS-'::text)")) @map("public_id")
+  collegeId         String             @map("college_id") @db.Uuid
+  authorId          String?            @map("author_id") @db.Uuid
+  authorName        String             @map("author_name")
+  departmentId      Int                @map("department_id")
+  courseTitle       String?            @map("course_title")
+  topic             String
+  title             String
+  classDate         DateTime           @map("class_date") @db.Date
+  points            Json
+  homework          String             @default("")
+  nextClass         String             @default("") @map("next_class")
+  resources         Json               @default("[]")
+  infographic       Json?
+  sharedAt          DateTime           @default(now()) @map("shared_at") @db.Timestamptz(6)
+  withdrawnAt       DateTime?          @map("withdrawn_at") @db.Timestamptz(6)
+  author            User?              @relation(fields: [authorId], references: [id], onUpdate: NoAction)
+  college           College            @relation(fields: [collegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  department        Department         @relation(fields: [departmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  classSummaryReads ClassSummaryRead[]
+
+  @@map("class_summaries")
+}
+
+model ClassSummaryRead {
+  summaryId String       @map("summary_id") @db.Uuid
+  studentId String       @map("student_id") @db.Uuid
+  readAt    DateTime     @default(now()) @map("read_at") @db.Timestamptz(6)
+  student   Student      @relation(fields: [studentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  summary   ClassSummary @relation(fields: [summaryId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([summaryId, studentId])
+  @@map("class_summary_reads")
+}
+
+model ClinicalRotation {
+  id                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId           String             @unique @default(dbgenerated("('ROT-'::text || nextval('seq_rotation_public'::regclass))")) @map("public_id")
+  collegeId          String             @map("college_id") @db.Uuid
+  studentId          String?            @map("student_id") @db.Uuid
+  studentName        String             @map("student_name")
+  regNo              String             @map("reg_no")
+  phase              RotationPhase
+  department         ClinicalDepartment
+  unit               String
+  startDate          DateTime           @map("start_date") @db.Date
+  endDate            DateTime           @map("end_date") @db.Date
+  supervisorStaffId  String?            @map("supervisor_staff_id") @db.Uuid
+  supervisorName     String             @map("supervisor_name")
+  attendance         Int?               @db.SmallInt
+  competenciesSigned Int?               @map("competencies_signed") @db.SmallInt
+  status             RotationStatus     @default(Scheduled)
+  remarks            String?
+  version            Int                @default(1)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
+  college            College            @relation(fields: [collegeId], references: [id], onUpdate: NoAction)
+  student            Student?           @relation(fields: [studentId], references: [id], onUpdate: NoAction)
+  supervisorStaff    Staff?             @relation(fields: [supervisorStaffId], references: [id], onUpdate: NoAction)
+
+  @@index([collegeId, startDate])
+  @@map("clinical_rotations")
+}
+
+model CollegeDepartment {
+  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId     String           @unique @default(dbgenerated("('DEP-'::text || nextval('seq_department_public'::regclass))")) @map("public_id")
+  collegeId    String           @map("college_id") @db.Uuid
+  departmentId Int              @map("department_id")
+  headName     String?          @map("head_name")
+  established  Int?             @db.SmallInt
+  status       DepartmentStatus @default(Active)
+  email        String?          @db.Citext
+  phone        String?
+  notes        String?
+  version      Int              @default(1)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime         @default(now()) @map("updated_at") @db.Timestamptz(6)
+  college      College          @relation(fields: [collegeId], references: [id], onUpdate: NoAction)
+  department   Department       @relation(fields: [departmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([collegeId, departmentId])
+  @@index([collegeId, status])
+  @@map("college_departments")
+}
+
+model CollegeModule {
+  collegeId String      @map("college_id") @db.Uuid
+  module    ModuleGroup
+  college   College     @relation(fields: [collegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([collegeId, module])
+  @@map("college_modules")
+}
+
+model CollegeType {
+  name      String    @id
+  streamKey String    @map("stream_key")
+  stream    Stream    @relation(fields: [streamKey], references: [key], onDelete: NoAction, onUpdate: NoAction)
+  colleges  College[]
+
+  @@map("college_types")
+}
+
+model CollegeWebsite {
+  collegeId        String      @id @map("college_id") @db.Uuid
+  tagline          String
+  heroMediaId      String?     @map("hero_media_id") @db.Uuid
+  heroBuiltin      String?     @map("hero_builtin")
+  announcement     String?
+  about            String
+  principalMessage String?     @map("principal_message")
+  highlights       String?
+  address          String
+  phone            String
+  email            String      @db.Citext
+  officeHours      String?     @map("office_hours")
+  showEvents       Boolean     @default(true) @map("show_events")
+  showGallery      Boolean     @default(true) @map("show_gallery")
+  version          Int         @default(1)
+  updatedAt        DateTime    @default(now()) @map("updated_at") @db.Timestamptz(6)
+  college          College     @relation(fields: [collegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  heroMedia        MediaAsset? @relation(fields: [heroMediaId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@map("college_websites")
+}
+
+model College {
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId              String                 @unique @default(dbgenerated("('COL-'::text || nextval('seq_college_public'::regclass))")) @map("public_id")
+  universityId          String                 @map("university_id") @db.Uuid
+  name                  String
+  code                  String                 @db.Char(4)
+  type                  String
+  city                  String
+  established           Int?                   @db.SmallInt
+  studentCapacity       Int                    @map("student_capacity")
+  principal             String
+  email                 String                 @db.Citext
+  phone                 String
+  plan                  CollegePlan            @default(Campus_Pro)
+  status                CollegeStatus          @default(Onboarding)
+  admissionsOpen        Boolean                @default(true) @map("admissions_open")
+  version               Int                    @default(1)
+  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime               @default(now()) @map("updated_at") @db.Timestamptz(6)
+  admissions            Admission[]
+  auditLog              AuditLog[]
+  certificates          Certificate[]
+  classSummaries        ClassSummary[]
+  clinicalRotations     ClinicalRotation[]
+  collegeDepartments    CollegeDepartment[]
+  collegeModules        CollegeModule[]
+  collegeWebsite        CollegeWebsite?
+  collegeType           CollegeType            @relation(fields: [type], references: [name], onDelete: NoAction, onUpdate: NoAction)
+  university            University             @relation(fields: [universityId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  courses               Course[]
+  evaluationItems       EvaluationItem[]
+  events                Event[]
+  facultyActivityEvents FacultyActivityEvent[]
+  galleryItems          GalleryItem[]
+  interviewSessions     InterviewSession[]
+  learningCourses       LearningCourse[]
+  lessonOutlines        LessonOutline[]
+  mediaAssets           MediaAsset[]
+  notifications         Notification[]
+  quizAttempts          QuizAttempt[]
+  quizzes               Quiz[]
+  resumeAnalyses        ResumeAnalysis[]
+  roleAssignments       RoleAssignment[]
+  staff                 Staff[]
+  students              Student[]
+  userSessions          UserSession[]
+
+  @@unique([universityId, code])
+  @@unique([universityId, name])
+  @@map("colleges")
+}
+
+model CourseOutcome {
+  courseId String         @map("course_id") @db.Uuid
+  code     String
+  bloom    BloomLevel
+  text     String
+  course   LearningCourse @relation(fields: [courseId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([courseId, code])
+  @@map("course_outcomes")
+}
+
+model CourseUnit {
+  id       String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  courseId String         @map("course_id") @db.Uuid
+  position Int            @db.SmallInt
+  title    String
+  part     String?
+  course   LearningCourse @relation(fields: [courseId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  lessons  Lesson[]
+
+  @@unique([courseId, position])
+  @@map("course_units")
+}
+
+model Course {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId       String          @unique @default(dbgenerated("('CRS-'::text || nextval('seq_course_public'::regclass))")) @map("public_id")
+  collegeId      String          @map("college_id") @db.Uuid
+  code           String
+  title          String
+  departmentId   Int             @map("department_id")
+  termId         Int             @map("term_id")
+  credits        Int             @db.SmallInt
+  courseType     CourseType      @map("course_type")
+  facultyStaffId String?         @map("faculty_staff_id") @db.Uuid
+  facultyName    String          @map("faculty_name")
+  status         CourseStatus    @default(Draft)
+  description    String?
+  version        Int             @default(1)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @default(now()) @map("updated_at") @db.Timestamptz(6)
+  college        College         @relation(fields: [collegeId], references: [id], onUpdate: NoAction)
+  department     Department      @relation(fields: [departmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  facultyStaff   Staff?          @relation(fields: [facultyStaffId], references: [id], onUpdate: NoAction)
+  term           Term            @relation(fields: [termId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  learningCourse LearningCourse?
+
+  @@unique([collegeId, code])
+  @@map("courses")
+}
+
+model Department {
+  id                 Int                 @id @default(autoincrement())
+  streamKey          String              @map("stream_key")
+  name               String
+  classSummaries     ClassSummary[]
+  collegeDepartments CollegeDepartment[]
+  courses            Course[]
+  stream             Stream              @relation(fields: [streamKey], references: [key], onDelete: NoAction, onUpdate: NoAction)
+  learningCourses    LearningCourse[]
+  quizzes            Quiz[]
+  roleAssignments    RoleAssignment[]
+  staff              Staff[]
+  students           Student[]
+
+  @@unique([streamKey, name])
+  @@map("departments")
+}
+
+model Designation {
+  id        Int     @id @default(autoincrement())
+  streamKey String? @map("stream_key")
+  name      String
+  stream    Stream? @relation(fields: [streamKey], references: [key], onDelete: NoAction, onUpdate: NoAction)
+  staff     Staff[]
+
+  @@unique([streamKey, name])
+  @@map("designations")
+}
+
+model EvaluationItem {
+  id                  String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  collegeId           String               @map("college_id") @db.Uuid
+  studentId           String               @map("student_id") @db.Uuid
+  assignedTo          String?              @map("assigned_to") @db.Uuid
+  assessment          String
+  question            String
+  answer              String
+  aiResult            Json                 @map("ai_result")
+  aiScore             Decimal              @map("ai_score") @db.Decimal(5, 2)
+  maxScore            Decimal              @map("max_score") @db.Decimal(5, 2)
+  confidence          Decimal              @db.Decimal(3, 2)
+  status              EvaluationStatus     @default(pending)
+  finalScore          Decimal?             @map("final_score") @db.Decimal(5, 2)
+  reviewedBy          String?              @map("reviewed_by") @db.Uuid
+  reviewedAt          DateTime?            @map("reviewed_at") @db.Timestamptz(6)
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  assignee            User?                @relation("EvaluationAssignee", fields: [assignedTo], references: [id], onUpdate: NoAction)
+  college             College              @relation(fields: [collegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  reviewer            User?                @relation("EvaluationReviewer", fields: [reviewedBy], references: [id], onUpdate: NoAction)
+  student             Student              @relation(fields: [studentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  evaluationOverrides EvaluationOverride[]
+
+  @@index([assignedTo, status])
+  @@map("evaluation_items")
+}
+
+model EvaluationOverride {
+  id               BigInt         @id @default(autoincrement())
+  itemId           String         @map("item_id") @db.Uuid
+  overriddenBy     String?        @map("overridden_by") @db.Uuid
+  previousScore    Decimal?       @map("previous_score") @db.Decimal(5, 2)
+  finalScore       Decimal        @map("final_score") @db.Decimal(5, 2)
+  reason           String
+  at               DateTime       @default(now()) @db.Timestamptz(6)
+  item             EvaluationItem @relation(fields: [itemId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  overriddenByUser User?          @relation(fields: [overriddenBy], references: [id], onUpdate: NoAction)
+
+  @@map("evaluation_overrides")
+}
+
+model EventRegistration {
+  eventId      String   @map("event_id") @db.Uuid
+  studentId    String   @map("student_id") @db.Uuid
+  registeredAt DateTime @default(now()) @map("registered_at") @db.Timestamptz(6)
+  attended     Boolean?
+  event        Event    @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([eventId, studentId])
+  @@map("event_registrations")
+}
+
+model Event {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId           String              @unique @default(dbgenerated("('EVT-'::text || nextval('seq_event_public'::regclass))")) @map("public_id")
+  collegeId          String              @map("college_id") @db.Uuid
+  title              String
+  type               EventType
+  eventDate          DateTime            @map("event_date") @db.Date
+  startTime          DateTime            @map("start_time") @db.Time(6)
+  venue              String
+  organiser          String
+  capacity           Int
+  registrationOpen   Boolean             @default(true) @map("registration_open")
+  status             EventStatus         @default(Draft)
+  description        String?
+  version            Int                 @default(1)
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime            @default(now()) @map("updated_at") @db.Timestamptz(6)
+  eventRegistrations EventRegistration[]
+  college            College             @relation(fields: [collegeId], references: [id], onUpdate: NoAction)
+
+  @@index([collegeId, eventDate])
+  @@map("events")
+}
+
+model FacultyActivityEvent {
+  id        BigInt           @id @default(autoincrement())
+  userId    String           @map("user_id") @db.Uuid
+  collegeId String?          @map("college_id") @db.Uuid
+  kind      FacultyEventKind
+  at        DateTime         @default(now()) @db.Timestamptz(6)
+  college   College?         @relation(fields: [collegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId, kind])
+  @@map("faculty_activity_events")
+}
+
+model GalleryItem {
+  id           String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId     String          @unique @default(dbgenerated("('GAL-'::text || nextval('seq_gallery_public'::regclass))")) @map("public_id")
+  collegeId    String          @map("college_id") @db.Uuid
+  imageMediaId String?         @map("image_media_id") @db.Uuid
+  imageBuiltin String?         @map("image_builtin")
+  title        String
+  category     GalleryCategory
+  caption      String?
+  featured     Boolean         @default(false)
+  status       PublishStatus   @default(Draft)
+  version      Int             @default(1)
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime        @default(now()) @map("updated_at") @db.Timestamptz(6)
+  college      College         @relation(fields: [collegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  imageMedia   MediaAsset?     @relation(fields: [imageMediaId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([collegeId, status])
+  @@map("gallery_items")
+}
+
+model InterviewSession {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId    String        @map("student_id") @db.Uuid
+  collegeId    String        @map("college_id") @db.Uuid
+  mode         InterviewMode
+  startedAt    DateTime      @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt  DateTime?     @map("completed_at") @db.Timestamptz(6)
+  overallScore Int?          @map("overall_score") @db.SmallInt
+  scorecard    Json?
+  turns        Json          @default("[]")
+  college      College       @relation(fields: [collegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  student      Student       @relation(fields: [studentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([studentId, completedAt(sort: Desc)])
+  @@map("interview_sessions")
+}
+
+model LearningCourse {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId       String          @unique @default(dbgenerated("hex_id('LC-'::text)")) @map("public_id")
+  collegeId      String          @map("college_id") @db.Uuid
+  departmentId   Int             @map("department_id")
+  termId         Int             @map("term_id")
+  code           String
+  title          String
+  level          CourseLevel
+  credits        Int             @db.SmallInt
+  facultyName    String          @map("faculty_name")
+  source         CourseSource
+  syllabus       String          @default("")
+  summary        String
+  status         PublishStatus   @default(Draft)
+  courseRecordId String?         @unique @map("course_record_id") @db.Uuid
+  createdBy      String?         @map("created_by") @db.Uuid
+  createdByName  String          @map("created_by_name")
+  publishedAt    DateTime?       @map("published_at") @db.Timestamptz(6)
+  version        Int             @default(1)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @default(now()) @map("updated_at") @db.Timestamptz(6)
+  courseOutcomes CourseOutcome[]
+  courseUnits    CourseUnit[]
+  college        College         @relation(fields: [collegeId], references: [id], onUpdate: NoAction)
+  courseRecord   Course?         @relation(fields: [courseRecordId], references: [id], onUpdate: NoAction)
+  creator        User?           @relation(fields: [createdBy], references: [id], onUpdate: NoAction)
+  department     Department      @relation(fields: [departmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  term           Term            @relation(fields: [termId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lessons        Lesson[]
+  quiz           Quiz?
+
+  @@unique([collegeId, code])
+  @@index([collegeId, status])
+  @@map("learning_courses")
+}
+
+model LessonImage {
+  lessonId     String      @map("lesson_id") @db.Uuid
+  position     Int         @db.SmallInt
+  imageMediaId String?     @map("image_media_id") @db.Uuid
+  imageBuiltin String?     @map("image_builtin")
+  caption      String      @default("")
+  imageMedia   MediaAsset? @relation(fields: [imageMediaId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  lesson       Lesson      @relation(fields: [lessonId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([lessonId, position])
+  @@map("lesson_images")
+}
+
+model LessonOutline {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId    String   @unique @default(dbgenerated("hex_id('LO-'::text)")) @map("public_id")
+  collegeId   String   @map("college_id") @db.Uuid
+  authorId    String   @map("author_id") @db.Uuid
+  topic       String
+  courseTitle String?  @map("course_title")
+  minutes     Int      @db.SmallInt
+  blocks      Json
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  college     College  @relation(fields: [collegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([authorId, createdAt(sort: Desc)])
+  @@map("lesson_outlines")
+}
+
+model LessonProgress {
+  studentId   String   @map("student_id") @db.Uuid
+  lessonId    String   @map("lesson_id") @db.Uuid
+  completedAt DateTime @default(now()) @map("completed_at") @db.Timestamptz(6)
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onUpdate: NoAction)
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([studentId, lessonId])
+  @@index([lessonId])
+  @@map("lesson_progress")
+}
+
+model LessonVideo {
+  lessonId  String    @map("lesson_id") @db.Uuid
+  position  Int       @db.SmallInt
+  title     String
+  url       String
+  kind      VideoKind
+  youtubeId String?   @map("youtube_id")
+  lesson    Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([lessonId, position])
+  @@map("lesson_videos")
+}
+
+model Lesson {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  unitId         String           @map("unit_id") @db.Uuid
+  courseId       String           @map("course_id") @db.Uuid
+  code           String
+  position       Int              @db.SmallInt
+  title          String
+  minutes        Int              @db.SmallInt
+  layout         LessonLayout     @default(concepts)
+  body           String
+  objectives     Json             @default("[]")
+  keyPoints      Json             @map("key_points")
+  terms          Json             @default("[]")
+  practice       Json             @default("[]")
+  links          Json             @default("[]")
+  lessonImages   LessonImage[]
+  lessonProgress LessonProgress[]
+  lessonVideos   LessonVideo[]
+  course         LearningCourse   @relation(fields: [courseId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  unit           CourseUnit       @relation(fields: [unitId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([courseId, code])
+  @@unique([unitId, position])
+  @@index([courseId])
+  @@map("lessons")
+}
+
+model MediaAsset {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId        String           @unique @default(dbgenerated("('MED-'::text || encode(gen_random_bytes(12), 'hex'::text))")) @map("public_id")
+  collegeId       String?          @map("college_id") @db.Uuid
+  contentType     MediaType        @map("content_type")
+  byteSize        Int              @map("byte_size")
+  sha256          Bytes
+  storageKey      String?          @map("storage_key")
+  data            Bytes?
+  uploadedBy      String?          @map("uploaded_by") @db.Uuid
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  collegeWebsites CollegeWebsite[]
+  galleryItems    GalleryItem[]
+  lessonImages    LessonImage[]
+  college         College?         @relation(fields: [collegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  uploader        User?            @relation(fields: [uploadedBy], references: [id], onUpdate: NoAction)
+
+  @@index([collegeId, createdAt(sort: Desc)])
+  @@map("media_assets")
+}
+
+model Notification {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  collegeId String?   @map("college_id") @db.Uuid
+  title     String
+  body      String
+  tone      UiTone    @default(brand)
+  link      String?
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  readAt    DateTime? @map("read_at") @db.Timestamptz(6)
+  college   College?  @relation(fields: [collegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("notifications")
+}
+
+model Programme {
+  id         Int         @id @default(autoincrement())
+  streamKey  String      @map("stream_key")
+  name       String
+  admissions Admission[]
+  stream     Stream      @relation(fields: [streamKey], references: [key], onDelete: NoAction, onUpdate: NoAction)
+  students   Student[]
+
+  @@unique([streamKey, name])
+  @@map("programmes")
+}
+
+model QuizAttemptAnswer {
+  attemptId  String       @map("attempt_id") @db.Uuid
+  questionId String       @map("question_id") @db.Uuid
+  chosen     Int?         @db.SmallInt
+  correct    Boolean
+  attempt    QuizAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  question   QuizQuestion @relation(fields: [questionId], references: [id], onUpdate: NoAction)
+
+  @@id([attemptId, questionId])
+  @@map("quiz_attempt_answers")
+}
+
+model QuizAttempt {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quizId             String              @map("quiz_id") @db.Uuid
+  studentId          String              @map("student_id") @db.Uuid
+  collegeId          String              @map("college_id") @db.Uuid
+  attemptNo          Int                 @default(1) @map("attempt_no") @db.SmallInt
+  startedAt          DateTime            @default(now()) @map("started_at") @db.Timestamptz(6)
+  submittedAt        DateTime?           @map("submitted_at") @db.Timestamptz(6)
+  score              Int?                @db.SmallInt
+  total              Int?                @db.SmallInt
+  percentage         Decimal?            @db.Decimal(5, 2)
+  certificate        Certificate?
+  quizAttemptAnswers QuizAttemptAnswer[]
+  college            College             @relation(fields: [collegeId], references: [id], onUpdate: NoAction)
+  quiz               Quiz                @relation(fields: [quizId], references: [id], onUpdate: NoAction)
+  student            Student             @relation(fields: [studentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([quizId, studentId, attemptNo])
+  @@index([quizId])
+  @@index([studentId, quizId])
+  @@map("quiz_attempts")
+}
+
+model QuizQuestion {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quizId             String              @map("quiz_id") @db.Uuid
+  position           Int                 @db.SmallInt
+  prompt             String
+  options            String[]
+  answer             Int                 @db.SmallInt
+  explanation        String              @default("")
+  needsReview        Boolean             @default(false) @map("needs_review")
+  quizAttemptAnswers QuizAttemptAnswer[]
+  quiz               Quiz                @relation(fields: [quizId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([quizId, position])
+  @@map("quiz_questions")
+}
+
+model Quiz {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId           String          @unique @default(dbgenerated("hex_id('QZ-'::text)")) @map("public_id")
+  collegeId          String          @map("college_id") @db.Uuid
+  purpose            QuizPurpose     @default(department)
+  learningCourseId   String?         @unique @map("learning_course_id") @db.Uuid
+  departmentId       Int?            @map("department_id")
+  title              String
+  subject            String
+  passMark           Int             @map("pass_mark") @db.SmallInt
+  durationMin        Int             @map("duration_min") @db.SmallInt
+  certificateEnabled Boolean         @default(true) @map("certificate_enabled")
+  status             QuizStatus      @default(Draft)
+  createdBy          String?         @map("created_by") @db.Uuid
+  createdByName      String          @map("created_by_name")
+  version            Int             @default(1)
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime        @default(now()) @map("updated_at") @db.Timestamptz(6)
+  certificates       Certificate[]
+  quizAttempts       QuizAttempt[]
+  quizQuestions      QuizQuestion[]
+  college            College         @relation(fields: [collegeId], references: [id], onUpdate: NoAction)
+  creator            User?           @relation(fields: [createdBy], references: [id], onUpdate: NoAction)
+  department         Department?     @relation(fields: [departmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  learningCourse     LearningCourse? @relation(fields: [learningCourseId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([collegeId, status])
+  @@map("quizzes")
+}
+
+model ResumeAnalysis {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId  String   @map("student_id") @db.Uuid
+  collegeId  String   @map("college_id") @db.Uuid
+  targetRole String   @map("target_role")
+  atsScore   Int      @map("ats_score") @db.SmallInt
+  result     Json
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  college    College  @relation(fields: [collegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([studentId, createdAt(sort: Desc)])
+  @@map("resume_analyses")
+}
+
+model RoleAssignment {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String      @map("user_id") @db.Uuid
+  role         AppRole
+  collegeId    String?     @map("college_id") @db.Uuid
+  departmentId Int?        @map("department_id")
+  grantedBy    String?     @map("granted_by") @db.Uuid
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  college      College?    @relation(fields: [collegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  grantor      User?       @relation("RoleGrantor", fields: [grantedBy], references: [id], onUpdate: NoAction)
+  user         User        @relation("RoleHolder", fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([userId, role, collegeId])
+  @@index([collegeId, role])
+  @@map("role_assignments")
+}
+
+model Staff {
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId          String             @unique @default(dbgenerated("('EMP-'::text || nextval('seq_staff_public'::regclass))")) @map("public_id")
+  collegeId         String             @map("college_id") @db.Uuid
+  userId            String?            @unique @map("user_id") @db.Uuid
+  fullName          String             @map("full_name")
+  email             String             @unique @db.Citext
+  phone             String
+  qualification     String?
+  departmentId      Int                @map("department_id")
+  designationId     Int                @map("designation_id")
+  staffType         StaffType          @map("staff_type")
+  employment        EmploymentType
+  joiningDate       DateTime           @map("joining_date") @db.Date
+  experienceYears   Int?               @map("experience_years") @db.SmallInt
+  status            StaffStatus        @default(Active)
+  platformAccess    Boolean            @default(true) @map("platform_access")
+  notes             String?
+  version           Int                @default(1)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
+  clinicalRotations ClinicalRotation[]
+  courses           Course[]
+  college           College            @relation(fields: [collegeId], references: [id], onUpdate: NoAction)
+  department        Department         @relation(fields: [departmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  designation       Designation        @relation(fields: [designationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user              User?              @relation(fields: [userId], references: [id], onUpdate: NoAction)
+
+  @@index([collegeId, departmentId])
+  @@map("staff")
+}
+
+model Stream {
+  key           String        @id
+  label         String
+  regulator     String
+  termLabel     String        @map("term_label")
+  entranceLabel String        @map("entrance_label")
+  entranceMax   Int           @map("entrance_max")
+  collegeTypes  CollegeType[]
+  departments   Department[]
+  designations  Designation[]
+  programmes    Programme[]
+  terms         Term[]
+
+  @@map("streams")
+}
+
+model Student {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String              @unique @map("user_id") @db.Uuid
+  collegeId          String              @map("college_id") @db.Uuid
+  admissionId        String?             @unique @map("admission_id") @db.Uuid
+  rollNo             String              @map("roll_no")
+  departmentId       Int                 @map("department_id")
+  programmeId        Int                 @map("programme_id")
+  termId             Int?                @map("term_id")
+  batchYear          Int                 @map("batch_year") @db.SmallInt
+  status             StudentStatus       @default(Active)
+  version            Int                 @default(1)
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime            @default(now()) @map("updated_at") @db.Timestamptz(6)
+  certificates       Certificate[]
+  classSummaryReads  ClassSummaryRead[]
+  clinicalRotations  ClinicalRotation[]
+  evaluationItems    EvaluationItem[]
+  eventRegistrations EventRegistration[]
+  interviewSessions  InterviewSession[]
+  lessonProgress     LessonProgress[]
+  quizAttempts       QuizAttempt[]
+  resumeAnalyses     ResumeAnalysis[]
+  admission          Admission?          @relation(fields: [admissionId], references: [id], onUpdate: NoAction)
+  college            College             @relation(fields: [collegeId], references: [id], onUpdate: NoAction)
+  department         Department          @relation(fields: [departmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  programme          Programme           @relation(fields: [programmeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  term               Term?               @relation(fields: [termId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user               User                @relation(fields: [userId], references: [id], onUpdate: NoAction)
+
+  @@unique([collegeId, rollNo])
+  @@index([collegeId, departmentId])
+  @@map("students")
+}
+
+model Term {
+  id              Int              @id @default(autoincrement())
+  streamKey       String           @map("stream_key")
+  name            String
+  position        Int              @db.SmallInt
+  courses         Course[]
+  learningCourses LearningCourse[]
+  students        Student[]
+  stream          Stream           @relation(fields: [streamKey], references: [key], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([streamKey, name])
+  @@unique([streamKey, position])
+  @@map("terms")
+}
+
+model University {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug      String    @unique
+  name      String
+  shortName String    @map("short_name")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  colleges  College[]
+  users     User[]
+
+  @@map("universities")
+}
+
+model UserCredential {
+  userId            String    @id @map("user_id") @db.Uuid
+  passwordHash      String    @map("password_hash")
+  passwordChangedAt DateTime  @default(now()) @map("password_changed_at") @db.Timestamptz(6)
+  failedAttempts    Int       @default(0) @map("failed_attempts") @db.SmallInt
+  lockedUntil       DateTime? @map("locked_until") @db.Timestamptz(6)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("user_credentials")
+}
+
+model UserMfa {
+  userId              String   @id @map("user_id") @db.Uuid
+  totpSecretEncrypted Bytes    @map("totp_secret_encrypted")
+  recoveryCodeHashes  String[] @default([]) @map("recovery_code_hashes")
+  enabledAt           DateTime @default(now()) @map("enabled_at") @db.Timestamptz(6)
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("user_mfa")
+}
+
+model UserSession {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  role      AppRole
+  collegeId String?   @map("college_id") @db.Uuid
+  mfaPassed Boolean   @default(false) @map("mfa_passed")
+  ip        String?   @db.Inet
+  userAgent String?   @map("user_agent")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  college   College?  @relation(fields: [collegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("user_sessions")
+}
+
+model User {
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId               String                   @unique @default(dbgenerated("('USR-'::text || nextval('seq_user_public'::regclass))")) @map("public_id")
+  universityId           String                   @map("university_id") @db.Uuid
+  email                  String                   @unique @db.Citext
+  fullName               String                   @map("full_name")
+  status                 UserStatus               @default(Invited)
+  mfaRequired            Boolean                  @default(true) @map("mfa_required")
+  ssoOnly                Boolean                  @default(false) @map("sso_only")
+  notes                  String?
+  lastLoginAt            DateTime?                @map("last_login_at") @db.Timestamptz(6)
+  version                Int                      @default(1)
+  createdAt              DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime                 @default(now()) @map("updated_at") @db.Timestamptz(6)
+  admissionStatusHistory AdmissionStatusHistory[]
+  auditLog               AuditLog[]
+  boosterStepCompletions BoosterStepCompletion[]
+  classSummaries         ClassSummary[]
+  assignedEvaluations    EvaluationItem[]         @relation("EvaluationAssignee")
+  reviewedEvaluations    EvaluationItem[]         @relation("EvaluationReviewer")
+  evaluationOverrides    EvaluationOverride[]
+  facultyActivityEvents  FacultyActivityEvent[]
+  learningCourses        LearningCourse[]
+  lessonOutlines         LessonOutline[]
+  mediaAssets            MediaAsset[]
+  notifications          Notification[]
+  quizzes                Quiz[]
+  grantedRoles           RoleAssignment[]         @relation("RoleGrantor")
+  roleAssignments        RoleAssignment[]         @relation("RoleHolder")
+  staff                  Staff?
+  student                Student?
+  userCredential         UserCredential?
+  userMfa                UserMfa?
+  userSessions           UserSession[]
+  university             University               @relation(fields: [universityId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("users")
+}
+
+/// Placement readiness per student (read-only). Weights: quizzes 35, certificates 20,
+/// aptitude 15, mock interview 15, resume ATS 15. Defined in SQL (security_invoker, so RLS applies).
+view PlacementReadiness {
+  studentId    String  @unique @map("student_id") @db.Uuid
+  collegeId    String  @map("college_id") @db.Uuid
+  rollNo       String  @map("roll_no")
+  name         String
+  department   String
+  quizAverage  Decimal @map("quiz_average") @db.Decimal
+  certificates BigInt
+  aptitude     Decimal @db.Decimal
+  interview    Int
+  resume       Int
+  total        Int
+  status       String
+
+  @@map("v_placement_readiness")
+}
+
+enum AdmissionDocumentType {
+  Tenth_mark_sheet            @map("10th mark sheet")
+  Twelfth_mark_sheet          @map("12th mark sheet")
+  Transfer_certificate        @map("Transfer certificate")
+  Community_certificate       @map("Community certificate")
+  Passport_photo              @map("Passport photo")
+  Counselling_allotment_order @map("Counselling allotment order")
+
+  @@map("admission_document")
+}
+
+enum AdmissionQuota {
+  Government
+  Management
+  NRI
+
+  @@map("admission_quota")
+}
+
+enum AdmissionStatus {
+  Enquiry
+  Applied
+  Documents_verified @map("Documents verified")
+  Shortlisted
+  Offer_sent         @map("Offer sent")
+  Fee_paid           @map("Fee paid")
+  Enrolled
+  Rejected
+  Withdrawn
+
+  @@map("admission_status")
+}
+
+enum AppRole {
+  student
+  faculty
+  hod
+  placement
+  incubation
+  institution
+  recruiter
+  admin
+
+  @@map("app_role")
+}
+
+enum BloomLevel {
+  Remember
+  Understand
+  Apply
+  Analyse
+  Evaluate
+  Create
+
+  @@map("bloom_level")
+}
+
+enum CertificateGrade {
+  O
+  A_plus @map("A+")
+  A
+  B
+  C
+
+  @@map("certificate_grade")
+}
+
+enum CertificateKind {
+  course
+  quiz
+
+  @@map("certificate_kind")
+}
+
+enum ClinicalDepartment {
+  General_Medicine       @map("General Medicine")
+  General_Surgery        @map("General Surgery")
+  Obstetrics_Gynaecology @map("Obstetrics & Gynaecology")
+  Paediatrics
+  Orthopaedics
+  Community_Medicine     @map("Community Medicine")
+  Emergency_Medicine     @map("Emergency Medicine")
+  Psychiatry
+  Dermatology
+  ENT
+  Ophthalmology
+
+  @@map("clinical_department")
+}
+
+enum CollegePlan {
+  Campus_Starter        @map("Campus Starter")
+  Campus_Pro            @map("Campus Pro")
+  University_Enterprise @map("University Enterprise")
+
+  @@map("college_plan")
+}
+
+enum CollegeStatus {
+  Active
+  Onboarding
+  Suspended
+
+  @@map("college_status")
+}
+
+enum CourseLevel {
+  Foundation_UG_Year_1     @map("Foundation (UG Year 1)")
+  Intermediate_UG_Year_2_3 @map("Intermediate (UG Year 2–3)")
+  Advanced_UG_final_PG     @map("Advanced (UG final / PG)")
+  Certificate_value_added  @map("Certificate / value-added")
+
+  @@map("course_level")
+}
+
+enum CourseSource {
+  title
+  syllabus
+
+  @@map("course_source")
+}
+
+enum CourseStatus {
+  Draft
+  Active
+  Archived
+
+  @@map("course_status")
+}
+
+enum CourseType {
+  Theory
+  Lab
+  Theory_Lab           @map("Theory + Lab")
+  Elective
+  Project
+  Clinical_posting     @map("Clinical posting")
+  Practical_skills_lab @map("Practical / skills lab")
+
+  @@map("course_type")
+}
+
+enum DepartmentStatus {
+  Active
+  Inactive
+
+  @@map("department_status")
+}
+
+enum EmploymentType {
+  Permanent
+  Contract
+  Guest
+  Visiting
+
+  @@map("employment_type")
+}
+
+enum EvaluationStatus {
+  pending
+  approved
+  overridden
+
+  @@map("evaluation_status")
+}
+
+enum EventStatus {
+  Draft
+  Published
+  Completed
+  Cancelled
+
+  @@map("event_status")
+}
+
+enum EventType {
+  Seminar
+  Workshop
+  Hackathon
+  Cultural
+  Sports
+  Alumni
+  Social_service @map("Social service")
+
+  @@map("event_type")
+}
+
+enum FacultyEventKind {
+  smartboard_session
+  outline_saved
+  summary_shared
+  infographic_shared
+  video_added
+  quiz_published
+  course_published
+
+  @@map("faculty_event_kind")
+}
+
+enum GalleryCategory {
+  Campus
+  Academics
+  Labs_Library      @map("Labs & Library")
+  Hospital_Clinical @map("Hospital & Clinical")
+  Sports
+  Cultural
+  Events
+  Convocation
+
+  @@map("gallery_category")
+}
+
+enum Gender {
+  Female
+  Male
+  Non_binary        @map("Non-binary")
+  Prefer_not_to_say @map("Prefer not to say")
+
+  @@map("gender")
+}
+
+enum HomeState {
+  Tamil_Nadu     @map("Tamil Nadu")
+  Kerala
+  Karnataka
+  Andhra_Pradesh @map("Andhra Pradesh")
+  Telangana
+  Puducherry
+  Maharashtra
+  Other
+
+  @@map("home_state")
+}
+
+enum InterviewMode {
+  technical
+  hr
+  behavioral
+
+  @@map("interview_mode")
+}
+
+enum LessonLayout {
+  overview
+  concepts
+  example
+  practice
+  revision
+
+  @@map("lesson_layout")
+}
+
+enum MediaType {
+  image_png  @map("image/png")
+  image_jpeg @map("image/jpeg")
+  image_webp @map("image/webp")
+
+  @@map("media_type")
+}
+
+enum ModuleGroup {
+  Career
+  Communication_Skills @map("Communication & Skills")
+  Project_Innovation   @map("Project & Innovation")
+  Campus_Life          @map("Campus Life")
+  Placement
+  Incubation
+  Admissions
+  Recruiter
+
+  @@map("module_group")
+}
+
+enum PublishStatus {
+  Draft
+  Published
+
+  @@map("publish_status")
+}
+
+enum QuizPurpose {
+  department
+  placement_aptitude
+  course_final
+
+  @@map("quiz_purpose")
+}
+
+enum QuizStatus {
+  Draft
+  Published
+  Closed
+
+  @@map("quiz_status")
+}
+
+enum ReservationCategory {
+  OC
+  BC
+  MBC
+  SC
+  ST
+  EWS
+
+  @@map("reservation_category")
+}
+
+enum RotationPhase {
+  Phase_II         @map("Phase II")
+  Phase_III_Part_1 @map("Phase III Part 1")
+  Phase_III_Part_2 @map("Phase III Part 2")
+  Internship_CRMI  @map("Internship (CRMI)")
+
+  @@map("rotation_phase")
+}
+
+enum RotationStatus {
+  Scheduled
+  Ongoing
+  Completed
+  Extended
+
+  @@map("rotation_status")
+}
+
+enum SchoolBoard {
+  State_Board @map("State Board")
+  CBSE
+  ICSE
+  Other
+
+  @@map("school_board")
+}
+
+enum StaffStatus {
+  Active
+  On_leave @map("On leave")
+  Resigned
+  Retired
+
+  @@map("staff_status")
+}
+
+enum StaffType {
+  Teaching
+  Non_teaching   @map("Non-teaching")
+  Administrative
+
+  @@map("staff_type")
+}
+
+enum StudentStatus {
+  Active
+  Graduated
+  Discontinued
+
+  @@map("student_status")
+}
+
+enum UiTone {
+  brand
+  gold
+  teal
+  rose
+  amber
+  sky
+  neutral
+
+  @@map("ui_tone")
+}
+
+enum UserStatus {
+  Invited
+  Active
+  Suspended
+
+  @@map("user_status")
+}
+
+enum VideoKind {
+  youtube
+  link
+
+  @@map("video_kind")
+}

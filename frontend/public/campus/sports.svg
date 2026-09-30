@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="Sports ground">
+  <rect width="800" height="500" fill="#bfe0f5"/>
+  <rect y="190" width="800" height="310" fill="#4f9d62"/>
+  <ellipse cx="400" cy="350" rx="340" ry="130" fill="none" stroke="#fff" stroke-width="6"/>
+  <ellipse cx="400" cy="350" rx="300" ry="105" fill="#5caf6e"/>
+  <rect x="385" y="290" width="30" height="120" fill="#d9c48f"/>
+  <g fill="#fff"><rect x="390" y="295" width="4" height="16"/><rect x="398" y="295" width="4" height="16"/><rect x="406" y="295" width="4" height="16"/><rect x="390" y="390" width="4" height="16"/><rect x="398" y="390" width="4" height="16"/><rect x="406" y="390" width="4" height="16"/></g>
+  <g transform="translate(300 330)"><circle r="14" fill="#8b5a3c"/><rect x="-12" y="14" width="24" height="40" rx="8" fill="#1e2a5a"/><path d="M12 22 l40 -30" stroke="#c9962b" stroke-width="8" stroke-linecap="round"/></g>
+  <circle cx="470" cy="300" r="9" fill="#b42318"/>
+  <g transform="translate(520 360)"><circle r="14" fill="#6b4029"/><rect x="-12" y="14" width="24" height="40" rx="8" fill="#c9962b"/></g>
+  <g fill="#1e2a5a"><rect x="40" y="120" width="220" height="70"/><rect x="540" y="120" width="220" height="70"/></g>
+  <g fill="#f3c77a"><circle cx="70" cy="145" r="10"/><circle cx="100" cy="150" r="10"/><circle cx="130" cy="145" r="10"/><circle cx="160" cy="150" r="10"/><circle cx="190" cy="145" r="10"/><circle cx="220" cy="150" r="10"/><circle cx="570" cy="145" r="10"/><circle cx="600" cy="150" r="10"/><circle cx="630" cy="145" r="10"/><circle cx="660" cy="150" r="10"/><circle cx="690" cy="145" r="10"/><circle cx="720" cy="150" r="10"/></g>
+  <g stroke="#1e2a5a" stroke-width="6"><path d="M30 190 V40"/><path d="M770 190 V40"/></g>
+  <g fill="#fffbe6"><circle cx="30" cy="40" r="16"/><circle cx="770" cy="40" r="16"/></g>
+</svg>

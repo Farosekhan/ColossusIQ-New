@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="Classroom lecture">
+  <rect width="800" height="500" fill="#faf8f3"/>
+  <rect y="390" width="800" height="110" fill="#c9a27a"/>
+  <rect x="150" y="50" width="500" height="220" rx="6" fill="#1f4a3d"/>
+  <rect x="140" y="270" width="520" height="14" fill="#7a4a2a"/>
+  <g stroke="#f4f1e8" stroke-width="4" fill="none" stroke-linecap="round">
+    <path d="M190 110 h140 M190 145 h90 M190 180 h120"/>
+    <circle cx="500" cy="150" r="55"/><path d="M500 150 L540 110 M500 150 v55"/>
+    <path d="M430 230 h160"/>
+  </g>
+  <text x="200" y="240" fill="#f3c77a" font-family="Georgia, serif" font-size="30">E = mc²</text>
+  <g transform="translate(680 300)"><circle r="20" fill="#8b5a3c"/><rect x="-18" y="20" width="36" height="70" rx="10" fill="#c9962b"/><path d="M-14 36 l-60 -60" stroke="#8b5a3c" stroke-width="8" stroke-linecap="round"/></g>
+  <g>
+    <g transform="translate(160 380)"><circle cy="-40" r="18" fill="#6b4029"/><path d="M-26 10 q26 -50 52 0z" fill="#4a5bd4"/></g>
+    <g transform="translate(290 380)"><circle cy="-40" r="18" fill="#8b5a3c"/><path d="M-26 10 q26 -50 52 0z" fill="#0f766e"/></g>
+    <g transform="translate(420 380)"><circle cy="-40" r="18" fill="#6b4029"/><path d="M-26 10 q26 -50 52 0z" fill="#b42318"/></g>
+    <g transform="translate(550 380)"><circle cy="-40" r="18" fill="#8b5a3c"/><path d="M-26 10 q26 -50 52 0z" fill="#6d4bd8"/></g>
+  </g>
+  <g fill="#7a4a2a"><rect x="100" y="385" width="520" height="16" rx="4"/></g>
+</svg>

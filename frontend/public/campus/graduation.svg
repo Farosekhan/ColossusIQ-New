@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="Graduation day">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7eed8"/><stop offset="1" stop-color="#f3dfb2"/></linearGradient></defs>
+  <rect width="800" height="500" fill="url(#g)"/>
+  <g fill="#c9962b" opacity=".7"><rect x="120" y="60" width="10" height="24" transform="rotate(20 125 72)"/><rect x="600" y="80" width="10" height="24" transform="rotate(-25 605 92)"/><rect x="420" y="40" width="10" height="24" transform="rotate(40 425 52)"/><rect x="260" y="110" width="10" height="24" transform="rotate(-10 265 122)"/><rect x="700" y="150" width="10" height="24" transform="rotate(30 705 162)"/></g>
+  <g fill="#b42318" opacity=".6"><circle cx="200" cy="90" r="6"/><circle cx="520" cy="120" r="6"/><circle cx="650" cy="50" r="6"/></g>
+  <g transform="translate(250 280)">
+    <path d="M-70 220 q70 -170 140 0z" fill="#1e2a5a"/><circle cy="-10" r="40" fill="#8b5a3c"/>
+    <path d="M-60 -50 L0 -80 L60 -50 L0 -20Z" fill="#141d42"/><path d="M45 -45 v40" stroke="#c9962b" stroke-width="4"/>
+  </g>
+  <g transform="translate(410 250)">
+    <path d="M-75 250 q75 -180 150 0z" fill="#1e2a5a"/><circle cy="-10" r="42" fill="#6b4029"/>
+    <path d="M-62 -52 L0 -84 L62 -52 L0 -20Z" fill="#141d42"/><path d="M48 -47 v42" stroke="#c9962b" stroke-width="4"/>
+    <rect x="30" y="60" width="70" height="20" rx="10" fill="#fff" transform="rotate(-30 65 70)"/><rect x="85" y="35" width="10" height="24" fill="#b42318" transform="rotate(-30 90 47)"/>
+  </g>
+  <g transform="translate(570 290)">
+    <path d="M-65 210 q65 -160 130 0z" fill="#1e2a5a"/><circle cy="-8" r="38" fill="#8b5a3c"/>
+    <path d="M-56 -46 L0 -74 L56 -46 L0 -18Z" fill="#141d42"/><path d="M42 -42 v38" stroke="#c9962b" stroke-width="4"/>
+  </g>
+  <g transform="translate(150 120) rotate(-20)"><path d="M-40 0 L0 -20 L40 0 L0 20Z" fill="#141d42"/><path d="M30 5 v25" stroke="#c9962b" stroke-width="3"/></g>
+</svg>
