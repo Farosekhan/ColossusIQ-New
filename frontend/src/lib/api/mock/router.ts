@@ -63,6 +63,7 @@ async function universityOverview() {
         users: await count("users", c.id),
         courses: await count("courses", c.id, { status: "Active" }),
         events: await count("events", c.id),
+        departments: await count("departments", c.id),
       };
       const capacity = typeof c.studentCapacity === "number" ? c.studentCapacity : 0;
       return {
@@ -79,7 +80,7 @@ async function universityOverview() {
       };
     }),
   );
-  const sum = (k: keyof (typeof rows)[number]["counts"]) => rows.reduce((a, r) => a + r.counts[k], 0);
+  const sum = (k: keyof (typeof rows)[number]["counts"]) => rows.reduce((a, r) => a + (r.counts[k] ?? 0), 0);
   return {
     university: UNIVERSITY.name,
     totals: {
@@ -93,6 +94,7 @@ async function universityOverview() {
       staff: sum("staff"),
       users: sum("users"),
       courses: sum("courses"),
+      departments: sum("departments"),
     },
     colleges: rows,
     recentAudit: await recentAudit(8),
