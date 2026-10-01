@@ -1,11 +1,15 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { fieldLabel, type FieldDef, type RecordValue } from "@/config/resources";
 import { streamOptions, type Stream } from "@/config/streams";
 import { Fi } from "@/components/ui/icon";
 import { Badge, inputClass, toneForStatus } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
 import { mediaUrl } from "@/lib/media";
+import { apiFetch } from "@/lib/api/client";
+import { FacultyOptions } from "@/lib/api/schemas";
 import { ImageField } from "./image-field";
 
 /** Renders one form control for a resource field. Values stay typed (number/boolean/string[]). */
@@ -16,6 +20,7 @@ export function FieldInput({
   onChange,
   disabled,
   stream = null,
+  collegeId,
 }: {
   field: FieldDef;
   value: RecordValue;
@@ -24,6 +29,7 @@ export function FieldInput({
   disabled?: boolean;
   /** The owning college's stream: narrows programme/department/term lists and relabels entrance scores. */
   stream?: Stream | null;
+  collegeId?: string;
 }) {
   const label = fieldLabel(field, stream);
   const options = field.streamOptions && stream ? streamOptions(field.streamOptions, stream) : field.options;
@@ -32,7 +38,18 @@ export function FieldInput({
   const common = { id, disabled, "aria-invalid": Boolean(error), "aria-describedby": describedBy, "aria-required": field.required };
 
   let control: React.ReactNode;
-  switch (field.type) {
+  if (field.lookup === "faculty") {
+    control = (
+      <FacultyField
+        id={id}
+        value={typeof value === "string" ? value : ""}
+        onChange={(v) => onChange(v)}
+        disabled={disabled}
+        collegeId={collegeId}
+      />
+    );
+  } else {
+    switch (field.type) {
     case "toggle":
       control = (
         <button
@@ -138,6 +155,7 @@ export function FieldInput({
           onChange={(e) => onChange(e.target.value)}
         />
       );
+    }
   }
 
   return (
@@ -194,4 +212,100 @@ export function ValueView({ field, value }: { field: FieldDef; value: RecordValu
   if (field.column === "badge" || field.name === "status") return <Badge tone={toneForStatus(String(value))}>{String(value)}</Badge>;
   if (field.type === "textarea") return <span className="whitespace-pre-wrap">{String(value)}</span>;
   return <span className="break-words">{String(value)}</span>;
+}
+
+function FacultyField({
+  id,
+  value,
+  onChange,
+  disabled,
+  collegeId,
+}: {
+  id: string;
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+  collegeId?: string;
+}) {
+  const [customMode, setCustomMode] = useState(false);
+  const facultyQuery = useQuery({
+    queryKey: ["faculty-options", collegeId],
+    queryFn: () => apiFetch(`/api/v1/staff/faculty-options${collegeId ? `?college=${encodeURIComponent(collegeId)}` : ""}`, FacultyOptions),
+  });
+
+  const facultyList = facultyQuery.data?.faculty ?? [];
+  const hasFaculty = facultyList.length > 0;
+  const isKnownFaculty = facultyList.some((f) => f.name === value);
+
+  useEffect(() => {
+    if (value && facultyQuery.isSuccess && hasFaculty && !isKnownFaculty) {
+      setCustomMode(true);
+    }
+  }, [value, facultyQuery.isSuccess, hasFaculty, isKnownFaculty]);
+
+  if (customMode || (!facultyQuery.isLoading && !hasFaculty)) {
+    return (
+      <div className="space-y-1.5">
+        <div className="flex gap-2">
+          <input
+            id={id}
+            type="text"
+            className={inputClass}
+            placeholder="Type faculty name (e.g. Dr. Meena Raghavan)"
+            value={value}
+            disabled={disabled}
+            maxLength={80}
+            onChange={(e) => onChange(e.target.value)}
+          />
+          {hasFaculty ? (
+            <button
+              type="button"
+              className="shrink-0 rounded-xl border border-line bg-surface-2 px-3 text-xs font-medium text-ink-2 hover:bg-surface-3 hover:text-ink transition-colors"
+              onClick={() => {
+                setCustomMode(false);
+                onChange("");
+              }}
+            >
+              Choose from staff
+            </button>
+          ) : null}
+        </div>
+        <p className="text-xs text-ink-3">
+          {hasFaculty
+            ? "Typing custom / visiting faculty. Click 'Choose from staff' to select a registered faculty member."
+            : "No staff records found for this college yet. You can type the faculty name directly."}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <select
+        id={id}
+        className={inputClass}
+        value={value}
+        disabled={disabled || facultyQuery.isLoading}
+        onChange={(e) => {
+          if (e.target.value === "__custom__") {
+            setCustomMode(true);
+            onChange("");
+          } else {
+            onChange(e.target.value);
+          }
+        }}
+      >
+        <option value="">{facultyQuery.isLoading ? "Loading staff list…" : "Select a faculty member…"}</option>
+        {facultyList.map((f) => {
+          const details = [f.department, f.designation].filter(Boolean).join(" · ");
+          return (
+            <option key={f.id} value={f.name}>
+              {f.name} {details ? `(${details})` : ""}
+            </option>
+          );
+        })}
+        <option value="__custom__">+ Enter other / visiting faculty name…</option>
+      </select>
+    </div>
+  );
 }

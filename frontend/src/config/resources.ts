@@ -38,6 +38,8 @@ export interface FieldDef {
   streamOptions?: "department" | "program" | "semester" | "designation";
   /** Label and maximum come from the stream's entrance exam (e.g. NEET out of 720). */
   entranceScore?: boolean;
+  /** Dynamic entity lookup for options (e.g. "faculty"). */
+  lookup?: "faculty";
 }
 
 export interface ResourceDef {
@@ -254,7 +256,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { name: "semester", label: "Semester / phase", type: "select", section: "Course details", required: true, options: ALL_TERMS, streamOptions: "semester", column: "text" },
       { name: "credits", label: "Credits", type: "number", section: "Course details", required: true, min: 1, max: 6, column: "number" },
       { name: "courseType", label: "Type", type: "select", section: "Delivery", required: true, options: ["Theory", "Lab", "Theory + Lab", "Elective", "Project", "Clinical posting", "Practical / skills lab"] },
-      { name: "faculty", label: "Course faculty", type: "text", section: "Delivery", required: true, maxLength: 80, column: "text" },
+      { name: "faculty", label: "Course faculty", type: "text", section: "Delivery", required: true, maxLength: 80, column: "text", lookup: "faculty" },
       { name: "status", label: "Status", type: "select", section: "Delivery", required: true, options: ["Draft", "Active", "Archived"], defaultValue: "Draft", column: "badge" },
       { name: "description", label: "Course outcomes / description", type: "textarea", section: "Delivery", maxLength: 1500, wide: true },
     ],
@@ -319,7 +321,7 @@ RESOURCES.rotations = {
     { name: "unit", label: "Hospital unit / ward", type: "text", section: "Posting", required: true, maxLength: 60, placeholder: "e.g. Unit II · Ward 14" },
     { name: "startDate", label: "Posting starts", type: "date", section: "Posting", required: true, minDate: "2024-01-01", maxDate: "2030-12-31" },
     { name: "endDate", label: "Posting ends", type: "date", section: "Posting", required: true, minDate: "2024-01-01", maxDate: "2030-12-31" },
-    { name: "supervisor", label: "Supervising faculty", type: "text", section: "Supervision & attendance", required: true, maxLength: 80, column: "text" },
+    { name: "supervisor", label: "Supervising faculty", type: "text", section: "Supervision & attendance", required: true, maxLength: 80, column: "text", lookup: "faculty" },
     { name: "attendance", label: "Attendance (%)", type: "number", section: "Supervision & attendance", min: 0, max: 100, column: "number", help: "Minimum 80% clinical attendance is required for eligibility." },
     { name: "competenciesSigned", label: "Logbook competencies certified", type: "number", section: "Supervision & attendance", min: 0, max: 200 },
     { name: "status", label: "Status", type: "select", section: "Supervision & attendance", required: true, options: ["Scheduled", "Ongoing", "Completed", "Extended"], defaultValue: "Scheduled", column: "badge" },

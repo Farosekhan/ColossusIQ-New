@@ -260,7 +260,7 @@ function FormInner({
                 </div>
                 <CardBody className="grid gap-5 sm:grid-cols-2">
                   {fields.map((f) => (
-                    <FieldInput key={f.name} field={f} value={values[f.name] ?? null} error={errors[f.name]} onChange={(v) => set(f.name, v)} disabled={save.isPending || (pickCollege && !collegeId)} stream={stream} />
+                    <FieldInput key={f.name} field={f} value={values[f.name] ?? null} error={errors[f.name]} onChange={(v) => set(f.name, v)} disabled={save.isPending || (pickCollege && !collegeId)} stream={stream} collegeId={collegeId || undefined} />
                   ))}
                 </CardBody>
               </Card>

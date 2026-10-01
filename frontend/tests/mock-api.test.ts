@@ -68,6 +68,14 @@ describe("mock API authorisation", () => {
       expect(parsed.data.departments?.length).toBeGreaterThan(0);
     }
   });
+  it("returns faculty options for course creation", async () => {
+    const res = await dispatch("GET", ["staff", "faculty-options"], undefined, session("admin"), q);
+    expect(res.status).toBe(200);
+    const body = res.body as { faculty: Array<{ id: string; name: string; department?: string; designation?: string }> };
+    expect(Array.isArray(body.faculty)).toBe(true);
+    expect(body.faculty.length).toBeGreaterThan(0);
+    expect(body.faculty[0]).toHaveProperty("name");
+  });
 });
 
 describe("AI guardrails", () => {

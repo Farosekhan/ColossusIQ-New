@@ -102,6 +102,7 @@ async function universityOverview() {
 const PATTERNS = [
   "GET university/overview",
   "GET colleges/options",
+  "GET staff/faculty-options",
   "GET notifications",
   "GET search",
   "GET home/:id",
@@ -170,6 +171,32 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
       const all = (await listColleges()).map((c) => ({ id: c.id, name: String(c.name), status: String(c.status), city: String(c.city), type: String(c.type) }));
       const visible = session.college === ALL_COLLEGES || session.role === "admin" ? all : all.filter((c) => c.id === session.college);
       return ok({ scope: session.college, colleges: visible.sort((a, b) => a.name.localeCompare(b.name)) });
+    }
+    case "GET staff/faculty-options": {
+      const targetCollege = query.get("college") || (session.college !== ALL_COLLEGES ? session.college : undefined);
+      const list = await getStore().records.list(RESOURCES.staff!, {
+        scope: session.college,
+        college: targetCollege,
+        page: 1,
+        pageSize: 1000,
+      });
+      const faculty = list.items
+        .filter((s) => s.status !== "Resigned" && s.status !== "Retired")
+        .filter(
+          (s) =>
+            s.staffType === "Teaching" ||
+            s.staffType === undefined ||
+            (typeof s.designation === "string" && !["Accountant", "Librarian", "Administrative Officer", "Driver", "Security"].includes(s.designation)),
+        )
+        .map((s) => ({
+          id: s.id,
+          name: String(s.fullName || s.name || "").trim(),
+          department: String(s.department || "").trim(),
+          designation: String(s.designation || "").trim(),
+        }))
+        .filter((f) => f.name.length > 0)
+        .sort((a, b) => a.name.localeCompare(b.name));
+      return ok({ faculty });
     }
 
     /* ── session & shell ── */

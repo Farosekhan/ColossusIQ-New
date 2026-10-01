@@ -399,6 +399,17 @@ export const CollegeOptions = z.object({
   scope: z.string(),
   colleges: z.array(z.object({ id: z.string(), name: z.string(), status: z.string(), city: z.string(), type: z.string() })),
 });
+export const FacultyOptions = z.object({
+  faculty: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      department: z.string().optional(),
+      designation: z.string().optional(),
+    }),
+  ),
+});
+export type FacultyOptions = z.infer<typeof FacultyOptions>;
 export const PublicColleges = z.object({
   university: z.string(),
   colleges: z.array(z.object({ id: z.string(), name: z.string(), city: z.string(), type: z.string(), admissionsOpen: z.boolean() })),
