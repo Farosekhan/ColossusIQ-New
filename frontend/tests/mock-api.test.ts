@@ -167,3 +167,95 @@ describe("Dynamic module settings and notifications config", () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe("Campus clubs API and live management", () => {
+  it("fetches clubs overview with KPIs and seeded clubs", async () => {
+    const instSession = session("institution");
+    const res = await dispatch("GET", ["clubs"], undefined, instSession, new URLSearchParams());
+    expect(res.status).toBe(200);
+    const body = res.body as {
+      collegeId: string;
+      kpis: { totalClubs: number; totalMembers: number; activeCategories: number; upcomingActivities: number };
+      clubs: Array<{ id: string; name: string; category: string }>;
+    };
+    expect(body.kpis.totalClubs).toBeGreaterThanOrEqual(8);
+    expect(body.kpis.totalMembers).toBeGreaterThan(0);
+    expect(body.clubs.some((c) => c.name === "Coding Club")).toBe(true);
+    expect(body.clubs.some((c) => c.name === "Robotics Society")).toBe(true);
+  });
+
+  it("allows institution to create a new club", async () => {
+    const instSession = session("institution");
+    const payload = {
+      name: "Cloud & DevOps Society",
+      category: "Technical",
+      description: "AWS, Docker, and Kubernetes workshops.",
+      lead: "Ananya Krishnan",
+      facultyAdvisor: "Dr. Meena Raghavan",
+      meetingSchedule: "Wednesdays 4:30 PM",
+      venue: "Cloud Lab 2",
+      membersCount: 25,
+    };
+    const res = await dispatch("POST", ["clubs"], payload, instSession, new URLSearchParams());
+    expect(res.status).toBe(200);
+    const created = res.body as { id: string; name: string; category: string; membersCount: number };
+    expect(created.name).toBe("Cloud & DevOps Society");
+    expect(created.membersCount).toBe(25);
+
+    // Verify it now appears in GET clubs
+    const overview = await dispatch("GET", ["clubs"], undefined, instSession, new URLSearchParams());
+    const list = (overview.body as { clubs: Array<{ id: string; name: string }> }).clubs;
+    expect(list.some((c) => c.name === "Cloud & DevOps Society")).toBe(true);
+  });
+
+  it("allows student to toggle join / leave a club", async () => {
+    const studentSession = session("student");
+    const joinRes = await dispatch("POST", ["clubs", "club-coding", "join"], undefined, studentSession, new URLSearchParams());
+    expect(joinRes.status).toBe(200);
+    const joinBody = joinRes.body as { isJoined: boolean; membersCount: number };
+    expect(joinBody.isJoined).toBe(true);
+    expect(joinBody.membersCount).toBe(41); // was 40, now 41
+
+    // Toggle again (leave)
+    const leaveRes = await dispatch("POST", ["clubs", "club-coding", "join"], undefined, studentSession, new URLSearchParams());
+    expect(leaveRes.status).toBe(200);
+    const leaveBody = leaveRes.body as { isJoined: boolean; membersCount: number };
+    expect(leaveBody.isJoined).toBe(false);
+    expect(leaveBody.membersCount).toBe(40);
+  });
+
+  it("denies student from creating or deleting clubs", async () => {
+    const studentSession = session("student");
+    const createRes = await dispatch(
+      "POST",
+      ["clubs"],
+      { name: "Unauthorized Club", category: "Social", lead: "X", meetingSchedule: "Sun" },
+      studentSession,
+      new URLSearchParams(),
+    );
+    expect(createRes.status).toBe(403);
+
+    const deleteRes = await dispatch("DELETE", ["clubs", "club-coding"], undefined, studentSession, new URLSearchParams());
+    expect(deleteRes.status).toBe(403);
+  });
+
+  it("allows institution to delete a club", async () => {
+    const instSession = session("institution");
+    // Create temporary club
+    const createRes = await dispatch(
+      "POST",
+      ["clubs"],
+      { name: "Temp Gaming Club", category: "Cultural", lead: "Gamer Lead", meetingSchedule: "Fri 6 PM" },
+      instSession,
+      new URLSearchParams(),
+    );
+    const club = createRes.body as { id: string };
+
+    const deleteRes = await dispatch("DELETE", ["clubs", club.id], undefined, instSession, new URLSearchParams());
+    expect(deleteRes.status).toBe(200);
+
+    const overview = await dispatch("GET", ["clubs"], undefined, instSession, new URLSearchParams());
+    const list = (overview.body as { clubs: Array<{ id: string }> }).clubs;
+    expect(list.some((c) => c.id === club.id)).toBe(false);
+  });
+});

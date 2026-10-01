@@ -23,6 +23,7 @@ import type { Stream } from "@/config/streams";
 import { getStore } from "@/lib/data";
 import { collegeStream } from "./records";
 import { dynamicBiAnalytics } from "./bi-analytics";
+import { getCollegeClubs } from "./clubs";
 
 /** Live data a builder may need, fetched once per request. */
 interface ScopeData {
@@ -233,10 +234,21 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
     list([col("event", "Event"), col("type", "Type", "badge"), col("date", "Date"), col("venue", "Venue"), col("registered", "Registered", "number")],
       [["Techno Fest 2026", "Cultural", "Oct 10–11", "Main Auditorium", 1240], ["Workshop: GenAI for Engineers", "Workshop", "Oct 4", "Seminar Hall 2", 180], ["Alumni Connect — Product Careers", "Alumni", "Oct 8", "Online", 310], ["Inter-department Cricket", "Sports", "Oct 12–20", "Ground A", 160], ["Guest Lecture: Cloud Security", "Seminar", "Oct 15", "Seminar Hall 1", 220], ["Blood Donation Camp", "Social service", "Oct 22", "Health Centre", 95]].map(([event, type, date, venue, registered]) => ({ event: event as string, type: type as string, date: date as string, venue: venue as string, registered: registered as number })),
       "type", "Create event"),
-  clubs: () =>
-    list([col("club", "Club"), col("category", "Category", "badge"), col("members", "Members", "number"), col("lead", "Student lead"), col("next", "Next activity")],
-      [["Coding Club", "Technical"], ["Robotics Society", "Technical"], ["AI & Data Science Circle", "Technical"], ["Tamil Mandram", "Cultural"], ["Music Club", "Cultural"], ["NSS Unit", "Social"], ["Entrepreneurship Cell", "Innovation"], ["Photography Club", "Cultural"]].map(([club, category], i) => ({ club: club!, category: category!, members: 40 + ((i * 37) % 160), lead: personName(i + 8), next: pick(["Weekly contest — Sat", "Build night — Thu", "Paper reading — Wed", "Rehearsal — Fri"], seeded(i + 1)) })),
-      "category", "Start a club"),
+  clubs: (collegeScope) => {
+    const items = getCollegeClubs(collegeScope);
+    return list(
+      [col("club", "Club"), col("category", "Category", "badge"), col("members", "Members", "number"), col("lead", "Student lead"), col("next", "Next activity")],
+      items.map((c) => ({
+        club: c.name,
+        category: c.category,
+        members: c.membersCount,
+        lead: c.lead,
+        next: c.meetingSchedule,
+      })),
+      "category",
+      "Start a club",
+    );
+  },
   sports: () =>
     list([col("sport", "Sport"), col("team", "Team"), col("coach", "Coach"), col("event", "Upcoming"), col("status", "Status", "badge")],
       [["Cricket", "AIT Titans"], ["Football", "AIT Strikers"], ["Basketball", "Hoopers"], ["Volleyball", "Spikers"], ["Athletics", "Track squad"], ["Chess", "Grandmasters"], ["Kabaddi", "Raiders"]].map(([sport, team], i) => ({ sport: sport!, team: team!, coach: `Coach ${personName(i + 14).split(" ")[0]}`, event: `Zonal meet · Oct ${10 + i * 2}`, status: i % 3 === 0 ? "Trials open" : "Active" })),

@@ -15,6 +15,8 @@ import { roleHomeFor, studentCourses, studentDashboard } from "./stream-content"
 import { dynamicInstitutionHome } from "./institution-home";
 import { dynamicBiAnalytics } from "./bi-analytics";
 import { moduleData } from "./module-data";
+import { createClub, deleteClub, getClubsOverview, toggleJoinClub, updateClub } from "./clubs";
+import { CreateClubInput } from "@/lib/api/schemas";
 import { dispatchRecords } from "./records-router";
 import { dispatchLearning } from "./learning";
 import { dispatchCourses } from "./course-builder";
@@ -115,6 +117,11 @@ const PATTERNS = [
   "GET home/:id",
   "GET modules/:id",
   "PUT modules/:id",
+  "GET clubs",
+  "POST clubs",
+  "PUT clubs/:id",
+  "POST clubs/:id/join",
+  "DELETE clubs/:id",
   "GET students/me/dashboard",
   "GET courses",
   "GET courses/:id",
@@ -309,6 +316,35 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
       });
 
       return ok({ ok: true, values });
+    }
+
+    /* ── campus clubs ── */
+    case "GET clubs":
+      return ok(await getClubsOverview(session));
+    case "POST clubs": {
+      if (session.role !== "institution" && session.role !== "admin") return forbidden();
+      const parsed = CreateClubInput.safeParse(rawBody);
+      if (!parsed.success) return err(400, "invalid_body", parsed.error.issues[0]?.message ?? "Invalid club payload.");
+      return ok(await createClub(session, parsed.data));
+    }
+    case "PUT clubs/:id": {
+      if (session.role !== "institution" && session.role !== "admin") return forbidden();
+      if (!b) return notFound();
+      const parsed = CreateClubInput.partial().safeParse(rawBody);
+      if (!parsed.success) return err(400, "invalid_body", "Invalid club payload.");
+      const updated = await updateClub(session, b, parsed.data);
+      return updated ? ok(updated) : notFound();
+    }
+    case "POST clubs/:id/join": {
+      if (!b) return notFound();
+      const res = await toggleJoinClub(session, b);
+      return res ? ok(res) : notFound();
+    }
+    case "DELETE clubs/:id": {
+      if (session.role !== "institution" && session.role !== "admin") return forbidden();
+      if (!b) return notFound();
+      const success = await deleteClub(session, b);
+      return success ? ok({ ok: true }) : notFound();
     }
 
     /* ── student ── */

@@ -514,3 +514,44 @@ export const BiAnalyticsData = z.object({
   insights: z.array(Insight),
 });
 export type BiAnalyticsData = z.infer<typeof BiAnalyticsData>;
+
+/* ── Campus Clubs ───────────────────────────────── */
+export const ClubItem = z.object({
+  id: z.string(),
+  name: z.string(),
+  category: z.enum(["Technical", "Cultural", "Social", "Innovation", "Arts", "Sports", "Academic"]),
+  description: z.string().default(""),
+  lead: z.string(),
+  facultyAdvisor: z.string().default("Faculty Coordinator"),
+  membersCount: z.number().int().nonnegative(),
+  meetingSchedule: z.string(),
+  venue: z.string().default("Campus Center"),
+  status: z.enum(["Active", "Recruiting", "Inactive"]).default("Active"),
+  isJoined: z.boolean().default(false),
+  createdAt: z.string(),
+});
+export type ClubItem = z.infer<typeof ClubItem>;
+
+export const ClubsOverview = z.object({
+  collegeId: z.string(),
+  kpis: z.object({
+    totalClubs: z.number(),
+    totalMembers: z.number(),
+    activeCategories: z.number(),
+    upcomingActivities: z.number(),
+  }),
+  clubs: z.array(ClubItem),
+});
+export type ClubsOverview = z.infer<typeof ClubsOverview>;
+
+export const CreateClubInput = z.object({
+  name: z.string().min(2, "Club name is required").max(100),
+  category: z.enum(["Technical", "Cultural", "Social", "Innovation", "Arts", "Sports", "Academic"]),
+  description: z.string().max(1000).default(""),
+  lead: z.string().min(2, "Student lead is required").max(100),
+  facultyAdvisor: z.string().max(100).default("Faculty Coordinator"),
+  meetingSchedule: z.string().min(2, "Meeting schedule is required").max(100),
+  venue: z.string().max(100).default("Campus Center"),
+  membersCount: z.number().int().min(1).max(5000).default(10),
+});
+export type CreateClubInput = z.infer<typeof CreateClubInput>;
