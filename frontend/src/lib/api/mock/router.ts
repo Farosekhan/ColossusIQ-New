@@ -16,7 +16,8 @@ import { dynamicInstitutionHome } from "./institution-home";
 import { dynamicBiAnalytics } from "./bi-analytics";
 import { moduleData } from "./module-data";
 import { createClub, deleteClub, getClubsOverview, toggleJoinClub, updateClub } from "./clubs";
-import { CreateClubInput } from "@/lib/api/schemas";
+import { createSport, deleteSport, getSportsOverview, toggleRegisterTrial, updateSport } from "./sports";
+import { CreateClubInput, CreateSportInput } from "@/lib/api/schemas";
 import { dispatchRecords } from "./records-router";
 import { dispatchLearning } from "./learning";
 import { dispatchCourses } from "./course-builder";
@@ -122,6 +123,11 @@ const PATTERNS = [
   "PUT clubs/:id",
   "POST clubs/:id/join",
   "DELETE clubs/:id",
+  "GET sports",
+  "POST sports",
+  "PUT sports/:id",
+  "POST sports/:id/register",
+  "DELETE sports/:id",
   "GET students/me/dashboard",
   "GET courses",
   "GET courses/:id",
@@ -344,6 +350,35 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
       if (session.role !== "institution" && session.role !== "admin") return forbidden();
       if (!b) return notFound();
       const success = await deleteClub(session, b);
+      return success ? ok({ ok: true }) : notFound();
+    }
+
+    /* ── campus sports ── */
+    case "GET sports":
+      return ok(await getSportsOverview(session));
+    case "POST sports": {
+      if (session.role !== "institution" && session.role !== "admin") return forbidden();
+      const parsed = CreateSportInput.safeParse(rawBody);
+      if (!parsed.success) return err(400, "invalid_body", parsed.error.issues[0]?.message ?? "Invalid sport payload.");
+      return ok(await createSport(session, parsed.data));
+    }
+    case "PUT sports/:id": {
+      if (session.role !== "institution" && session.role !== "admin") return forbidden();
+      if (!b) return notFound();
+      const parsed = CreateSportInput.partial().safeParse(rawBody);
+      if (!parsed.success) return err(400, "invalid_body", "Invalid sport payload.");
+      const updated = await updateSport(session, b, parsed.data);
+      return updated ? ok(updated) : notFound();
+    }
+    case "POST sports/:id/register": {
+      if (!b) return notFound();
+      const res = await toggleRegisterTrial(session, b);
+      return res ? ok(res) : notFound();
+    }
+    case "DELETE sports/:id": {
+      if (session.role !== "institution" && session.role !== "admin") return forbidden();
+      if (!b) return notFound();
+      const success = await deleteSport(session, b);
       return success ? ok({ ok: true }) : notFound();
     }
 

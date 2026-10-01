@@ -259,3 +259,95 @@ describe("Campus clubs API and live management", () => {
     expect(list.some((c) => c.id === club.id)).toBe(false);
   });
 });
+
+describe("Campus sports API and live management", () => {
+  it("fetches sports overview with KPIs and seeded teams", async () => {
+    const instSession = session("institution");
+    const res = await dispatch("GET", ["sports"], undefined, instSession, new URLSearchParams());
+    expect(res.status).toBe(200);
+    const body = res.body as {
+      collegeId: string;
+      kpis: { totalTeams: number; totalAthletes: number; openTrials: number; upcomingMeets: number };
+      sports: Array<{ id: string; sport: string; team: string; status: string }>;
+    };
+    expect(body.kpis.totalTeams).toBeGreaterThanOrEqual(7);
+    expect(body.kpis.totalAthletes).toBeGreaterThan(0);
+    expect(body.sports.some((s) => s.sport === "Cricket" && s.team === "AIT Titans")).toBe(true);
+    expect(body.sports.some((s) => s.sport === "Football" && s.team === "AIT Strikers")).toBe(true);
+  });
+
+  it("allows institution to register a new sport and team", async () => {
+    const instSession = session("institution");
+    const payload = {
+      sport: "Table Tennis",
+      team: "AIT Spinners",
+      coach: "Coach Vikram",
+      captain: "Aditi Rao",
+      event: "Inter-collegiate TT Open · Nov 12",
+      venue: "Indoor Stadium TT Arena",
+      squadSize: 8,
+      status: "Trials open",
+    };
+    const res = await dispatch("POST", ["sports"], payload, instSession, new URLSearchParams());
+    expect(res.status).toBe(200);
+    const created = res.body as { id: string; sport: string; team: string; squadSize: number };
+    expect(created.sport).toBe("Table Tennis");
+    expect(created.team).toBe("AIT Spinners");
+    expect(created.squadSize).toBe(8);
+
+    // Verify it appears in GET sports
+    const overview = await dispatch("GET", ["sports"], undefined, instSession, new URLSearchParams());
+    const list = (overview.body as { sports: Array<{ id: string; team: string }> }).sports;
+    expect(list.some((s) => s.team === "AIT Spinners")).toBe(true);
+  });
+
+  it("allows student to toggle trial registration for a sport", async () => {
+    const studentSession = session("student");
+    const regRes = await dispatch("POST", ["sports", "sport-cricket", "register"], undefined, studentSession, new URLSearchParams());
+    expect(regRes.status).toBe(200);
+    const regBody = regRes.body as { isRegistered: boolean; squadSize: number };
+    expect(regBody.isRegistered).toBe(true);
+    expect(regBody.squadSize).toBe(19); // 18 + 1
+
+    // Toggle again (withdraw)
+    const withdrawRes = await dispatch("POST", ["sports", "sport-cricket", "register"], undefined, studentSession, new URLSearchParams());
+    expect(withdrawRes.status).toBe(200);
+    const withdrawBody = withdrawRes.body as { isRegistered: boolean; squadSize: number };
+    expect(withdrawBody.isRegistered).toBe(false);
+    expect(withdrawBody.squadSize).toBe(18);
+  });
+
+  it("denies student from registering a new sport or deleting a team", async () => {
+    const studentSession = session("student");
+    const createRes = await dispatch(
+      "POST",
+      ["sports"],
+      { sport: "Rowing", team: "AIT Rowers", coach: "Coach X", event: "Regatta" },
+      studentSession,
+      new URLSearchParams(),
+    );
+    expect(createRes.status).toBe(403);
+
+    const deleteRes = await dispatch("DELETE", ["sports", "sport-cricket"], undefined, studentSession, new URLSearchParams());
+    expect(deleteRes.status).toBe(403);
+  });
+
+  it("allows institution to delete a sport team", async () => {
+    const instSession = session("institution");
+    const createRes = await dispatch(
+      "POST",
+      ["sports"],
+      { sport: "Dodgeball", team: "AIT Dodgers", coach: "Coach D", event: "Friendly Match" },
+      instSession,
+      new URLSearchParams(),
+    );
+    const team = createRes.body as { id: string };
+
+    const deleteRes = await dispatch("DELETE", ["sports", team.id], undefined, instSession, new URLSearchParams());
+    expect(deleteRes.status).toBe(200);
+
+    const overview = await dispatch("GET", ["sports"], undefined, instSession, new URLSearchParams());
+    const list = (overview.body as { sports: Array<{ id: string }> }).sports;
+    expect(list.some((s) => s.id === team.id)).toBe(false);
+  });
+});

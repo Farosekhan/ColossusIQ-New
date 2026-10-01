@@ -24,6 +24,7 @@ import { getStore } from "@/lib/data";
 import { collegeStream } from "./records";
 import { dynamicBiAnalytics } from "./bi-analytics";
 import { getCollegeClubs } from "./clubs";
+import { getCollegeSports } from "./sports";
 
 /** Live data a builder may need, fetched once per request. */
 interface ScopeData {
@@ -249,10 +250,21 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
       "Start a club",
     );
   },
-  sports: () =>
-    list([col("sport", "Sport"), col("team", "Team"), col("coach", "Coach"), col("event", "Upcoming"), col("status", "Status", "badge")],
-      [["Cricket", "AIT Titans"], ["Football", "AIT Strikers"], ["Basketball", "Hoopers"], ["Volleyball", "Spikers"], ["Athletics", "Track squad"], ["Chess", "Grandmasters"], ["Kabaddi", "Raiders"]].map(([sport, team], i) => ({ sport: sport!, team: team!, coach: `Coach ${personName(i + 14).split(" ")[0]}`, event: `Zonal meet · Oct ${10 + i * 2}`, status: i % 3 === 0 ? "Trials open" : "Active" })),
-      "status", "Register"),
+  sports: (collegeScope) => {
+    const items = getCollegeSports(collegeScope);
+    return list(
+      [col("sport", "Sport"), col("team", "Team"), col("coach", "Coach"), col("event", "Upcoming"), col("status", "Status", "badge")],
+      items.map((s) => ({
+        sport: s.sport,
+        team: s.team,
+        coach: s.coach,
+        event: s.event,
+        status: s.status,
+      })),
+      "status",
+      "Register",
+    );
+  },
   experience: () =>
     list([col("activity", "Activity"), col("type", "Type", "badge"), col("role", "Role"), col("date", "Date"), col("verified", "Verification", "badge")],
       [["NSS village survey", "Social service", "Volunteer", "Aug 2026", "Verified"], ["Smart India Hackathon 2025", "Competition", "Team lead", "Dec 2025", "Verified"], ["IEEE student conference", "Conference", "Presenter", "Mar 2026", "Verified"], ["Coding Club", "Leadership", "Secretary", "2025–26", "Verified"], ["Techno Fest", "Cultural", "Organiser", "Oct 2025", "Pending"]].map(([activity, type, role, date, verified]) => ({ activity: activity!, type: type!, role: role!, date: date!, verified: verified! })),

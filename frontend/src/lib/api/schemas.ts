@@ -555,3 +555,43 @@ export const CreateClubInput = z.object({
   membersCount: z.number().int().min(1).max(5000).default(10),
 });
 export type CreateClubInput = z.infer<typeof CreateClubInput>;
+
+/* ── Campus Sports ───────────────────────────────── */
+export const SportItem = z.object({
+  id: z.string(),
+  sport: z.string(),
+  team: z.string(),
+  coach: z.string(),
+  captain: z.string().default("Team Captain"),
+  event: z.string(),
+  venue: z.string().default("Campus Sports Complex"),
+  squadSize: z.number().int().nonnegative().default(15),
+  status: z.enum(["Trials open", "Active", "Off-season"]).default("Active"),
+  isRegistered: z.boolean().default(false),
+  createdAt: z.string(),
+});
+export type SportItem = z.infer<typeof SportItem>;
+
+export const SportsOverview = z.object({
+  collegeId: z.string(),
+  kpis: z.object({
+    totalTeams: z.number(),
+    totalAthletes: z.number(),
+    openTrials: z.number(),
+    upcomingMeets: z.number(),
+  }),
+  sports: z.array(SportItem),
+});
+export type SportsOverview = z.infer<typeof SportsOverview>;
+
+export const CreateSportInput = z.object({
+  sport: z.string().min(2, "Sport name is required").max(80),
+  team: z.string().min(2, "Team name is required").max(80),
+  coach: z.string().min(2, "Coach name is required").max(80),
+  captain: z.string().max(80).default("Team Captain"),
+  event: z.string().min(2, "Upcoming event is required").max(100),
+  venue: z.string().max(100).default("Campus Sports Complex"),
+  squadSize: z.number().int().min(1).max(200).default(15),
+  status: z.enum(["Trials open", "Active", "Off-season"]).default("Trials open"),
+});
+export type CreateSportInput = z.infer<typeof CreateSportInput>;
