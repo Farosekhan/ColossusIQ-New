@@ -25,6 +25,7 @@ import { collegeStream } from "./records";
 import { dynamicBiAnalytics } from "./bi-analytics";
 import { getCollegeClubs } from "./clubs";
 import { getCollegeSports } from "./sports";
+import { getCollegeCalendar } from "./academic-calendar";
 
 /** Live data a builder may need, fetched once per request. */
 interface ScopeData {
@@ -451,23 +452,50 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
     ],
     tips: ["Planner balances study with rest — you have 2 free blocks today.", "Class timings sync from the academic calendar."],
   }),
-  "academic-calendar": () => ({
-    template: "calendar",
-    days: [
-      { day: "This week", items: [
-        { time: "Mon 29 Sep", title: "IA-II timetable published", tag: "Exam cell", tone: "brand" },
-        { time: "Thu 2 Oct", title: "Gandhi Jayanti", tag: "Holiday", tone: "teal" },
-        { time: "Sat 4 Oct", title: "Workshop: GenAI for Engineers", tag: "Event", tone: "gold" },
-      ] },
-      { day: "Next 30 days", items: [
-        { time: "2 Oct", title: "DBMS Internal Assessment II", tag: "Assessment", tone: "rose" },
-        { time: "10–11 Oct", title: "Techno Fest", tag: "Event", tone: "gold" },
-        { time: "20 Oct", title: "Diwali break begins", tag: "Holiday", tone: "teal" },
-        { time: "3 Nov", title: "Model exams", tag: "Assessment", tone: "rose" },
-      ] },
-    ],
-    tips: [],
-  }),
+  "academic-calendar": (collegeScope = "all") => {
+    const raw = getCollegeCalendar(collegeScope);
+    const thisWeek = raw.filter((it) => it.date >= "2026-09-28" && it.date <= "2026-10-05");
+    const next30 = raw.filter((it) => it.date > "2026-10-05" && it.date <= "2026-11-05");
+    const later = raw.filter((it) => it.date > "2026-11-05");
+
+    return {
+      template: "calendar",
+      days: [
+        {
+          day: "This week",
+          items: thisWeek.map((it) => ({
+            time: it.date.slice(5) + " · " + it.time,
+            title: it.title,
+            tag: it.tag,
+            tone: it.tone,
+          })),
+        },
+        {
+          day: "Next 30 days",
+          items: next30.map((it) => ({
+            time: it.date.slice(5) + " · " + it.time,
+            title: it.title,
+            tag: it.tag,
+            tone: it.tone,
+          })),
+        },
+        ...(later.length > 0
+          ? [
+              {
+                day: "Semester Milestones & Exams",
+                items: later.map((it) => ({
+                  time: it.date.slice(5) + " · " + it.time,
+                  title: it.title,
+                  tag: it.tag,
+                  tone: it.tone,
+                })),
+              },
+            ]
+          : []),
+      ],
+      tips: ["Class timings and assessment windows sync from the official academic calendar."],
+    };
+  },
   wellness: () => ({
     template: "calendar",
     days: [

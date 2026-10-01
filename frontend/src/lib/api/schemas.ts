@@ -595,3 +595,55 @@ export const CreateSportInput = z.object({
   status: z.enum(["Trials open", "Active", "Off-season"]).default("Trials open"),
 });
 export type CreateSportInput = z.infer<typeof CreateSportInput>;
+
+export const AcademicCalendarItem = z.object({
+  id: z.string(),
+  title: z.string(),
+  date: z.string(),
+  endDate: z.string().optional(),
+  time: z.string().default("Full day"),
+  tag: z.enum(["Assessment", "Holiday", "Exam cell", "Event", "Milestone"]).default("Event"),
+  tone: Tone.default("brand"),
+  department: z.string().default("All Departments"),
+  venue: z.string().optional(),
+  description: z.string().optional(),
+  audience: z.enum(["All", "Students", "Faculty", "Staff"]).default("All"),
+  source: z.enum(["academic", "campus_event"]).default("academic"),
+  createdAt: z.string(),
+});
+export type AcademicCalendarItem = z.infer<typeof AcademicCalendarItem>;
+
+export const AcademicCalendarOverview = z.object({
+  collegeId: z.string(),
+  semester: z.object({
+    name: z.string(),
+    startDate: z.string(),
+    endDate: z.string(),
+    currentWeek: z.number(),
+    totalWeeks: z.number(),
+  }),
+  kpis: z.object({
+    totalEvents: z.number(),
+    assessmentsCount: z.number(),
+    holidaysCount: z.number(),
+    eventsCount: z.number(),
+    milestonesCount: z.number(),
+  }),
+  items: z.array(AcademicCalendarItem),
+  canManage: z.boolean(),
+});
+export type AcademicCalendarOverview = z.infer<typeof AcademicCalendarOverview>;
+
+export const CreateCalendarItemInput = z.object({
+  title: z.string().min(2, "Title is required").max(120),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Valid date (YYYY-MM-DD) is required"),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
+  time: z.string().max(50).default("Full day"),
+  tag: z.enum(["Assessment", "Holiday", "Exam cell", "Event", "Milestone"]).default("Event"),
+  department: z.string().max(80).default("All Departments"),
+  venue: z.string().max(100).optional().or(z.literal("")),
+  description: z.string().max(500).optional().or(z.literal("")),
+  audience: z.enum(["All", "Students", "Faculty", "Staff"]).default("All"),
+});
+export type CreateCalendarItemInput = z.infer<typeof CreateCalendarItemInput>;
+

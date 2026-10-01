@@ -352,6 +352,117 @@ describe("Campus sports API and live management", () => {
   });
 });
 
+describe("Academic calendar API and dynamic live management", () => {
+  it("fetches academic calendar overview with semester info, KPIs and seeded milestones", async () => {
+    const instSession = session("institution");
+    const res = await dispatch("GET", ["academic-calendar"], undefined, instSession, new URLSearchParams());
+    expect(res.status).toBe(200);
+    const body = res.body as {
+      semester: { name: string; currentWeek: number; totalWeeks: number };
+      kpis: { totalEvents: number; assessmentsCount: number; holidaysCount: number; eventsCount: number };
+      items: Array<{ id: string; title: string; tag: string; date: string }>;
+      canManage: boolean;
+    };
+    expect(body.semester.name).toContain("Odd Semester");
+    expect(body.kpis.totalEvents).toBeGreaterThanOrEqual(7);
+    expect(body.items.some((i) => i.title.includes("Gandhi Jayanti"))).toBe(true);
+    expect(body.items.some((i) => i.tag === "Assessment")).toBe(true);
+    expect(body.canManage).toBe(true);
+  });
+
+  it("allows institution to create a new calendar entry", async () => {
+    const instSession = session("institution");
+    const payload = {
+      title: "Special Guest Lecture: Distributed Systems",
+      date: "2026-10-18",
+      time: "02:00 PM - 04:00 PM",
+      tag: "Event",
+      department: "Computer Science",
+      venue: "Main Auditorium",
+      description: "Guest lecture by industry architect.",
+      audience: "Students",
+    };
+    const res = await dispatch("POST", ["academic-calendar"], payload, instSession, new URLSearchParams());
+    expect(res.status).toBe(200);
+    const created = res.body as { id: string; title: string; tag: string; department: string };
+    expect(created.title).toBe("Special Guest Lecture: Distributed Systems");
+    expect(created.tag).toBe("Event");
+    expect(created.department).toBe("Computer Science");
+
+    // Verify it appears in GET academic-calendar
+    const overview = await dispatch("GET", ["academic-calendar"], undefined, instSession, new URLSearchParams());
+    const list = (overview.body as { items: Array<{ id: string; title: string }> }).items;
+    expect(list.some((i) => i.title === "Special Guest Lecture: Distributed Systems")).toBe(true);
+  });
+
+  it("allows institution to update an existing calendar entry", async () => {
+    const instSession = session("institution");
+    const createRes = await dispatch(
+      "POST",
+      ["academic-calendar"],
+      { title: "Draft Assessment Slot", date: "2026-10-28", time: "Full day", tag: "Assessment", department: "All Departments" },
+      instSession,
+      new URLSearchParams(),
+    );
+    const item = createRes.body as { id: string };
+
+    const updateRes = await dispatch(
+      "PUT",
+      ["academic-calendar", item.id],
+      { title: "Finalized Mid-Term Review", time: "09:30 AM - 12:30 PM", tag: "Milestone" },
+      instSession,
+      new URLSearchParams(),
+    );
+    expect(updateRes.status).toBe(200);
+    const updated = updateRes.body as { title: string; tag: string; time: string };
+    expect(updated.title).toBe("Finalized Mid-Term Review");
+    expect(updated.tag).toBe("Milestone");
+    expect(updated.time).toBe("09:30 AM - 12:30 PM");
+  });
+
+  it("allows institution to sync campus events into academic calendar", async () => {
+    const instSession = session("institution");
+    const res = await dispatch("POST", ["academic-calendar", "sync-events"], undefined, instSession, new URLSearchParams());
+    expect(res.status).toBe(200);
+    const body = res.body as { syncedCount: number };
+    expect(typeof body.syncedCount).toBe("number");
+  });
+
+  it("allows institution to delete a calendar entry", async () => {
+    const instSession = session("institution");
+    const createRes = await dispatch(
+      "POST",
+      ["academic-calendar"],
+      { title: "Temporary Review", date: "2026-10-29", time: "10:00 AM", tag: "Event", department: "All Departments" },
+      instSession,
+      new URLSearchParams(),
+    );
+    const item = createRes.body as { id: string };
+
+    const deleteRes = await dispatch("DELETE", ["academic-calendar", item.id], undefined, instSession, new URLSearchParams());
+    expect(deleteRes.status).toBe(200);
+
+    const overview = await dispatch("GET", ["academic-calendar"], undefined, instSession, new URLSearchParams());
+    const list = (overview.body as { items: Array<{ id: string }> }).items;
+    expect(list.some((i) => i.id === item.id)).toBe(false);
+  });
+
+  it("denies student from adding, modifying or deleting calendar entries", async () => {
+    const studentSession = session("student");
+    const createRes = await dispatch(
+      "POST",
+      ["academic-calendar"],
+      { title: "Unauthorized Holiday", date: "2026-10-30", time: "Full day", tag: "Holiday", department: "All" },
+      studentSession,
+      new URLSearchParams(),
+    );
+    expect(createRes.status).toBe(403);
+
+    const deleteRes = await dispatch("DELETE", ["academic-calendar", "cal-gandhi-jayanti"], undefined, studentSession, new URLSearchParams());
+    expect(deleteRes.status).toBe(403);
+  });
+});
+
 describe("Security settings and runtime actions", () => {
   it("allows institution to save security policies and retrieve them", async () => {
     const instSession = session("institution");

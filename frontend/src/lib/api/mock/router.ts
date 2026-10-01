@@ -17,7 +17,8 @@ import { dynamicBiAnalytics } from "./bi-analytics";
 import { moduleData } from "./module-data";
 import { createClub, deleteClub, getClubsOverview, toggleJoinClub, updateClub } from "./clubs";
 import { createSport, deleteSport, getSportsOverview, toggleRegisterTrial, updateSport } from "./sports";
-import { CreateClubInput, CreateSportInput } from "@/lib/api/schemas";
+import { createCalendarItem, deleteCalendarItem, getCalendarOverview, syncCampusEvents, updateCalendarItem } from "./academic-calendar";
+import { CreateCalendarItemInput, CreateClubInput, CreateSportInput } from "@/lib/api/schemas";
 import { dispatchRecords } from "./records-router";
 import { dispatchLearning } from "./learning";
 import { dispatchCourses } from "./course-builder";
@@ -128,6 +129,11 @@ const PATTERNS = [
   "PUT sports/:id",
   "POST sports/:id/register",
   "DELETE sports/:id",
+  "GET academic-calendar",
+  "POST academic-calendar",
+  "PUT academic-calendar/:id",
+  "DELETE academic-calendar/:id",
+  "POST academic-calendar/sync-events",
   "POST security/revoke-sessions",
   "POST security/scan",
   "GET students/me/dashboard",
@@ -382,6 +388,34 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
       if (!b) return notFound();
       const success = await deleteSport(session, b);
       return success ? ok({ ok: true }) : notFound();
+    }
+
+    /* ── academic calendar ── */
+    case "GET academic-calendar":
+      return ok(await getCalendarOverview(session));
+    case "POST academic-calendar": {
+      if (session.role !== "institution" && session.role !== "admin" && session.role !== "hod" && session.role !== "faculty") return forbidden();
+      const parsed = CreateCalendarItemInput.safeParse(rawBody);
+      if (!parsed.success) return err(400, "invalid_body", parsed.error.issues[0]?.message ?? "Invalid calendar payload.");
+      return ok(await createCalendarItem(session, parsed.data));
+    }
+    case "PUT academic-calendar/:id": {
+      if (session.role !== "institution" && session.role !== "admin" && session.role !== "hod" && session.role !== "faculty") return forbidden();
+      if (!b) return notFound();
+      const parsed = CreateCalendarItemInput.partial().safeParse(rawBody);
+      if (!parsed.success) return err(400, "invalid_body", "Invalid calendar payload.");
+      const updated = await updateCalendarItem(session, b, parsed.data);
+      return updated ? ok(updated) : notFound();
+    }
+    case "DELETE academic-calendar/:id": {
+      if (session.role !== "institution" && session.role !== "admin" && session.role !== "hod" && session.role !== "faculty") return forbidden();
+      if (!b) return notFound();
+      const success = await deleteCalendarItem(session, b);
+      return success ? ok({ ok: true }) : notFound();
+    }
+    case "POST academic-calendar/sync-events": {
+      if (session.role !== "institution" && session.role !== "admin" && session.role !== "hod" && session.role !== "faculty") return forbidden();
+      return ok(await syncCampusEvents(session));
     }
 
     /* ── security actions ── */
