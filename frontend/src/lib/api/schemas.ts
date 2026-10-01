@@ -417,7 +417,7 @@ export const PublicColleges = z.object({
   demo: z.boolean().optional(),
 });
 export type PublicColleges = z.infer<typeof PublicColleges>;
-const CollegeCounts = z.object({ applications: z.number(), enrolled: z.number(), staff: z.number(), users: z.number(), courses: z.number(), events: z.number() });
+const CollegeCounts = z.object({ applications: z.number(), enrolled: z.number(), staff: z.number(), users: z.number(), courses: z.number(), events: z.number(), departments: z.number().optional() });
 export const UniversityOverview = z.object({
   university: z.string(),
   totals: z.object({
@@ -431,6 +431,7 @@ export const UniversityOverview = z.object({
     staff: z.number(),
     users: z.number(),
     courses: z.number(),
+    departments: z.number().optional(),
   }),
   colleges: z.array(
     z.object({

@@ -13,6 +13,7 @@ import { STREAM_DEFS, STREAMS, streamOfType, type Stream } from "@/config/stream
 import { ChartCard } from "@/components/charts/chart-card";
 import { KpiGrid, TemplateSkeleton } from "@/components/modules/shared";
 import { Fi } from "@/components/ui/icon";
+import { RefreshCw } from "lucide-react";
 import { Badge, Button, Card, CardBody, CardHeader, LinkButton, Spinner, toneForStatus } from "@/components/ui/primitives";
 import { cn, formatNumber } from "@/lib/utils";
 
@@ -23,7 +24,12 @@ export function UniversityHome() {
   const qc = useQueryClient();
   const [notice, setNotice] = useState<string | null>(null);
   const [streamFilter, setStreamFilter] = useState<Stream | "all">("all");
-  const { data, isLoading, error } = useQuery({ queryKey: ["university-overview"], queryFn: () => apiFetch("/api/v1/university/overview", UniversityOverview) });
+  const { data, isLoading, isRefetching, error, refetch, dataUpdatedAt } = useQuery({
+    queryKey: ["university-overview"],
+    queryFn: () => apiFetch("/api/v1/university/overview", UniversityOverview),
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
+  });
 
   // Step into a college: re-scope the session, then open its admissions.
   const enter = useMutation({
@@ -93,15 +99,36 @@ export function UniversityHome() {
         <Fi name="building" className="pointer-events-none absolute -bottom-8 right-6 text-[160px] text-white/[0.06]" />
         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium">
-              <Fi name="shield-check" /> University Super Admin
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur-sm">
+                <Fi name="shield-check" /> University Super Admin
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-teal/20 px-2.5 py-0.5 text-xs font-medium text-teal backdrop-blur-sm">
+                <span className="size-2 rounded-full bg-teal animate-pulse" /> Live (30s polling)
+              </span>
+              {dataUpdatedAt ? (
+                <span className="text-[11px] text-white/60">
+                  Synced {new Date(dataUpdatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                </span>
+              ) : null}
+            </div>
             <h1 className="mt-3 text-2xl font-semibold sm:text-3xl">{data.university}</h1>
             <p className="mt-1.5 max-w-2xl text-sm text-white/75">
               One university, {t.colleges} colleges. Each college&apos;s data is isolated; you can work across all of them or step into one using the college switcher.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={() => void refetch()}
+              disabled={isRefetching}
+              className="bg-white/15 text-white hover:bg-white/25 border-none backdrop-blur-sm"
+              title="Sync metrics in real-time"
+            >
+              <RefreshCw className={cn("size-4 mr-1.5", isRefetching && "animate-spin")} />
+              {isRefetching ? "Syncing..." : "Sync live"}
+            </Button>
             <LinkButton href="/admin/colleges/new" variant="gold" size="lg">
               <Fi name="plus" /> Add college
             </LinkButton>
@@ -126,9 +153,11 @@ export function UniversityHome() {
       <KpiGrid
         kpis={[
           { label: "Colleges", value: String(t.colleges), delta: `${t.active} active · ${t.onboarding} onboarding${t.suspended ? ` · ${t.suspended} suspended` : ""}`, tone: "brand" },
-          { label: "Sanctioned intake", value: formatNumber(t.capacity), hint: "Across all colleges", tone: "sky" },
-          { label: "Applications (current cycle)", value: formatNumber(t.applications), delta: `${t.enrolled} enrolled`, tone: "gold" },
-          { label: "Active staff", value: formatNumber(t.staff), hint: `${formatNumber(t.users)} user accounts`, tone: "teal" },
+          { label: "Total Enrolled", value: formatNumber(t.enrolled), hint: `${t.capacity > 0 ? Math.round((t.enrolled / t.capacity) * 100) : 0}% seat fill rate`, delta: `${formatNumber(t.applications)} applications`, tone: "teal" },
+          { label: "Sanctioned intake", value: formatNumber(t.capacity), hint: "Approved annual capacity", tone: "sky" },
+          { label: "Academic Departments", value: String(t.departments ?? 0), hint: `${formatNumber(t.courses)} active courses`, tone: "gold" },
+          { label: "Applications (current cycle)", value: formatNumber(t.applications), delta: `${t.enrolled} enrolled`, tone: "amber" },
+          { label: "Active staff", value: formatNumber(t.staff), hint: `${formatNumber(t.users)} user accounts`, tone: "neutral" },
         ]}
       />
 
@@ -208,18 +237,19 @@ export function UniversityHome() {
                 <Badge tone={toneForStatus(c.status)}>{c.status}</Badge>
               </div>
 
-              <dl className="mt-4 grid grid-cols-4 gap-2 text-center">
+              <dl className="mt-4 grid grid-cols-5 gap-1.5 text-center">
                 {(
                   [
-                    ["Applications", c.counts.applications],
+                    ["Apps", c.counts.applications],
                     ["Enrolled", c.counts.enrolled],
                     ["Staff", c.counts.staff],
+                    ["Depts", c.counts.departments ?? 0],
                     ["Courses", c.counts.courses],
                   ] as const
                 ).map(([label, v]) => (
                   <div key={label} className="rounded-xl bg-surface-2/70 px-1 py-2">
-                    <dd className="text-lg font-semibold text-ink">{v}</dd>
-                    <dt className="text-[10px] uppercase tracking-wide text-ink-3">{label}</dt>
+                    <dd className="text-base font-semibold text-ink sm:text-lg">{v}</dd>
+                    <dt className="text-[9px] uppercase tracking-wide text-ink-3 sm:text-[10px]">{label}</dt>
                   </div>
                 ))}
               </dl>

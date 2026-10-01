@@ -49,8 +49,17 @@ export function KpiTile({ kpi }: { kpi: Kpi }) {
 }
 
 export function KpiGrid({ kpis }: { kpis: Kpi[] }) {
+  const colClass =
+    kpis.length >= 6
+      ? "sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6"
+      : kpis.length === 5
+        ? "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+        : kpis.length >= 4
+          ? "sm:grid-cols-2 xl:grid-cols-4"
+          : "sm:grid-cols-2 xl:grid-cols-3";
+
   return (
-    <div className={cn("grid gap-4 sm:grid-cols-2", kpis.length >= 4 ? "xl:grid-cols-4" : "xl:grid-cols-3")}>
+    <div className={cn("grid gap-4", colClass)}>
       {kpis.map((k) => (
         <KpiTile key={k.label} kpi={k} />
       ))}
