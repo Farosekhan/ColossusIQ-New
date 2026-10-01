@@ -369,7 +369,7 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
       )}
 
       {/* Header Banner & KPIs */}
-      <div className="rounded-xl border border-line bg-card p-5 shadow-sm">
+      <div className="rounded-2xl border border-line bg-surface p-6 shadow-sm">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
             <div className="flex items-center gap-2">
@@ -381,7 +381,7 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
                 Week {data.semester.currentWeek} of {data.semester.totalWeeks}
               </span>
             </div>
-            <h2 className="mt-1 text-xl font-bold tracking-tight text-ink">
+            <h2 className="mt-1.5 text-xl font-bold tracking-tight text-ink">
               Official Institutional Academic Calendar
             </h2>
             <p className="text-xs text-ink-2">
@@ -445,7 +445,7 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
 
         {/* KPI Summary Cards */}
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-lg border border-line bg-surface/50 p-3">
+          <div className="rounded-xl border border-line bg-surface-2/40 p-3.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-ink-3">Total Items</span>
               <CalendarDays className="size-4 text-brand" />
@@ -454,7 +454,7 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
             <div className="text-[11px] text-ink-3">Scheduled this semester</div>
           </div>
 
-          <div className="rounded-lg border border-line bg-surface/50 p-3">
+          <div className="rounded-xl border border-line bg-surface-2/40 p-3.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-ink-3">Assessments</span>
               <BookOpen className="size-4 text-rose" />
@@ -463,7 +463,7 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
             <div className="text-[11px] text-ink-3">IA-I, IA-II & Model tests</div>
           </div>
 
-          <div className="rounded-lg border border-line bg-surface/50 p-3">
+          <div className="rounded-xl border border-line bg-surface-2/40 p-3.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-ink-3">Holidays</span>
               <GraduationCap className="size-4 text-teal" />
@@ -472,7 +472,7 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
             <div className="text-[11px] text-ink-3">National & term vacations</div>
           </div>
 
-          <div className="rounded-lg border border-line bg-surface/50 p-3">
+          <div className="rounded-xl border border-line bg-surface-2/40 p-3.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-ink-3">Workshops & Events</span>
               <Sparkles className="size-4 text-gold" />
@@ -484,7 +484,7 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
       </div>
 
       {/* Filter and View Mode Switcher */}
-      <div className="flex flex-col gap-3 rounded-lg border border-line bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-4 sm:flex-row sm:items-center sm:justify-between shadow-xs">
         <div className="flex flex-1 flex-wrap items-center gap-2">
           {/* Search bar */}
           <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
@@ -521,12 +521,12 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
         </div>
 
         {/* View mode toggle */}
-        <div className="flex items-center gap-1 rounded-lg border border-line bg-surface p-0.5 text-xs font-medium">
+        <div className="flex items-center gap-1 rounded-xl border border-line bg-surface-2/60 p-1 text-xs font-medium">
           <button
             onClick={() => setViewMode("timeline")}
             className={cn(
-              "flex items-center gap-1 rounded-md px-3 py-1 transition-colors",
-              viewMode === "timeline" ? "bg-card text-brand shadow-sm font-semibold" : "text-ink-2 hover:text-ink",
+              "flex items-center gap-1 rounded-lg px-3 py-1.5 transition-all",
+              viewMode === "timeline" ? "bg-surface text-brand shadow-xs font-bold" : "text-ink-2 hover:text-ink",
             )}
           >
             <Layers className="size-3.5" />
@@ -535,8 +535,8 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
           <button
             onClick={() => setViewMode("month")}
             className={cn(
-              "flex items-center gap-1 rounded-md px-3 py-1 transition-colors",
-              viewMode === "month" ? "bg-card text-brand shadow-sm font-semibold" : "text-ink-2 hover:text-ink",
+              "flex items-center gap-1 rounded-lg px-3 py-1.5 transition-all",
+              viewMode === "month" ? "bg-surface text-brand shadow-xs font-bold" : "text-ink-2 hover:text-ink",
             )}
           >
             <CalendarIcon className="size-3.5" />
@@ -563,8 +563,8 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors",
                 selectedTag === tag
-                  ? "bg-brand text-white shadow-sm"
-                  : "bg-surface border border-line text-ink-2 hover:bg-card hover:text-ink",
+                  ? "bg-brand text-white shadow-xs"
+                  : "bg-surface border border-line text-ink-2 hover:bg-surface-2 hover:text-ink",
               )}
             >
               <span>{tag}</span>
@@ -632,7 +632,7 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
                           >
                             <div className="flex items-start gap-4">
                               {/* Date chip */}
-                              <div className="flex size-14 shrink-0 flex-col items-center justify-center rounded-xl border border-line bg-card text-center shadow-xs">
+                              <div className="flex size-14 shrink-0 flex-col items-center justify-center rounded-xl border border-line bg-surface text-center shadow-xs">
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-brand">
                                   {monthStr}
                                 </span>
@@ -784,7 +784,7 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
                         "group h-20 rounded-md border p-1.5 transition-all cursor-pointer flex flex-col justify-between overflow-hidden",
                         isSelected
                           ? "border-brand bg-brand/5 ring-1 ring-brand"
-                          : "border-line bg-card hover:bg-surface/60",
+                          : "border-line bg-surface hover:bg-surface-2/60",
                         isToday && "bg-brand/10 border-brand/50",
                       )}
                     >
@@ -912,166 +912,239 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
 
       {/* Add / Edit Entry Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="relative w-full max-w-lg rounded-xl border border-line bg-card shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between border-b border-line px-5 py-4 bg-surface">
-              <h3 className="text-sm font-bold text-ink flex items-center gap-2">
-                <CalendarIcon className="size-4 text-brand" />
-                {editingItem ? "Edit Academic Calendar Entry" : "New Academic Calendar Entry"}
-              </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+            onClick={() => {
+              setShowAddModal(false);
+              resetForm();
+            }}
+          />
+          <div className="relative w-full max-w-xl overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl transition-all">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-line bg-surface-2/40 px-6 py-4.5">
+              <div className="flex items-center gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand">
+                  <CalendarIcon className="size-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-ink">
+                    {editingItem ? "Edit Academic Milestone" : "New Academic Calendar Entry"}
+                  </h3>
+                  <p className="text-xs text-ink-3">
+                    Schedule assessments, holidays, workshops or semester deadlines
+                  </p>
+                </div>
+              </div>
               <button
+                type="button"
                 onClick={() => {
                   setShowAddModal(false);
                   resetForm();
                 }}
-                className="text-ink-3 hover:text-ink"
+                className="rounded-lg p-1.5 text-ink-3 hover:bg-surface-2 hover:text-ink transition-colors"
+                aria-label="Close"
               >
-                <X className="size-4" />
+                <X className="size-5" />
               </button>
             </div>
 
-            <form onSubmit={handleFormSubmit} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
-              {formError && (
-                <div className="rounded-lg bg-rose/10 border border-rose/20 p-3 text-xs text-rose">
-                  {formError}
-                </div>
-              )}
+            {/* Modal Form */}
+            <form onSubmit={handleFormSubmit}>
+              <div className="p-6 space-y-4.5 max-h-[72vh] overflow-y-auto">
+                {formError && (
+                  <div className="flex items-center gap-2 rounded-xl bg-rose/10 border border-rose/20 p-3 text-xs font-medium text-rose">
+                    <AlertCircle className="size-4 shrink-0" />
+                    <span>{formError}</span>
+                  </div>
+                )}
 
-              {/* Title */}
-              <div>
-                <label className="block text-xs font-semibold text-ink mb-1">
-                  Event Title <span className="text-rose">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g., IA-II Timetable Release, Diwali Break, Techno Fest"
-                  value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
-                  className={cn(inputClass, "text-xs")}
-                  required
-                />
-              </div>
-
-              {/* Tag / Category */}
-              <div className="grid grid-cols-2 gap-3">
+                {/* Event Title */}
                 <div>
-                  <label className="block text-xs font-semibold text-ink mb-1">
-                    Category <span className="text-rose">*</span>
-                  </label>
-                  <select
-                    value={formTag}
-                    onChange={(e) => setFormTag(e.target.value as any)}
-                    className={cn(inputClass, "text-xs")}
-                  >
-                    <option value="Assessment">Assessment (IA / Model / Exam)</option>
-                    <option value="Holiday">Holiday (National / Vacation)</option>
-                    <option value="Exam cell">Exam cell (Timetable / Circular)</option>
-                    <option value="Event">Event (Workshop / Symposium)</option>
-                    <option value="Milestone">Milestone (Term Start / End)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-ink mb-1">Target Audience</label>
-                  <select
-                    value={formAudience}
-                    onChange={(e) => setFormAudience(e.target.value as any)}
-                    className={cn(inputClass, "text-xs")}
-                  >
-                    <option value="All">All Campus</option>
-                    <option value="Students">Students Only</option>
-                    <option value="Faculty">Faculty Only</option>
-                    <option value="Staff">Administrative Staff</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Date & End Date */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-ink mb-1">
-                    Date <span className="text-rose">*</span>
+                  <label className="block text-xs font-semibold text-ink mb-1.5">
+                    Milestone / Event Title <span className="text-rose">*</span>
                   </label>
                   <input
-                    type="date"
-                    value={formDate}
-                    onChange={(e) => setFormDate(e.target.value)}
-                    className={cn(inputClass, "text-xs")}
+                    type="text"
+                    placeholder="e.g. DBMS Internal Assessment II, Diwali Break, Techno Fest 2026"
+                    value={formTitle}
+                    onChange={(e) => setFormTitle(e.target.value)}
+                    className={inputClass}
                     required
                   />
                 </div>
 
+                {/* Category Selection Card Grid */}
                 <div>
-                  <label className="block text-xs font-semibold text-ink mb-1">
-                    End Date <span className="text-ink-3 font-normal">(Optional for ranges)</span>
+                  <label className="block text-xs font-semibold text-ink mb-1.5">
+                    Category <span className="text-rose">*</span>
                   </label>
-                  <input
-                    type="date"
-                    value={formEndDate}
-                    onChange={(e) => setFormEndDate(e.target.value)}
-                    className={cn(inputClass, "text-xs")}
-                  />
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {[
+                      { tag: "Assessment", label: "Assessment", sub: "IA & Model Tests", dot: "bg-rose" },
+                      { tag: "Holiday", label: "Holiday", sub: "Leaves & Vacation", dot: "bg-teal" },
+                      { tag: "Exam cell", label: "Exam Cell", sub: "Timetables & Circulars", dot: "bg-brand" },
+                      { tag: "Event", label: "Event", sub: "Workshops & Fests", dot: "bg-gold" },
+                      { tag: "Milestone", label: "Milestone", sub: "Semester Dates", dot: "bg-sky" },
+                    ].map((c) => {
+                      const isSelected = formTag === c.tag;
+                      return (
+                        <button
+                          key={c.tag}
+                          type="button"
+                          onClick={() => setFormTag(c.tag as any)}
+                          className={cn(
+                            "flex flex-col items-start rounded-xl border p-2.5 text-left transition-all",
+                            isSelected
+                              ? "border-brand bg-brand/5 ring-2 ring-brand/20 shadow-xs"
+                              : "border-line bg-surface hover:bg-surface-2/60",
+                          )}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span className={cn("size-2 rounded-full", c.dot)} />
+                            <span className={cn("text-xs font-bold", isSelected ? "text-brand" : "text-ink")}>
+                              {c.label}
+                            </span>
+                          </div>
+                          <span className="mt-0.5 text-[10px] text-ink-3">{c.sub}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
 
-              {/* Time slot & Department */}
-              <div className="grid grid-cols-2 gap-3">
+                {/* Date & End Date */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-ink mb-1.5">
+                      Start Date <span className="text-rose">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={formDate}
+                      onChange={(e) => setFormDate(e.target.value)}
+                      className={inputClass}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-ink mb-1.5">
+                      End Date <span className="text-[11px] font-normal text-ink-3">(For multi-day events)</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={formEndDate}
+                      onChange={(e) => setFormEndDate(e.target.value)}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+
+                {/* Time slot with quick presets */}
                 <div>
-                  <label className="block text-xs font-semibold text-ink mb-1">Time Slot / Schedule</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-ink">Time Slot / Schedule</label>
+                    <div className="flex items-center gap-1 text-[11px] text-ink-3">
+                      <span>Quick fill:</span>
+                      {["Full day", "09:30 AM - 12:30 PM", "02:00 PM - 05:00 PM"].map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setFormTime(preset)}
+                          className="rounded-md bg-surface-2 px-1.5 py-0.5 hover:bg-surface-2/80 hover:text-brand transition-colors text-[10px]"
+                        >
+                          {preset === "Full day" ? "Full day" : preset.slice(0, 8)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <input
                     type="text"
                     placeholder="e.g. 10:00 AM - 12:00 PM or Full day"
                     value={formTime}
                     onChange={(e) => setFormTime(e.target.value)}
-                    className={cn(inputClass, "text-xs")}
+                    className={inputClass}
                   />
                 </div>
 
+                {/* Target Audience & Department */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-ink mb-1.5">Target Audience</label>
+                    <div className="grid grid-cols-2 gap-1 rounded-xl border border-line bg-surface-2/40 p-1 text-xs">
+                      {(["All", "Students", "Faculty", "Staff"] as const).map((aud) => (
+                        <button
+                          key={aud}
+                          type="button"
+                          onClick={() => setFormAudience(aud)}
+                          className={cn(
+                            "rounded-lg py-1.5 text-center text-xs font-medium transition-all",
+                            formAudience === aud
+                              ? "bg-surface text-brand font-bold shadow-xs"
+                              : "text-ink-2 hover:text-ink",
+                          )}
+                        >
+                          {aud === "All" ? "All Campus" : aud}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-ink mb-1.5">Department / Scope</label>
+                    <select
+                      value={formDept}
+                      onChange={(e) => setFormDept(e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="All Departments">All Departments (Campus Wide)</option>
+                      <option value="Computer Science">Computer Science & Engineering</option>
+                      <option value="Information Technology">Information Technology</option>
+                      <option value="Electronics & Communication">Electronics & Communication</option>
+                      <option value="Electrical & Electronics">Electrical & Electronics</option>
+                      <option value="Mechanical Engineering">Mechanical Engineering</option>
+                      <option value="Civil Engineering">Civil Engineering</option>
+                      <option value="Management Studies">Management Studies (MBA)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Venue */}
                 <div>
-                  <label className="block text-xs font-semibold text-ink mb-1">Department</label>
+                  <label className="block text-xs font-semibold text-ink mb-1.5">
+                    Venue / Location <span className="text-[11px] font-normal text-ink-3">(Optional)</span>
+                  </label>
                   <input
                     type="text"
-                    placeholder="e.g. All Departments, CSE, Mechanical"
-                    value={formDept}
-                    onChange={(e) => setFormDept(e.target.value)}
-                    className={cn(inputClass, "text-xs")}
+                    placeholder="e.g. Seminar Hall 2, Central Exam Hall A, Campus Quadrangle"
+                    value={formVenue}
+                    onChange={(e) => setFormVenue(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-xs font-semibold text-ink mb-1.5">
+                    Instructions / Description <span className="text-[11px] font-normal text-ink-3">(Optional)</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Additional context, syllabus coverage, or instructions for students..."
+                    value={formDesc}
+                    onChange={(e) => setFormDesc(e.target.value)}
+                    className={inputClass}
                   />
                 </div>
               </div>
 
-              {/* Venue */}
-              <div>
-                <label className="block text-xs font-semibold text-ink mb-1">
-                  Venue / Location <span className="text-ink-3 font-normal">(Optional)</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Seminar Hall 2, Exam Hall A, Campus Wide"
-                  value={formVenue}
-                  onChange={(e) => setFormVenue(e.target.value)}
-                  className={cn(inputClass, "text-xs")}
-                />
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="block text-xs font-semibold text-ink mb-1">
-                  Description / Instructions <span className="text-ink-3 font-normal">(Optional)</span>
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Additional context, syllabus coverage, or instructions for students..."
-                  value={formDesc}
-                  onChange={(e) => setFormDesc(e.target.value)}
-                  className={cn(inputClass, "text-xs")}
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end gap-3 border-t border-line bg-surface-2/40 px-6 py-4">
                 <Button
                   type="button"
                   variant="secondary"
-                  size="sm"
+                  size="md"
                   onClick={() => {
                     setShowAddModal(false);
                     resetForm();
@@ -1082,15 +1155,15 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
                 <Button
                   type="submit"
                   variant="primary"
-                  size="sm"
+                  size="md"
                   disabled={createMutation.isPending || updateMutation.isPending}
                 >
                   {createMutation.isPending || updateMutation.isPending ? (
-                    <Spinner className="size-3.5" />
+                    <Spinner className="size-4 mr-2" />
                   ) : editingItem ? (
                     "Save Changes"
                   ) : (
-                    "Create Entry"
+                    "Create Calendar Entry"
                   )}
                 </Button>
               </div>
@@ -1101,16 +1174,28 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
 
       {/* Delete Confirmation Modal */}
       {deletingId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-xl border border-line bg-card p-5 shadow-2xl">
-            <h3 className="text-sm font-bold text-ink">Delete Calendar Entry?</h3>
-            <p className="mt-2 text-xs text-ink-2">
-              Are you sure you want to remove this entry from the official academic calendar? Students and faculty will no longer see it on their portal timeline.
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setDeletingId(null)}
+          />
+          <div className="relative w-full max-w-md rounded-2xl border border-line bg-surface p-6 shadow-2xl">
+            <div className="flex items-center gap-3 text-rose">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-rose/10">
+                <Trash2 className="size-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-ink">Delete Calendar Milestone?</h3>
+                <p className="text-xs text-ink-3">This action cannot be undone.</p>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-ink-2 leading-relaxed">
+              Are you sure you want to remove this entry from the official academic calendar? Students and faculty will no longer see it on their portal schedule.
             </p>
-            <div className="mt-5 flex justify-end gap-2">
+            <div className="mt-6 flex justify-end gap-3">
               <Button
                 variant="secondary"
-                size="sm"
+                size="md"
                 onClick={() => setDeletingId(null)}
                 disabled={deleteMutation.isPending}
               >
@@ -1118,11 +1203,11 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
               </Button>
               <Button
                 variant="danger"
-                size="sm"
+                size="md"
                 onClick={() => deleteMutation.mutate(deletingId)}
                 disabled={deleteMutation.isPending}
               >
-                {deleteMutation.isPending ? <Spinner className="size-3.5" /> : "Delete Entry"}
+                {deleteMutation.isPending ? <Spinner className="size-4 mr-2" /> : "Delete Entry"}
               </Button>
             </div>
           </div>
