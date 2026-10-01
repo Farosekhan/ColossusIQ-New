@@ -351,3 +351,47 @@ describe("Campus sports API and live management", () => {
     expect(list.some((s) => s.id === team.id)).toBe(false);
   });
 });
+
+describe("Security settings and runtime actions", () => {
+  it("allows institution to save security policies and retrieve them", async () => {
+    const instSession = session("institution");
+    const putRes = await dispatch(
+      "PUT",
+      ["modules", "security-settings"],
+      { values: { mfa: true, "mfa-students": true, sso: true, pwd: "16", masking: true } },
+      instSession,
+      new URLSearchParams(),
+    );
+    expect(putRes.status).toBe(200);
+
+    const getRes = await dispatch("GET", ["modules", "security-settings"], undefined, instSession, new URLSearchParams());
+    expect(getRes.status).toBe(200);
+    const body = getRes.body as SettingsData;
+    const fields = Object.fromEntries(body.sections.flatMap((s) => s.fields.map((f) => [f.id, f.value])));
+    expect(fields["mfa"]).toBe(true);
+    expect(fields["mfa-students"]).toBe(true);
+    expect(fields["pwd"]).toBe("16");
+  });
+
+  it("allows institution to trigger session revocation and security scan", async () => {
+    const instSession = session("institution");
+    const revokeRes = await dispatch("POST", ["security", "revoke-sessions"], undefined, instSession, new URLSearchParams());
+    expect(revokeRes.status).toBe(200);
+    expect((revokeRes.body as { ok: boolean }).ok).toBe(true);
+
+    const scanRes = await dispatch("POST", ["security", "scan"], undefined, instSession, new URLSearchParams());
+    expect(scanRes.status).toBe(200);
+    const scanBody = scanRes.body as { ok: boolean; findings: string[] };
+    expect(scanBody.ok).toBe(true);
+    expect(scanBody.findings.length).toBeGreaterThan(0);
+  });
+
+  it("denies unprivileged student role from executing security actions", async () => {
+    const studentSession = session("student");
+    const revokeRes = await dispatch("POST", ["security", "revoke-sessions"], undefined, studentSession, new URLSearchParams());
+    expect(revokeRes.status).toBe(403);
+
+    const scanRes = await dispatch("POST", ["security", "scan"], undefined, studentSession, new URLSearchParams());
+    expect(scanRes.status).toBe(403);
+  });
+});
