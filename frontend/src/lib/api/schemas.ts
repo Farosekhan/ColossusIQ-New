@@ -169,6 +169,12 @@ export type GalleryData = z.infer<typeof GalleryData>;
 export type ChatData = z.infer<typeof ChatData>;
 export type GeneratorData = z.infer<typeof GeneratorData>;
 
+export const UpdateSettingsReply = z.object({
+  ok: z.boolean(),
+  values: z.record(z.union([z.string(), z.boolean()])).optional(),
+});
+export type UpdateSettingsReply = z.infer<typeof UpdateSettingsReply>;
+
 /* ── AI ─────────────────────────────────────────── */
 export const Source = z.object({ title: z.string(), kind: z.enum(["institution", "general"]) });
 export const ChatReply = z.object({

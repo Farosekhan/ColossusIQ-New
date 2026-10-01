@@ -42,6 +42,9 @@ const InterviewStart = z.object({ mode: z.enum(["technical", "hr", "behavioral"]
 const InterviewRespond = z.object({ sessionId: z.string().max(64), answer: z.string().min(1).max(6000) });
 const ResumeBody = z.object({ text: z.string().min(20).max(20000), role: z.string().max(60) });
 const OverrideBody = z.object({ finalScore: z.number().min(0).max(100), reason: z.string().min(5).max(500) });
+const UpdateSettingsBody = z.object({
+  values: z.record(z.string().max(80), z.union([z.string().max(500), z.boolean()])),
+});
 
 /** Is this module's area switched on for the caller's college? (Super Admin at "all" scope sees everything.) */
 export async function moduleEnabled(mod: ModuleDef, session: SessionPayload): Promise<boolean> {
@@ -111,6 +114,7 @@ const PATTERNS = [
   "GET search",
   "GET home/:id",
   "GET modules/:id",
+  "PUT modules/:id",
   "GET students/me/dashboard",
   "GET courses",
   "GET courses/:id",
@@ -209,8 +213,48 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
     }
 
     /* ── session & shell ── */
-    case "GET notifications":
-      return ok(await getStore().notifications.forUser(session));
+    case "GET notifications": {
+      const rawList = await getStore().notifications.forUser(session);
+      const cfg = (await getStore().settings.get(session.college, "notifications-config"))
+        ?? (session.college !== "all" ? await getStore().settings.get("all", "notifications-config") : undefined);
+      if (!cfg) return ok(rawList);
+
+      // Channel rule: In-app / web notifications disabled
+      if (cfg.web === false) {
+        return ok([]);
+      }
+
+      let list = rawList;
+
+      // Rule: Exam reminders
+      if (cfg.exam === "Off") {
+        list = list.filter((n) => !n.title.toLowerCase().includes("exam"));
+      }
+
+      // Rule: Weekly faculty digest
+      if (cfg.digest === false && (session.role === "faculty" || session.role === "institution")) {
+        list = list.filter((n) => !n.title.toLowerCase().includes("digest") && !n.title.toLowerCase().includes("weekly summary"));
+      }
+
+      // Rule: Quiet hours
+      if (typeof cfg.quiet === "string" && cfg.quiet !== "None") {
+        const parts = cfg.quiet.split("–");
+        if (parts.length === 2) {
+          const startHour = parseInt((parts[0] ?? "").split(":")[0] ?? "22", 10);
+          const endHour = parseInt((parts[1] ?? "").split(":")[0] ?? "7", 10);
+          const curHour = new Date().getHours();
+          const inQuiet = startHour > endHour
+            ? (curHour >= startHour || curHour < endHour)
+            : (curHour >= startHour && curHour < endHour);
+          if (inQuiet) {
+            // Keep critical alerts (security, urgent), suppress informational ones
+            list = list.filter((n) => n.tone === "rose" || n.title.toLowerCase().includes("security"));
+          }
+        }
+      }
+
+      return ok(list);
+    }
     case "GET search": {
       const q = cleanText(query.get("q") ?? "", 80).toLowerCase();
       if (q.length < 2) return ok([]);
@@ -243,6 +287,28 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
       if (!(await moduleEnabled(mod, session))) return err(403, "module_disabled", "This module is not enabled for your college.");
       const data = await moduleData(mod.slug, session.college);
       return data ? ok(data) : notFound();
+    }
+    case "PUT modules/:id": {
+      const mod = b ? findModule(b) : undefined;
+      if (!mod) return notFound();
+      if (!mod.roles.includes(session.role)) return forbidden();
+      if (session.role !== "institution" && session.role !== "admin") return forbidden();
+      if (mod.template !== "settings") return err(400, "invalid_module", "Module is not configurable.");
+
+      const parsed = UpdateSettingsBody.safeParse(rawBody);
+      if (!parsed.success) return err(400, "invalid_body", "Invalid settings payload.");
+
+      const { values } = parsed.data;
+      await getStore().settings.save(session.college, mod.slug, values);
+      await getStore().audit.add({
+        actor: session.name,
+        action: `Updated settings for ${mod.title}`,
+        target: mod.slug,
+        collegeId: session.college === "all" ? null : session.college,
+        actorSub: session.sub,
+      });
+
+      return ok({ ok: true, values });
     }
 
     /* ── student ── */

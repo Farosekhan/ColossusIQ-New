@@ -59,7 +59,7 @@ function Template({ data, mod }: { data: ModuleData; mod: ModuleDef }) {
     case "calendar":
       return <CalendarTemplate data={data} />;
     case "settings":
-      return <SettingsTemplate data={data} />;
+      return <SettingsTemplate data={data} mod={mod} />;
     case "gallery":
       return <GalleryTemplate data={data} />;
     case "chat":

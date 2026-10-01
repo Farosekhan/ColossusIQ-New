@@ -1,9 +1,21 @@
 import "server-only";
-import type { DataStore } from "../store";
+import type { DataStore, SettingsStore, SettingsValues } from "../store";
+import { sharedState } from "@/lib/api/mock/global-state";
 import { pgAudit, pgMedia, pgSites } from "./basics";
 import { pgAttempts, pgCertificates, pgCourses, pgProgress, pgQuizzes, pgReadiness } from "./learning";
 import { pgRecords } from "./records";
 import { pgBooster, pgEvaluations, pgFacultyEvents, pgInterviews, pgNotifications, pgOutlines, pgResumes, pgSummaries } from "./teaching";
+
+const pgSettingsMap = sharedState("postgres.modules.settings", () => new Map<string, SettingsValues>());
+
+export const pgSettings: SettingsStore = {
+  async get(collegeScope, slug) {
+    return pgSettingsMap.get(`${collegeScope}:${slug}`);
+  },
+  async save(collegeScope, slug, values) {
+    pgSettingsMap.set(`${collegeScope}:${slug}`, values);
+  },
+};
 
 /** The PostgreSQL store (DATA_BACKEND=postgres). Calls must run inside withRequestContext(). */
 export const postgresStore: DataStore = {
@@ -26,4 +38,5 @@ export const postgresStore: DataStore = {
   interviews: pgInterviews,
   resumes: pgResumes,
   notifications: pgNotifications,
+  settings: pgSettings,
 };

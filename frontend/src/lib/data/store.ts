@@ -187,6 +187,13 @@ export interface NotificationStore {
   forUser(session: SessionPayload): Promise<Notification[]>;
 }
 
+export type SettingsValues = Record<string, string | boolean>;
+
+export interface SettingsStore {
+  get(collegeScope: string, slug: string): Promise<SettingsValues | undefined>;
+  save(collegeScope: string, slug: string, values: SettingsValues): Promise<void>;
+}
+
 export interface DataStore {
   readonly kind: "memory" | "postgres";
   records: RecordStore;
@@ -207,4 +214,5 @@ export interface DataStore {
   interviews: InterviewStore;
   resumes: ResumeStore;
   notifications: NotificationStore;
+  settings: SettingsStore;
 }

@@ -1,8 +1,8 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, CheckCircle2, Circle, Copy, Filter, Search, Sparkles, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   CalendarData,
   ChatData,
@@ -14,7 +14,7 @@ import type {
   SettingsData,
   WorkflowData,
 } from "@/lib/api/schemas";
-import { GenerateReply } from "@/lib/api/schemas";
+import { GenerateReply, UpdateSettingsReply } from "@/lib/api/schemas";
 import type { ModuleDef } from "@/config/modules";
 import { findAgent } from "@/config/agents";
 import { apiFetch, ApiError } from "@/lib/api/client";
@@ -411,12 +411,42 @@ export function CalendarTemplate({ data }: { data: CalendarData }) {
 /* ── Settings ──────────────────────────────────── */
 const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
-export function SettingsTemplate({ data }: { data: SettingsData }) {
+export function SettingsTemplate({ data, mod }: { data: SettingsData; mod?: ModuleDef }) {
+  const qc = useQueryClient();
   const initial = useMemo(() => Object.fromEntries(data.sections.flatMap((s) => s.fields.map((f) => [f.id, f.value]))), [data]);
   const [values, setValues] = useState<Record<string, string | boolean>>(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setValues(initial);
+  }, [initial]);
+
   const dirty = JSON.stringify(values) !== JSON.stringify(initial);
+
+  const mutation = useMutation({
+    mutationFn: async (payload: Record<string, string | boolean>) => {
+      if (!mod?.slug) return;
+      return apiFetch(`/api/v1/modules/${mod.slug}`, UpdateSettingsReply, {
+        method: "PUT",
+        body: { values: payload },
+      });
+    },
+    onSuccess: () => {
+      setSaved(true);
+      setSaveError(null);
+      if (mod?.slug) {
+        qc.invalidateQueries({ queryKey: ["module", mod.slug] });
+      }
+      if (mod?.slug === "notifications-config") {
+        qc.invalidateQueries({ queryKey: ["notifications"] });
+      }
+    },
+    onError: (err) => {
+      setSaveError(err instanceof ApiError ? err.message : "Failed to save settings to the server.");
+    },
+  });
 
   const save = () => {
     const next: Record<string, string> = {};
@@ -428,7 +458,9 @@ export function SettingsTemplate({ data }: { data: SettingsData }) {
         if (f.type === "select" && f.options && !f.options.includes(String(v))) next[f.id] = "Choose a listed option.";
       }
     setErrors(next);
-    if (Object.keys(next).length === 0) setSaved(true);
+    if (Object.keys(next).length === 0) {
+      mutation.mutate(values);
+    }
   };
 
   return (
@@ -455,6 +487,7 @@ export function SettingsTemplate({ data }: { data: SettingsData }) {
                       aria-checked={v === true}
                       onClick={() => {
                         setSaved(false);
+                        setSaveError(null);
                         setValues((p) => ({ ...p, [f.id]: !(p[f.id] === true) }));
                       }}
                       className={cn("relative h-6 w-11 shrink-0 rounded-full transition-colors", v === true ? "bg-teal" : "bg-line")}
@@ -472,6 +505,7 @@ export function SettingsTemplate({ data }: { data: SettingsData }) {
                       value={String(v)}
                       onChange={(e) => {
                         setSaved(false);
+                        setSaveError(null);
                         setValues((p) => ({ ...p, [f.id]: e.target.value }));
                       }}
                       className={inputClass}
@@ -488,6 +522,7 @@ export function SettingsTemplate({ data }: { data: SettingsData }) {
                         value={COLOR_RE.test(String(v)) ? String(v) : "#000000"}
                         onChange={(e) => {
                           setSaved(false);
+                          setSaveError(null);
                           setValues((p) => ({ ...p, [f.id]: e.target.value }));
                         }}
                         className="h-10 w-14 cursor-pointer rounded-lg border border-line bg-surface"
@@ -501,6 +536,7 @@ export function SettingsTemplate({ data }: { data: SettingsData }) {
                       maxLength={120}
                       onChange={(e) => {
                         setSaved(false);
+                        setSaveError(null);
                         setValues((p) => ({ ...p, [f.id]: e.target.value }));
                       }}
                       className={inputClass}
@@ -512,14 +548,27 @@ export function SettingsTemplate({ data }: { data: SettingsData }) {
           </CardBody>
         </Card>
       ))}
-      <div className="flex items-center gap-3">
-        <Button onClick={save} disabled={!dirty}>
-          Save changes
-        </Button>
-        {saved ? (
-          <span className="inline-flex items-center gap-1 text-sm text-teal" role="status">
-            <Check className="size-4" /> Validated. Changes are audit-logged when saved to the live backend.
-          </span>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-3">
+          <Button onClick={save} disabled={!dirty || mutation.isPending}>
+            {mutation.isPending ? (
+              <>
+                <Spinner className="mr-2 size-4" /> Saving…
+              </>
+            ) : (
+              "Save changes"
+            )}
+          </Button>
+          {saved && !dirty ? (
+            <span className="inline-flex items-center gap-1 text-sm text-teal" role="status">
+              <Check className="size-4" /> Changes saved and applied dynamically to your institution.
+            </span>
+          ) : null}
+        </div>
+        {saveError ? (
+          <p className="text-sm text-rose" role="alert">
+            {saveError}
+          </p>
         ) : null}
       </div>
     </div>

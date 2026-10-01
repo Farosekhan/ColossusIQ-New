@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { MODULES } from "@/config/modules";
-import { ModuleData, RoleHome } from "@/lib/api/schemas";
+import { ModuleData, RoleHome, SettingsData } from "@/lib/api/schemas";
 import { moduleData, _hasData } from "@/lib/api/mock/module-data";
 import { dispatch } from "@/lib/api/mock/router";
 import { looksLikeInjection, chatReply } from "@/lib/api/mock/ai";
@@ -101,5 +101,69 @@ describe("AI guardrails", () => {
     const r = chatReply("policy", "What is the hostel curfew?");
     expect(r.sources).toHaveLength(0);
     expect(r.message).toMatch(/won't guess/);
+  });
+});
+
+describe("Dynamic module settings and notifications config", () => {
+  it("allows institution to save notification settings and overlays on GET", async () => {
+    const instSession = session("institution");
+    const putRes = await dispatch(
+      "PUT",
+      ["modules", "notifications-config"],
+      { values: { web: true, exam: "Off", quiet: "None", digest: false } },
+      instSession,
+      new URLSearchParams(),
+    );
+    expect(putRes.status).toBe(200);
+
+    const getRes = await dispatch("GET", ["modules", "notifications-config"], undefined, instSession, new URLSearchParams());
+    expect(getRes.status).toBe(200);
+    const modData = getRes.body as SettingsData;
+    expect(modData.template).toBe("settings");
+
+    const fields = Object.fromEntries(modData.sections.flatMap((s) => s.fields.map((f) => [f.id, f.value])));
+    expect(fields.exam).toBe("Off");
+    expect(fields.digest).toBe(false);
+  });
+
+  it("filters notifications dynamically based on active rules", async () => {
+    const instSession = session("institution");
+
+    // 1. When digest is false, weekly summary is suppressed for institution
+    await dispatch(
+      "PUT",
+      ["modules", "notifications-config"],
+      { values: { web: true, exam: "Off", quiet: "None", digest: false } },
+      instSession,
+      new URLSearchParams(),
+    );
+    const notifs1 = await dispatch("GET", ["notifications"], undefined, instSession, new URLSearchParams());
+    expect(notifs1.status).toBe(200);
+    const list1 = notifs1.body as Array<{ title: string }>;
+    expect(list1.some((n) => n.title.toLowerCase().includes("weekly summary"))).toBe(false);
+
+    // 2. When web is false, in-app notifications are empty
+    await dispatch(
+      "PUT",
+      ["modules", "notifications-config"],
+      { values: { web: false, exam: "Off", quiet: "None", digest: false } },
+      instSession,
+      new URLSearchParams(),
+    );
+    const notifs2 = await dispatch("GET", ["notifications"], undefined, instSession, new URLSearchParams());
+    expect(notifs2.status).toBe(200);
+    expect(notifs2.body).toEqual([]);
+  });
+
+  it("denies unprivileged roles from updating settings", async () => {
+    const studentSession = session("student");
+    const res = await dispatch(
+      "PUT",
+      ["modules", "notifications-config"],
+      { values: { web: false } },
+      studentSession,
+      new URLSearchParams(),
+    );
+    expect(res.status).toBe(403);
   });
 });

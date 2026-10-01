@@ -655,6 +655,19 @@ export async function moduleData(slug: string, collegeScope = "all"): Promise<Mo
       admissions: slug === "admission-insights" ? await getStore().records.all(RESOURCES.admissions!, collegeScope) : [],
     };
     const data = await builder(collegeScope, live);
+    if (data.template === "settings") {
+      const saved = (await getStore().settings.get(collegeScope, slug))
+        ?? (collegeScope !== "all" ? await getStore().settings.get("all", slug) : undefined);
+      if (saved) {
+        for (const section of data.sections) {
+          for (const field of section.fields) {
+            if (field.id in saved && saved[field.id] !== undefined) {
+              field.value = saved[field.id]!;
+            }
+          }
+        }
+      }
+    }
     // Generic academic dashboards use the college's own subjects (Anatomy, Accounts, DBMS …).
     if (data.template === "dashboard" && STREAM_RELABEL.has(slug)) return relabelSubjects(data, live.stream);
     return data;

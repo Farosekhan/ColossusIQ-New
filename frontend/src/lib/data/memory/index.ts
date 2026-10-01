@@ -9,7 +9,7 @@ import { evaluationQueue, notificationsFor, personName, seeded } from "@/lib/api
 import { sharedState } from "@/lib/api/mock/global-state";
 import type { Certificate, Quiz, ReadinessBase } from "@/lib/api/mock/learning";
 import type { ClassSummary, SavedOutline } from "@/lib/api/mock/teaching";
-import type { Attempt, AuditEntry, DataStore, InterviewSession, MediaItem, RecordListQuery, Site } from "../store";
+import type { Attempt, AuditEntry, DataStore, InterviewSession, MediaItem, RecordListQuery, SettingsValues, Site } from "../store";
 import { COLLEGE_SEEDS, collegeRows, scopedRows, stamp } from "./seed-records";
 
 /*
@@ -35,9 +35,10 @@ const boosterSteps = sharedState("teaching.booster", () => new Map<string, Set<s
 const facultyEvents = sharedState("faculty.events", () => [] as Array<{ sub: string; kind: FacultyEvent; at: string }>);
 const evalQueues = sharedState("router.evalQueues", () => new Map<string, EvaluationQueueItem[]>());
 const interviews = sharedState("router.interviews", () => new Map<string, InterviewSession>());
+const moduleSettings = sharedState("modules.settings", () => new Map<string, SettingsValues>());
 
 /** Raw state, for tests and memory-only seeders. */
-export const memoryState = { learningCourses, lessonProgress, quizzes, attempts, certificates, outlines, summaries, auditTrail };
+export const memoryState = { learningCourses, lessonProgress, quizzes, attempts, certificates, outlines, summaries, auditTrail, moduleSettings };
 
 const progressKey = (sub: string, courseId: string) => `${sub}|${courseId}`;
 
@@ -404,6 +405,15 @@ export const memoryStore: DataStore = {
   notifications: {
     async forUser(session) {
       return notificationsFor(session.role);
+    },
+  },
+
+  settings: {
+    async get(collegeScope, slug) {
+      return moduleSettings.get(`${collegeScope}:${slug}`);
+    },
+    async save(collegeScope, slug, values) {
+      moduleSettings.set(`${collegeScope}:${slug}`, values);
     },
   },
 };
