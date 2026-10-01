@@ -22,8 +22,10 @@ import { PlacementBoardModule, PlacementReadinessModule } from "./bespoke/placem
 import { TeachingStudioModule } from "@/components/teaching/teaching-studio";
 import { SkillBoosterModule } from "@/components/teaching/skill-booster";
 import { ClassNotesModule } from "@/components/teaching/class-notes";
+import { BiAnalyticsModule } from "./bespoke/bi-analytics";
 
 const BESPOKE: Record<string, (props: { role: Role }) => React.ReactNode> = {
+  "bi-analytics": () => <BiAnalyticsModule />,
   mentor: () => <MentorModule />,
   "study-planner": () => <StudyPlannerModule />,
   courses: () => <CoursesModule />,

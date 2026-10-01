@@ -22,6 +22,7 @@ import type { ResourceRecord } from "@/config/resources";
 import type { Stream } from "@/config/streams";
 import { getStore } from "@/lib/data";
 import { collegeStream } from "./records";
+import { dynamicBiAnalytics } from "./bi-analytics";
 
 /** Live data a builder may need, fetched once per request. */
 interface ScopeData {
@@ -130,7 +131,7 @@ function admissionInsights(_collegeScope: string, live: ScopeData): DashboardDat
   );
 }
 
-const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData> = {
+const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData | Promise<ModuleData>> = {
   "admission-insights": admissionInsights,
   "competency-logbook": competencyLogbook,
   osce: osceStations,
@@ -193,18 +194,10 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
       ],
       [ins("Interview practice gap", "Final-year students need increased interview practice — HR-round scores lag technical rounds by 14 points.", "1,120 mock interviews · Aug–Sep", "amber")],
     ),
-  "bi-analytics": () =>
-    dashboard(
-      [k("Students", "18,452", undefined, "brand"), k("Course completion", "86%", "+3%", "teal"), k("AI usage (weekly)", "74%", "+9%", "sky"), k("Event participation", "41%", "−2%", "amber")],
-      [
-        chart("area", "Weekly active learners", trend("bi", ["Students", "Faculty"], 70, 14), ["Students", "Faculty"]),
-        chart("donut", "AI usage by module", [
-          { name: "Mentor", value: 34 }, { name: "Tutor", value: 22 }, { name: "Mock tests", value: 18 }, { name: "Career", value: 14 }, { name: "Other", value: 12 },
-        ], ["value"]),
-        chart("bar", "Engagement KPIs by campus", cats("bi-c", ["Main", "North", "City", "Rural"], ["Course activity", "Clubs", "Projects"], 60, 40), ["Course activity", "Clubs", "Projects"]),
-      ],
-      [ins("Club participation below target", "Participation in technical clubs is below the configured target of 45%.", "Club rosters · 38.6% vs 45% target", "amber"), ins("AI adoption", "AI learning adoption grew 9 points after mentor nudges were enabled.", "AI usage logs, weekly actives")],
-    ),
+  "bi-analytics": async (collegeScope) => {
+    const bi = await dynamicBiAnalytics({ college: collegeScope, role: "institution", sub: "institution", tenant: "ciq", name: "Principal", mfa: true, exp: 0 });
+    return dashboard(bi.kpis, bi.charts, bi.insights);
+  },
   "ai-governance": () =>
     dashboard(
       [k("Registered models", "7", "3 providers + 1 self-hosted", "brand"), k("Prompt versions", "142", "12 this week", "sky"), k("Human reviews pending", "23", undefined, "amber"), k("Groundedness", "94.1%", "+1.2%", "teal")],
@@ -661,7 +654,7 @@ export async function moduleData(slug: string, collegeScope = "all"): Promise<Mo
       stream: await collegeStream(collegeScope),
       admissions: slug === "admission-insights" ? await getStore().records.all(RESOURCES.admissions!, collegeScope) : [],
     };
-    const data = builder(collegeScope, live);
+    const data = await builder(collegeScope, live);
     // Generic academic dashboards use the college's own subjects (Anatomy, Accounts, DBMS …).
     if (data.template === "dashboard" && STREAM_RELABEL.has(slug)) return relabelSubjects(data, live.stream);
     return data;

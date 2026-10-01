@@ -13,6 +13,7 @@ import { MCQ_KEY, MOCK_TESTS, MOCK_TEST_SUMMARIES, PROJECTS } from "./fixtures";
 import { ROLE_HOMES } from "./homes";
 import { roleHomeFor, studentCourses, studentDashboard } from "./stream-content";
 import { dynamicInstitutionHome } from "./institution-home";
+import { dynamicBiAnalytics } from "./bi-analytics";
 import { moduleData } from "./module-data";
 import { dispatchRecords } from "./records-router";
 import { dispatchLearning } from "./learning";
@@ -105,6 +106,7 @@ const PATTERNS = [
   "GET university/overview",
   "GET colleges/options",
   "GET staff/faculty-options",
+  "GET analytics/bi",
   "GET notifications",
   "GET search",
   "GET home/:id",
@@ -199,6 +201,11 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
         .filter((f) => f.name.length > 0)
         .sort((a, b) => a.name.localeCompare(b.name));
       return ok({ faculty });
+    }
+    case "GET analytics/bi": {
+      if (session.role !== "institution" && session.role !== "admin") return forbidden();
+      const targetCollege = query.get("college") || (session.college !== ALL_COLLEGES ? session.college : undefined);
+      return ok(await dynamicBiAnalytics(session, targetCollege));
     }
 
     /* ── session & shell ── */

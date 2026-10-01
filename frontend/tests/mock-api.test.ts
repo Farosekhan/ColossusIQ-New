@@ -76,6 +76,16 @@ describe("mock API authorisation", () => {
     expect(body.faculty.length).toBeGreaterThan(0);
     expect(body.faculty[0]).toHaveProperty("name");
   });
+  it("serves dynamic BI analytics data for institution principal", async () => {
+    const res = await dispatch("GET", ["analytics", "bi"], undefined, session("institution"), q);
+    expect(res.status).toBe(200);
+    const body = res.body as { executive: { enrolledStudents: number; healthScore: number }; kpis: unknown[]; funnel: unknown[] };
+    expect(body).toHaveProperty("college");
+    expect(body).toHaveProperty("executive");
+    expect(body.executive.healthScore).toBeGreaterThan(0);
+    expect(body.kpis.length).toBeGreaterThanOrEqual(4);
+    expect(body.funnel.length).toBe(6);
+  });
 });
 
 describe("AI guardrails", () => {

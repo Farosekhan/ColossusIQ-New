@@ -450,3 +450,61 @@ export const UniversityOverview = z.object({
   recentAudit: z.array(z.object({ at: z.string(), actor: z.string(), action: z.string(), target: z.string() })),
 });
 export type UniversityOverview = z.infer<typeof UniversityOverview>;
+
+/* ── BI Analytics ──────────────────────────────────── */
+export const BiAnalyticsData = z.object({
+  college: z.object({
+    id: z.string(),
+    name: z.string(),
+    code: z.string().optional(),
+    city: z.string().optional(),
+    type: z.string().optional(),
+    stream: z.string(),
+    capacity: z.number(),
+    principal: z.string().optional(),
+  }),
+  kpis: z.array(Kpi),
+  executive: z.object({
+    enrolledStudents: z.number(),
+    capacityUtilization: z.number(),
+    teachingFaculty: z.number(),
+    totalStaff: z.number(),
+    studentFacultyRatio: z.number(),
+    activeCourses: z.number(),
+    totalCourses: z.number(),
+    applicationsTotal: z.number(),
+    conversionRate: z.number(),
+    healthScore: z.number(),
+  }),
+  funnel: z.array(
+    z.object({
+      stage: z.string(),
+      count: z.number(),
+      rate: z.number(),
+    }),
+  ),
+  courseDistribution: z.array(
+    z.object({
+      name: z.string(),
+      value: z.number(),
+    }),
+  ),
+  facultyDesignations: z.array(
+    z.object({
+      name: z.string(),
+      value: z.number(),
+    }),
+  ),
+  departmentMetrics: z.array(
+    z.object({
+      name: z.string(),
+      courses: z.number(),
+      faculty: z.number(),
+      applications: z.number(),
+      studentCount: z.number(),
+    }),
+  ),
+  charts: z.array(ChartSpec),
+  insights: z.array(Insight),
+});
+export type BiAnalyticsData = z.infer<typeof BiAnalyticsData>;
