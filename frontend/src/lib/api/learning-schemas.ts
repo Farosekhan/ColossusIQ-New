@@ -46,6 +46,24 @@ export const StaffQuizRow = z.object({
 });
 export type StaffQuizRow = z.infer<typeof StaffQuizRow>;
 
+export const StaffQuizDetail = z.object({
+  id: z.string(),
+  collegeId: z.string(),
+  title: z.string(),
+  department: z.string(),
+  course: z.string(),
+  passMark: z.number(),
+  durationMin: z.number(),
+  certificateEnabled: z.boolean(),
+  status: z.enum(["Draft", "Published", "Closed"]),
+  questions: z.array(BankQuestion.extend({ review: z.boolean().optional() })),
+  courseId: z.string().optional(),
+  createdBy: z.string(),
+  createdAt: z.string(),
+  collegeName: z.string().optional(),
+});
+export type StaffQuizDetail = z.infer<typeof StaffQuizDetail>;
+
 export const StudentQuizRow = z.object({
   id: z.string(),
   title: z.string(),

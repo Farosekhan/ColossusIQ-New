@@ -191,7 +191,17 @@ export const pgCourses: CourseStore = {
     await saveLessons(t, row.id, course);
   },
   async delete(id) {
-    await db().learningCourse.deleteMany({ where: { publicId: id } });
+    const t = db();
+    const c = await t.learningCourse.findUnique({ where: { publicId: id }, select: { id: true } });
+    if (c) {
+      const linkedQuizzes = await t.quiz.findMany({ where: { learningCourseId: c.id }, select: { id: true } });
+      for (const q of linkedQuizzes) {
+        await t.quizAttemptAnswer.deleteMany({ where: { attempt: { quizId: q.id } } });
+        await t.quizAttempt.deleteMany({ where: { quizId: q.id } });
+      }
+      await t.lessonProgress.deleteMany({ where: { lesson: { courseId: c.id } } });
+      await t.learningCourse.delete({ where: { id: c.id } });
+    }
   },
 };
 
@@ -299,7 +309,13 @@ export const pgQuizzes: QuizStore = {
     await t.quizQuestion.deleteMany({ where: { quizId: row.id, position: { gte: quiz.questions.length } } });
   },
   async delete(id) {
-    await db().quiz.deleteMany({ where: { publicId: id } });
+    const t = db();
+    const q = await t.quiz.findUnique({ where: { publicId: id }, select: { id: true } });
+    if (q) {
+      await t.quizAttemptAnswer.deleteMany({ where: { attempt: { quizId: q.id } } });
+      await t.quizAttempt.deleteMany({ where: { quizId: q.id } });
+      await t.quiz.delete({ where: { id: q.id } });
+    }
   },
 };
 

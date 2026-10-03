@@ -220,10 +220,6 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
     list([col("title", "Assignment"), col("course", "Course"), col("due", "Due"), col("submitted", "Submitted", "progress"), col("status", "Status", "badge")],
       rows(8, "asg", (i, r) => ({ title: pick(["ER diagram for library system", "SQL joins worksheet", "Scheduler simulation", "Subnetting problems", "Linear regression notebook", "Normalization case study", "Banker's algorithm trace", "Mini-project proposal"], () => (i + 0.5) / 8), course: pick(["DBMS", "OS", "CN", "ML"], r), due: `Oct ${2 + i * 3}`, submitted: Math.round(40 + r() * 60), status: i < 3 ? "Closed" : i < 6 ? "Open" : "Draft" })),
       "status", "New assignment"),
-  "question-bank": () =>
-    list([col("id", "ID"), col("question", "Question"), col("topic", "Topic"), col("difficulty", "Difficulty", "badge"), col("bloom", "Bloom level", "badge"), col("co", "CO")],
-      rows(10, "qb", (i, r) => ({ id: `Q-${1040 + i}`, question: pick(["Define functional dependency with an example.", "Differentiate 3NF and BCNF.", "Explain two-phase locking.", "Construct a B+ tree for the given keys.", "Write SQL to find the second-highest salary.", "Explain lossless-join decomposition.", "What is a view? List its advantages.", "Explain ACID properties."], r), topic: pick(["Normalization", "Transactions", "Indexing", "SQL"], r), difficulty: pick(["Easy", "Medium", "Hard"], r), bloom: pick(["Remember", "Understand", "Apply", "Analyse"], r), co: `CO${1 + Math.floor(r() * 5)}` })),
-      "difficulty", "Add question"),
   "team-finder": () =>
     list([col("name", "Student"), col("dept", "Department"), col("skills", "Skills"), col("looking", "Interested in"), col("match", "Match", "progress")],
       rows(9, "team", (i, r) => ({ name: personName(i + 3), dept: pick(["CSE", "ECE", "MECH", "AI&DS", "IT"], r), skills: pick(["Python, ML", "React, UI design", "Embedded C, PCB", "CAD, 3D printing", "Flutter, Firebase", "Data analysis"], r), looking: pick(["IoT project", "Hackathon", "Startup", "Research paper"], r), match: Math.round(55 + r() * 44) })),

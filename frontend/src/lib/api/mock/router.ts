@@ -182,9 +182,10 @@ const LEARNING_AREAS = new Set(["learning", "quizzes", "certificates", "placemen
 
 export async function dispatch(method: string, segs: string[], rawBody: unknown, session: SessionPayload, query: URLSearchParams): Promise<MockResult> {
   if (segs[0] === "records") return dispatchRecords(method, segs, rawBody, session, query);
-  if (segs[0] === "learning-courses") return dispatchCourses(method, segs, rawBody, session);
+  if (segs[0] === "questions" || segs[0] === "question-bank") return dispatchRecords(method, ["records", "questions", ...segs.slice(1)], rawBody, session, query);
+  if (segs[0] === "learning-courses") return dispatchCourses(method, segs, rawBody, session, query);
   if (segs[0] === "teaching") return dispatchTeaching(method, segs, rawBody, session);
-  if (LEARNING_AREAS.has(segs[0] ?? "")) return dispatchLearning(method, segs, rawBody, session);
+  if (LEARNING_AREAS.has(segs[0] ?? "")) return dispatchLearning(method, segs, rawBody, session, query);
   const found = matchRoute(method, segs);
   if (!found) return notFound();
   const b = found.id;

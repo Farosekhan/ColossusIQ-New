@@ -261,7 +261,7 @@ const GenerateQuiz = z
   .strict();
 
 /* ───────────────────────────── dispatcher ────────────────────────── */
-export async function dispatchLearning(method: string, segs: string[], rawBody: unknown, session: SessionPayload): Promise<MockResult> {
+export async function dispatchLearning(method: string, segs: string[], rawBody: unknown, session: SessionPayload, query?: URLSearchParams): Promise<MockResult> {
   await ensureSeed();
   const store = getStore();
   const [area, a1, a2] = segs;
@@ -428,9 +428,37 @@ export async function dispatchLearning(method: string, segs: string[], rawBody: 
       return ok({ id: quiz.id, status: quiz.status });
     }
 
+    if (a2 === undefined && method === "PUT") {
+      if (!isStaff) return err(403, "forbidden", "Only faculty can edit quizzes.");
+      if (!stream) return err(400, "choose_college", "Switch into a college to edit quizzes.");
+      const p = CreateQuiz.safeParse(rawBody);
+      if (!p.success) {
+        const fields: Record<string, string> = {};
+        for (const i of p.error.issues) fields[String(i.path[0] ?? "_")] ??= i.message;
+        return err(422, "validation", "Please correct the quiz.", fields);
+      }
+      if (!streamOptions("department", stream).includes(p.data.department) && p.data.department !== APTITUDE_DEPARTMENT) return err(422, "validation", "Department not in your college's stream.", { department: "Choose a department of your college" });
+      const clean = (s: string, n: number) => cleanText(s, n);
+      quiz.title = clean(p.data.title, 120);
+      quiz.department = p.data.department;
+      quiz.course = clean(p.data.course, 100);
+      quiz.passMark = p.data.passMark;
+      quiz.durationMin = p.data.durationMin;
+      quiz.certificateEnabled = p.data.certificateEnabled;
+      quiz.status = p.data.status;
+      quiz.questions = p.data.questions.map((x) => ({ prompt: clean(x.prompt, 400), options: x.options.map((o) => clean(o, 200)) as BankQuestion["options"], answer: x.answer, explanation: clean(x.explanation, 400) }));
+      await store.quizzes.save(quiz);
+      await audit(session.name, "Quiz updated", `${quiz.id} · ${quiz.title}`, { collegeId: quiz.collegeId, actorSub: session.sub });
+      if (quiz.status === "Published") await recordFacultyEvent(session.sub, "quiz_published", 1, quiz.collegeId);
+      return ok({ id: quiz.id, status: quiz.status });
+    }
+
     if (a2 === undefined && method === "DELETE") {
       if (!isStaff) return err(403, "forbidden", "Not allowed.");
-      if ((await store.attempts.list({ quizId: quiz.id })).length > 0) return err(409, "has_attempts", "Students have attempted this quiz. Close it instead of deleting, so marks and certificates stay verifiable.");
+      const force = query?.get("force") === "1";
+      if (!force && (await store.attempts.list({ quizId: quiz.id })).length > 0) {
+        return err(409, "has_attempts", "Students have attempted this quiz. Close it instead of deleting, so marks and certificates stay verifiable.");
+      }
       await store.quizzes.delete(quiz.id);
       await audit(session.name, "Quiz deleted", quiz.id, { collegeId: quiz.collegeId, actorSub: session.sub });
       return ok({ ok: true });
