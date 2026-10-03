@@ -5,6 +5,8 @@ import {
   ArrowRight,
   Calendar,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Filter,
   MapPin,
@@ -56,6 +58,8 @@ export function SportsModule({ role }: { role?: Role }) {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
   const [selectedSport, setSelectedSport] = useState<SportItem | null>(null);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -100,8 +104,8 @@ export function SportsModule({ role }: { role?: Role }) {
   });
 
   const filteredSports = useMemo(() => {
-    if (!query.data?.sports) return [];
-    return query.data.sports.filter((s) => {
+    const list = query.data?.sports ?? [];
+    return list.filter((s) => {
       const matchesStatus = statusFilter === "All" || s.status === statusFilter;
       const q = search.toLowerCase().trim();
       const matchesSearch =
@@ -114,7 +118,15 @@ export function SportsModule({ role }: { role?: Role }) {
         s.venue.toLowerCase().includes(q);
       return matchesStatus && matchesSearch;
     });
-  }, [query.data?.sports, statusFilter, search]);
+  }, [query.data, statusFilter, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSports.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+
+  const paginatedSports = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredSports.slice(startIndex, startIndex + pageSize);
+  }, [filteredSports, currentPage, pageSize]);
 
   if (query.isError) return <LoadError error={query.error} onRetry={() => void query.refetch()} />;
   if (query.isLoading || !query.data) return <TemplateSkeleton />;
@@ -193,7 +205,10 @@ export function SportsModule({ role }: { role?: Role }) {
               type="text"
               placeholder="Search sports..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               className={cn(inputClass, "pl-9")}
             />
           </div>
@@ -203,7 +218,10 @@ export function SportsModule({ role }: { role?: Role }) {
               <Filter className="size-4 text-ink-3" />
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(1);
+                }}
                 className={inputClass}
                 aria-label="Filter by status"
               >
@@ -243,7 +261,7 @@ export function SportsModule({ role }: { role?: Role }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {filteredSports.map((s) => (
+                {paginatedSports.map((s) => (
                   <tr
                     key={s.id}
                     onClick={() => setSelectedSport(s)}
@@ -287,9 +305,82 @@ export function SportsModule({ role }: { role?: Role }) {
           </div>
         )}
 
-        <div className="border-t border-line px-5 py-3 text-xs text-ink-3">
-          Showing {filteredSports.length} of {query.data.sports.length} sports
-        </div>
+        {/* Pagination Footer */}
+        {filteredSports.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-line px-5 py-3.5 text-xs text-ink-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <span>
+                Showing <strong className="text-ink">{(currentPage - 1) * pageSize + 1}</strong> to{" "}
+                <strong className="text-ink">{Math.min(currentPage * pageSize, filteredSports.length)}</strong> of{" "}
+                <strong className="text-ink">{filteredSports.length}</strong> sports teams
+              </span>
+              <div className="flex items-center gap-1.5 sm:border-l sm:border-line sm:pl-3">
+                <span>Per page:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="rounded-lg border border-line bg-surface px-2 py-1 text-xs text-ink focus:border-brand focus:outline-none"
+                  aria-label="Items per page"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="mr-2 text-ink-3">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={currentPage <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                aria-label="Previous page"
+                className="gap-1 px-2.5 h-8 text-xs"
+              >
+                <ChevronLeft className="size-3.5" /> Prev
+              </Button>
+
+              {/* Numbered Page Buttons */}
+              <div className="hidden sm:flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pNum) => (
+                  <button
+                    key={pNum}
+                    type="button"
+                    onClick={() => setPage(pNum)}
+                    className={cn(
+                      "size-8 rounded-lg text-xs font-medium transition-colors",
+                      pNum === currentPage
+                        ? "bg-brand text-white shadow-sm font-semibold"
+                        : "text-ink-2 hover:bg-surface-2 hover:text-ink border border-line"
+                    )}
+                    aria-label={`Go to page ${pNum}`}
+                    aria-current={pNum === currentPage ? "page" : undefined}
+                  >
+                    {pNum}
+                  </button>
+                ))}
+              </div>
+
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={currentPage >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                aria-label="Next page"
+                className="gap-1 px-2.5 h-8 text-xs"
+              >
+                Next <ChevronRight className="size-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Register Sport / Team Modal */}
