@@ -66,22 +66,6 @@ const StudentSchema = z.object({
   total: z.number().optional(),
 });
 
-// Default initial dataset matching the institutional portal
-const DEFAULT_STUDENTS: StudentItem[] = [
-  { id: "stu-1", name: "Anand Kumar", roll: "21CS1001", section: "CSE-A", cgpa: 6.44, readiness: 77, signal: "None" },
-  { id: "stu-2", name: "Divya Menon", roll: "21CS1014", section: "CSE-A", cgpa: 9.13, readiness: 41, signal: "Review suggested" },
-  { id: "stu-3", name: "Karthik Khan", roll: "21CS1027", section: "CSE-B", cgpa: 7.25, readiness: 44, signal: "None" },
-  { id: "stu-4", name: "Priya Raman", roll: "21CS1040", section: "AI&DS", cgpa: 7.76, readiness: 71, signal: "None" },
-  { id: "stu-5", name: "Rahul Pillai", roll: "21CS1053", section: "CSE-A", cgpa: 6.81, readiness: 65, signal: "Review suggested" },
-  { id: "stu-6", name: "Sneha Srinivasan", roll: "21CS1066", section: "CSE-B", cgpa: 8.82, readiness: 38, signal: "Review suggested" },
-  { id: "stu-7", name: "Vignesh Iyer", roll: "21CS1079", section: "AI&DS", cgpa: 9.14, readiness: 52, signal: "None" },
-  { id: "stu-8", name: "Aishwarya Krishnan", roll: "21CS1092", section: "CSE-B", cgpa: 8.66, readiness: 91, signal: "None" },
-  { id: "stu-9", name: "Arjun Varma", roll: "21CS1105", section: "CSE-B", cgpa: 6.66, readiness: 57, signal: "Review suggested" },
-  { id: "stu-10", name: "Meera Nair", roll: "21CS1118", section: "CSE-B", cgpa: 9.29, readiness: 85, signal: "None" },
-  { id: "stu-11", name: "Harish Patel", roll: "21CS1131", section: "CSE-A", cgpa: 9.38, readiness: 42, signal: "Review suggested" },
-  { id: "stu-12", name: "Kavya Gupta", roll: "21CS1144", section: "CSE-B", cgpa: 8.93, readiness: 53, signal: "None" },
-];
-
 /* ── Main Component ────────────────────────────────── */
 
 export function StudentsModule({ role: _role }: { role: Role }) {
@@ -124,19 +108,15 @@ export function StudentsModule({ role: _role }: { role: Role }) {
   };
 
   /* ── Query Students (GET) ────────────────────────── */
-  const { data: queryData, isLoading } = useQuery({
+  const { data: queryData, isLoading, isError, error } = useQuery({
     queryKey: ["students-list"],
     queryFn: async () => {
-      try {
-        const res = await apiFetch("/api/v1/students", StudentSchema);
-        return res.students;
-      } catch {
-        return DEFAULT_STUDENTS;
-      }
+      const res = await apiFetch("/api/v1/students", StudentSchema);
+      return res.students;
     },
   });
 
-  const students = queryData ?? DEFAULT_STUDENTS;
+  const students = queryData ?? [];
 
   /* ── Mutations ───────────────────────────────────── */
 
@@ -472,8 +452,49 @@ export function StudentsModule({ role: _role }: { role: Role }) {
             <Spinner className="size-6 text-brand" />
             <span className="text-xs">Loading students directory…</span>
           </div>
+        ) : isError ? (
+          <div className="p-12 text-center text-ink-3 space-y-2">
+            <AlertCircle className="size-8 mx-auto text-rose-500" />
+            <p className="text-sm font-medium text-ink">Failed to load students directory</p>
+            <p className="text-xs text-ink-3">{(error as any)?.message || "Please refresh the page or try again later."}</p>
+          </div>
+        ) : students.length === 0 ? (
+          /* Empty Directory State */
+          <div className="p-12 text-center text-ink-3 space-y-3">
+            <Users className="size-10 mx-auto text-ink-3/40" />
+            <div>
+              <p className="text-sm font-semibold text-ink">No students registered yet</p>
+              <p className="text-xs text-ink-3 mt-1">
+                Use the Import button to add students via form or upload an Excel/CSV file.
+              </p>
+            </div>
+            <div className="pt-2 flex items-center justify-center gap-3">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setImportTab("excel");
+                  setIsImportModalOpen(true);
+                }}
+              >
+                <Upload className="size-3.5 mr-1.5" />
+                Upload Excel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  setImportTab("form");
+                  setIsImportModalOpen(true);
+                }}
+              >
+                <UserPlus className="size-3.5 mr-1.5" />
+                Add Student
+              </Button>
+            </div>
+          </div>
         ) : filteredStudents.length === 0 ? (
-          /* Empty State */
+          /* Filtered Empty State */
           <div className="p-12 text-center text-ink-3 space-y-2">
             <Users className="size-8 mx-auto text-ink-3/60" />
             <p className="text-sm font-medium text-ink">No matching students found</p>

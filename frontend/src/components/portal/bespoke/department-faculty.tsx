@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useMemo } from "react";
 import { z } from "zod";
@@ -64,19 +64,6 @@ const FacultyListSchema = z.object({
   faculty: z.array(FacultyItemSchema),
   total: z.number().optional(),
 });
-
-/* ── Seed data for fallback ─────────────────────────── */
-const DEFAULT_FACULTY: FacultyItem[] = [
-  { id: "fac-1", name: "Dr. Joseph Kumar",       designation: "Professor",           department: "CSE", load: 18, development: 95, ai: "Medium",   email: "joseph.k@campus.edu" },
-  { id: "fac-2", name: "Mr. Ananya Menon",        designation: "Professor",           department: "CSE", load: 14, development: 62, ai: "Starting", email: "ananya.m@campus.edu" },
-  { id: "fac-3", name: "Mr. Manoj Khan",          designation: "Professor",           department: "CSE", load: 13, development: 40, ai: "Starting", email: "manoj.k@campus.edu" },
-  { id: "fac-4", name: "Mr. Deepika Raman",       designation: "Assistant Professor", department: "CSE", load: 14, development: 28, ai: "High",     email: "deepika.r@campus.edu" },
-  { id: "fac-5", name: "Prof. Imran Pillai",      designation: "Professor",           department: "CSE", load: 12, development: 45, ai: "Medium",   email: "imran.p@campus.edu" },
-  { id: "fac-6", name: "Dr. Revathi Srinivasan",  designation: "Assistant Professor", department: "CSE", load: 19, development: 94, ai: "Starting", email: "revathi.s@campus.edu" },
-  { id: "fac-7", name: "Dr. Gokul Iyer",          designation: "Assistant Professor", department: "CSE", load: 14, development: 64, ai: "Medium",   email: "gokul.i@campus.edu" },
-  { id: "fac-8", name: "Dr. Shreya Krishnan",     designation: "Professor",           department: "CSE", load: 18, development: 63, ai: "Medium",   email: "shreya.k@campus.edu" },
-  { id: "fac-9", name: "Prof. Varun Varma",       designation: "Assistant Professor", department: "CSE", load: 19, development: 88, ai: "Starting", email: "varun.v@campus.edu" },
-];
 
 /* ── constants ──────────────────────────────────────── */
 const DESIGNATIONS = ["Professor", "Associate Professor", "Assistant Professor"] as const;
@@ -271,19 +258,14 @@ export function DepartmentFacultyModule({ role }: { role: Role }) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["faculty-list", params],
     queryFn: async () => {
-      try {
-        const res = await apiFetch(
-          `/api/v1/faculty${params ? `?${params}` : ""}`,
-          FacultyListSchema
-        );
-        return res;
-      } catch {
-        return { faculty: DEFAULT_FACULTY, total: DEFAULT_FACULTY.length };
-      }
+      return await apiFetch(
+        `/api/v1/faculty${params ? `?${params}` : ""}`,
+        FacultyListSchema
+      );
     },
   });
 
-  const faculty = data?.faculty ?? DEFAULT_FACULTY;
+  const faculty = data?.faculty ?? [];
   const total = data?.total ?? faculty.length;
 
   /* ── POST ──────────────────────────────────────────── */

@@ -26,25 +26,15 @@ export interface StudentInput {
   phone?: string;
 }
 
-// Initial 12 students matching the exact institutional portal records
-const INITIAL_STUDENTS: StudentRecord[] = [
-  { id: "stu-1", name: "Anand Kumar", roll: "21CS1001", section: "CSE-A", cgpa: 6.44, readiness: 77, signal: "None", email: "anand.k@campus.edu", createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
-  { id: "stu-2", name: "Divya Menon", roll: "21CS1014", section: "CSE-A", cgpa: 9.13, readiness: 41, signal: "Review suggested", email: "divya.m@campus.edu", createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
-  { id: "stu-3", name: "Karthik Khan", roll: "21CS1027", section: "CSE-B", cgpa: 7.25, readiness: 44, signal: "None", email: "karthik.k@campus.edu", createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
-  { id: "stu-4", name: "Priya Raman", roll: "21CS1040", section: "AI&DS", cgpa: 7.76, readiness: 71, signal: "None", email: "priya.r@campus.edu", createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
-  { id: "stu-5", name: "Rahul Pillai", roll: "21CS1053", section: "CSE-A", cgpa: 6.81, readiness: 65, signal: "Review suggested", email: "rahul.p@campus.edu", createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
-  { id: "stu-6", name: "Sneha Srinivasan", roll: "21CS1066", section: "CSE-B", cgpa: 8.82, readiness: 38, signal: "Review suggested", email: "sneha.s@campus.edu", createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
-  { id: "stu-7", name: "Vignesh Iyer", roll: "21CS1079", section: "AI&DS", cgpa: 9.14, readiness: 52, signal: "None", email: "vignesh.i@campus.edu", createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
-  { id: "stu-8", name: "Aishwarya Krishnan", roll: "21CS1092", section: "CSE-B", cgpa: 8.66, readiness: 91, signal: "None", email: "aishwarya.k@campus.edu", createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
-  { id: "stu-9", name: "Arjun Varma", roll: "21CS1105", section: "CSE-B", cgpa: 6.66, readiness: 57, signal: "Review suggested", email: "arjun.v@campus.edu", createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
-  { id: "stu-10", name: "Meera Nair", roll: "21CS1118", section: "CSE-B", cgpa: 9.29, readiness: 85, signal: "None", email: "meera.n@campus.edu", createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
-  { id: "stu-11", name: "Harish Patel", roll: "21CS1131", section: "CSE-A", cgpa: 9.38, readiness: 42, signal: "Review suggested", email: "harish.p@campus.edu", createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
-  { id: "stu-12", name: "Kavya Gupta", roll: "21CS1144", section: "CSE-B", cgpa: 8.93, readiness: 53, signal: "None", email: "kavya.g@campus.edu", createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
-];
+// Student store starts empty and is populated through user actions (forms, Excel import)
+let studentsStore: StudentRecord[] = [];
 
-let studentsStore: StudentRecord[] = [...INITIAL_STUDENTS];
+let nextStudentSeq = 1;
 
-let nextStudentSeq = 13;
+export function resetStudentsStore(initial: StudentRecord[] = []) {
+  studentsStore = [...initial];
+  nextStudentSeq = initial.length + 1;
+}
 
 export async function getStudentsList(opts?: {
   collegeId?: string | null;
