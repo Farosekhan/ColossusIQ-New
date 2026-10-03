@@ -113,7 +113,7 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
     mutationFn: (input: CreateCalendarItemInput) =>
       apiFetch("/api/v1/academic-calendar", AcademicCalendarItem, {
         method: "POST",
-        body: JSON.stringify(input),
+        body: input,
       }),
     onSuccess: (item) => {
       qc.invalidateQueries({ queryKey: ["academic-calendar"] });
@@ -130,7 +130,7 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
     mutationFn: ({ id, input }: { id: string; input: Partial<CreateCalendarItemInput> }) =>
       apiFetch(`/api/v1/academic-calendar/${id}`, AcademicCalendarItem, {
         method: "PUT",
-        body: JSON.stringify(input),
+        body: input,
       }),
     onSuccess: (item) => {
       qc.invalidateQueries({ queryKey: ["academic-calendar"] });
@@ -237,18 +237,20 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
     }
   };
 
+  const items = data?.items;
+
   const departments = useMemo(() => {
-    if (!data?.items) return ["All Departments"];
+    if (!items) return ["All Departments"];
     const set = new Set<string>();
-    for (const it of data.items) {
+    for (const it of items) {
       if (it.department) set.add(it.department);
     }
     return ["All Departments", ...Array.from(set).filter((d) => d !== "All Departments").sort()];
-  }, [data?.items]);
+  }, [items]);
 
   const filteredItems = useMemo(() => {
-    if (!data?.items) return [];
-    return data.items.filter((it) => {
+    if (!items) return [];
+    return items.filter((it) => {
       const matchSearch =
         search === "" ||
         it.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -261,11 +263,10 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
 
       return matchSearch && matchTag && matchDept;
     });
-  }, [data?.items, search, selectedTag, selectedDept]);
+  }, [items, search, selectedTag, selectedDept]);
 
   // Group items into Timeline sections: This Week, Next 30 Days, Upcoming Milestones, Completed
   const timelineGroups = useMemo(() => {
-    const todayStr = "2026-10-01"; // Reference simulation date
     const thisWeek: AcademicCalendarItem[] = [];
     const next30Days: AcademicCalendarItem[] = [];
     const laterSemester: AcademicCalendarItem[] = [];
@@ -297,7 +298,7 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
   const handleExportICS = () => {
     if (!data?.items || data.items.length === 0) return;
 
-    let icsContent = [
+    const icsContent = [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
       "PRODID:-//ColossusIQ//Academic Calendar//EN",
@@ -992,7 +993,7 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
                         <button
                           key={c.tag}
                           type="button"
-                          onClick={() => setFormTag(c.tag as any)}
+                          onClick={() => setFormTag(c.tag as AcademicCalendarItem["tag"])}
                           className={cn(
                             "flex flex-col items-start rounded-xl border p-2.5 text-left transition-all",
                             isSelected
