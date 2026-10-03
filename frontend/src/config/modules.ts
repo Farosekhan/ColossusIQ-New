@@ -161,7 +161,7 @@ export const MODULES: ModuleDef[] = [
   { slug: "class-analytics", title: "Class Performance", description: "Topic-wise mastery, remedial recommendations and at-risk signals for your classes.", group: "Faculty", roles: ["faculty"], template: "dashboard", icon: "chart", phase: "MVP" },
 
   // ───────────── Department (HOD) ─────────────
-  { slug: "department-faculty", title: "Faculty", description: "Faculty load, development progress and AI adoption.", group: "Department", roles: ["hod"], template: "list", icon: "users", phase: "MVP" },
+  { slug: "department-faculty", title: "Faculty", description: "Faculty load, development progress and AI adoption.", group: "Department", roles: ["hod"], template: "bespoke", icon: "users", phase: "MVP" },
   { slug: "department-academics", title: "Academic Performance", description: "Subject-wise pass rates, averages and failure patterns.", group: "Department", roles: ["hod"], template: "dashboard", icon: "chart", phase: "MVP" },
   { slug: "department-skills", title: "Skill Intelligence", description: "Skill distribution and gaps across batches versus industry demand.", group: "Department", roles: ["hod", "institution"], template: "dashboard", icon: "graph", phase: "Phase 2" },
   { slug: "department-labs", title: "Department Portal", description: "Department-specific labs and modules — coding lab, CAD, circuits, GIS, case studies.", group: "Department", roles: ["hod", "student"], template: "gallery", icon: "layers", phase: "Phase 2" },

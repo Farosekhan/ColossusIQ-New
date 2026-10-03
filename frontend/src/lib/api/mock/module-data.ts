@@ -26,6 +26,7 @@ import { dynamicBiAnalytics } from "./bi-analytics";
 import { getCollegeClubs } from "./clubs";
 import { getCollegeSports } from "./sports";
 import { getCollegeCalendar } from "./academic-calendar";
+import { getStudentsList } from "./students-store";
 
 /** Live data a builder may need, fetched once per request. */
 interface ScopeData {
@@ -274,10 +275,30 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
     list([col("section", "Section"), col("course", "Course"), col("students", "Students", "number"), col("attendance", "Attendance", "progress"), col("avg", "Avg. score", "progress"), col("next", "Next class")],
       [["CSE-A · Sem 5", "DBMS", 64, 88, 68, "Today 09:00"], ["CSE-B · Sem 5", "DBMS", 62, 84, 64, "Today 14:00"], ["AI&DS · Sem 5", "DBMS Lab", 58, 91, 74, "Tomorrow 10:00"], ["CSE-A · Sem 7", "Advanced Databases", 60, 79, 71, "Thu 11:00"]].map(([section, course, students, attendance, avg, next]) => ({ section: section as string, course: course as string, students: students as number, attendance: attendance as number, avg: avg as number, next: next as string })),
       undefined, "Take attendance"),
-  students: () =>
-    list([col("name", "Student"), col("roll", "Roll no.", "masked"), col("section", "Section"), col("cgpa", "CGPA", "number"), col("readiness", "Career readiness", "progress"), col("signal", "Support signal", "badge")],
-      rows(12, "stu", (i, r) => ({ name: personName(i), roll: `21CS${String(1001 + i * 13)}`, section: pick(["CSE-A", "CSE-B", "AI&DS"], r), cgpa: Math.round((6.2 + r() * 3.6) * 100) / 100, readiness: Math.round(35 + r() * 60), signal: r() > 0.8 ? "Review suggested" : "None" })),
-      "section", "Import students"),
+  students: async (collegeScope) => {
+    const all = await getStudentsList({ collegeId: collegeScope });
+    return list(
+      [
+        col("name", "Student"),
+        col("roll", "Roll no.", "masked"),
+        col("section", "Section"),
+        col("cgpa", "CGPA", "number"),
+        col("readiness", "Career readiness", "progress"),
+        col("signal", "Support signal", "badge"),
+      ],
+      all.map((s) => ({
+        id: s.id,
+        name: s.name,
+        roll: s.roll,
+        section: s.section,
+        cgpa: s.cgpa,
+        readiness: s.readiness,
+        signal: s.signal,
+      })),
+      "section",
+      "Import students"
+    );
+  },
   "early-warning": () =>
     list([col("student", "Student"), col("roll", "Roll no.", "masked"), col("signals", "Signals observed"), col("since", "Since"), col("recommendation", "Support recommendation"), col("status", "Review", "badge")],
       rows(7, "ew", (i, r) => ({ student: personName(i + 5), roll: `21CS${String(1100 + i * 17)}`, signals: pick(["Declining scores (3 assessments)", "Missed 4 assignments", "Reduced engagement (−60%)", "Repeated failed quizzes in OS", "Skill stagnation for 6 weeks"], r), since: `${2 + Math.floor(r() * 5)} weeks`, recommendation: pick(["Faculty check-in", "Peer tutoring", "Counsellor conversation", "Remedial class"], r), status: pick(["Pending review", "In progress", "Resolved"], r) })),

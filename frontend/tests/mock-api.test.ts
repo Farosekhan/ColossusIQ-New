@@ -506,3 +506,169 @@ describe("Security settings and runtime actions", () => {
     expect(scanRes.status).toBe(403);
   });
 });
+
+describe("students CRUD and import/export API", () => {
+  it("denies access to unauthorized student role", async () => {
+    const studentSession = session("student");
+    const res = await dispatch("GET", ["students"], undefined, studentSession, new URLSearchParams());
+    expect(res.status).toBe(403);
+  });
+
+  it("allows HOD to fetch students list with filters", async () => {
+    const hodSession = session("hod");
+    const res = await dispatch("GET", ["students"], undefined, hodSession, new URLSearchParams());
+    expect(res.status).toBe(200);
+    const body = res.body as { students: Array<{ id: string; name: string }>; total: number };
+    expect(Array.isArray(body.students)).toBe(true);
+    expect(body.students.length).toBeGreaterThan(0);
+  });
+
+  it("supports creating, updating, and deleting a student", async () => {
+    const hodSession = session("hod");
+    const newStudent = {
+      name: "Test Automation Student",
+      roll: "TEST9999",
+      section: "CSE-A",
+      cgpa: 8.75,
+      readiness: 72,
+      signal: "Review suggested" as const,
+      email: "test.student@example.edu",
+    };
+
+    // POST
+    const createRes = await dispatch("POST", ["students"], newStudent, hodSession, new URLSearchParams());
+    expect(createRes.status).toBe(201);
+    const created = createRes.body as { id: string; name: string; roll: string };
+    expect(created.name).toBe(newStudent.name);
+    expect(created.roll).toBe(newStudent.roll);
+
+    // PUT
+    const updateRes = await dispatch(
+      "PUT",
+      ["students", created.id],
+      { name: "Test Automation Student Updated", cgpa: 9.1 },
+      hodSession,
+      new URLSearchParams()
+    );
+    expect(updateRes.status).toBe(200);
+    const updated = updateRes.body as { id: string; name: string; cgpa: number };
+    expect(updated.name).toBe("Test Automation Student Updated");
+    expect(updated.cgpa).toBe(9.1);
+
+    // DELETE
+    const deleteRes = await dispatch("DELETE", ["students", created.id], undefined, hodSession, new URLSearchParams());
+    expect(deleteRes.status).toBe(200);
+    expect((deleteRes.body as { ok: boolean }).ok).toBe(true);
+  });
+
+  it("supports bulk import of students", async () => {
+    const hodSession = session("hod");
+    const importPayload = {
+      items: [
+        { name: "Bulk Student 1", roll: "BULK001", section: "CSE-A", cgpa: 8.1, readiness: 65, signal: "None" },
+        { name: "Bulk Student 2", roll: "BULK002", section: "CSE-B", cgpa: 9.4, readiness: 85, signal: "High performer" },
+      ],
+    };
+    const res = await dispatch("POST", ["students", "import"], importPayload, hodSession, new URLSearchParams());
+    expect(res.status).toBe(201);
+    const body = res.body as { imported: number; students: any[] };
+    expect(body.imported).toBe(2);
+    expect(body.students.some((s) => s.roll === "BULK001")).toBe(true);
+  });
+});
+
+describe("faculty CRUD API", () => {
+  it("denies student role access to faculty endpoints", async () => {
+    const studentSession = session("student");
+    const res = await dispatch("GET", ["faculty"], undefined, studentSession, new URLSearchParams());
+    expect(res.status).toBe(403);
+  });
+
+  it("allows HOD to list faculty with real data", async () => {
+    const hodSession = session("hod");
+    const res = await dispatch("GET", ["faculty"], undefined, hodSession, new URLSearchParams());
+    expect(res.status).toBe(200);
+    const body = res.body as { faculty: any[]; total: number };
+    expect(Array.isArray(body.faculty)).toBe(true);
+    expect(body.faculty.length).toBeGreaterThan(0);
+    expect(body.total).toBe(body.faculty.length);
+    // check shape
+    const first = body.faculty[0];
+    expect(first).toHaveProperty("id");
+    expect(first).toHaveProperty("name");
+    expect(first).toHaveProperty("designation");
+    expect(first).toHaveProperty("load");
+    expect(first).toHaveProperty("development");
+    expect(first).toHaveProperty("ai");
+  });
+
+  it("supports search filter for faculty", async () => {
+    const hodSession = session("hod");
+    const q = new URLSearchParams({ q: "Joseph" });
+    const res = await dispatch("GET", ["faculty"], undefined, hodSession, q);
+    expect(res.status).toBe(200);
+    const body = res.body as { faculty: any[] };
+    expect(body.faculty.every((f: any) => f.name.toLowerCase().includes("joseph"))).toBe(true);
+  });
+
+  it("supports designation filter for faculty", async () => {
+    const hodSession = session("hod");
+    const q = new URLSearchParams({ designation: "Assistant Professor" });
+    const res = await dispatch("GET", ["faculty"], undefined, hodSession, q);
+    expect(res.status).toBe(200);
+    const body = res.body as { faculty: any[] };
+    expect(body.faculty.every((f: any) => f.designation === "Assistant Professor")).toBe(true);
+  });
+
+  it("supports full lifecycle: POST, PUT, DELETE", async () => {
+    const hodSession = session("hod");
+
+    // POST (create)
+    const createRes = await dispatch(
+      "POST",
+      ["faculty"],
+      { name: "Dr. Test Faculty", designation: "Professor", department: "CSE", load: 16, development: 72, ai: "Medium", email: "test@campus.edu" },
+      hodSession,
+      new URLSearchParams()
+    );
+    expect(createRes.status).toBe(201);
+    const created = createRes.body as { id: string; name: string; load: number };
+    expect(created.name).toBe("Dr. Test Faculty");
+    expect(created.load).toBe(16);
+
+    // PUT (update)
+    const updateRes = await dispatch(
+      "PUT",
+      ["faculty", created.id],
+      { name: "Dr. Test Faculty Updated", load: 20, development: 90, ai: "High" },
+      hodSession,
+      new URLSearchParams()
+    );
+    expect(updateRes.status).toBe(200);
+    const updated = updateRes.body as { name: string; load: number; ai: string };
+    expect(updated.name).toBe("Dr. Test Faculty Updated");
+    expect(updated.load).toBe(20);
+    expect(updated.ai).toBe("High");
+
+    // DELETE
+    const deleteRes = await dispatch("DELETE", ["faculty", created.id], undefined, hodSession, new URLSearchParams());
+    expect(deleteRes.status).toBe(200);
+    expect((deleteRes.body as { ok: boolean }).ok).toBe(true);
+
+    // Verify removed from list
+    const listRes = await dispatch("GET", ["faculty"], undefined, hodSession, new URLSearchParams());
+    const listBody = listRes.body as { faculty: any[] };
+    expect(listBody.faculty.every((f: any) => f.id !== created.id)).toBe(true);
+  });
+
+  it("returns 404 for PUT / DELETE on non-existent faculty", async () => {
+    const hodSession = session("hod");
+    const putRes = await dispatch("PUT", ["faculty", "fac-nonexistent-999"], { load: 12 }, hodSession, new URLSearchParams());
+    expect(putRes.status).toBe(404);
+
+    const delRes = await dispatch("DELETE", ["faculty", "fac-nonexistent-999"], undefined, hodSession, new URLSearchParams());
+    expect(delRes.status).toBe(404);
+  });
+});
+
+

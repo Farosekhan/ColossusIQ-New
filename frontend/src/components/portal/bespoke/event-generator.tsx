@@ -423,6 +423,34 @@ export function EventGeneratorModule({ role }: { role: Role }) {
     queryFn: () => apiFetch("/api/v1/records/events", z.any()),
   });
 
+  // Extract live events items, total and active count from query
+  const eventItems = useMemo(() => {
+    if (campusEventsQuery.data && typeof campusEventsQuery.data === "object") {
+      if (Array.isArray(campusEventsQuery.data.items)) {
+        return campusEventsQuery.data.items;
+      }
+    }
+    return [];
+  }, [campusEventsQuery.data]);
+
+  const totalEvents = useMemo(() => {
+    if (campusEventsQuery.data && typeof campusEventsQuery.data === "object") {
+      if (typeof campusEventsQuery.data.total === "number") return campusEventsQuery.data.total;
+    }
+    return eventItems.length;
+  }, [campusEventsQuery.data, eventItems]);
+
+  const activeEventsCount = useMemo(() => {
+    if (campusEventsQuery.data && typeof campusEventsQuery.data === "object") {
+      if (campusEventsQuery.data.counts && typeof campusEventsQuery.data.counts === "object") {
+        const published = (campusEventsQuery.data.counts as Record<string, number>).Published;
+        if (typeof published === "number") return published;
+      }
+    }
+    const publishedList = eventItems.filter((i: any) => i.status === "Published");
+    return publishedList.length > 0 ? publishedList.length : totalEvents;
+  }, [campusEventsQuery.data, eventItems, totalEvents]);
+
   // Current active plan
   const [plan, setPlan] = useState<EventPlan>(DEFAULT_INITIAL_PLAN);
   // Saved plans archive
@@ -446,6 +474,44 @@ export function EventGeneratorModule({ role }: { role: Role }) {
   const [inputBrief, setInputBrief] = useState(
     "Create a flagship technology event for students with keynote addresses, parallel workshops, and an exciting competition with prizes."
   );
+
+  // Live input change handlers that keep plan preview synchronized
+  const handleTitleChange = (val: string) => {
+    setInputTitle(val);
+    setPlan((prev) => ({ ...prev, title: val }));
+  };
+  const handleCategoryChange = (val: EventCategory) => {
+    setInputCategory(val);
+    setPlan((prev) => ({ ...prev, category: val }));
+  };
+  const handleDepartmentChange = (val: string) => {
+    setInputDepartment(val);
+    setPlan((prev) => ({ ...prev, department: val }));
+  };
+  const handleAudienceChange = (val: number) => {
+    setInputAudience(val);
+    setPlan((prev) => ({ ...prev, audience: val }));
+  };
+  const handleDurationChange = (val: string) => {
+    setInputDuration(val);
+    setPlan((prev) => ({ ...prev, duration: val }));
+  };
+  const handleDateChange = (val: string) => {
+    setInputDate(val);
+    setPlan((prev) => ({ ...prev, date: val }));
+  };
+  const handleStartTimeChange = (val: string) => {
+    setInputStartTime(val);
+    setPlan((prev) => ({ ...prev, startTime: val }));
+  };
+  const handleVenueChange = (val: string) => {
+    setInputVenue(val);
+    setPlan((prev) => ({ ...prev, venue: val }));
+  };
+  const handleBudgetChange = (val: number) => {
+    setInputBudget(val);
+    setPlan((prev) => ({ ...prev, budget: val }));
+  };
 
   // Filter for Agenda
   const [agendaFilter, setAgendaFilter] = useState<string>("all");
@@ -486,21 +552,36 @@ export function EventGeneratorModule({ role }: { role: Role }) {
     });
   };
 
-  // Publish to Campus Events mutation
+  // Publish to Campus Events mutation with REAL data post and academic calendar sync
   const publishMutation = useMutation({
     mutationFn: async ({ status }: { status: "Published" | "Draft" }) => {
+      const realTitle = (inputTitle || plan.title || "Campus Event").trim().slice(0, 100);
+      const realCategory = (inputCategory || plan.category || "Workshop") as EventCategory;
+      const realDate = (inputDate || plan.date || new Date().toISOString().slice(0, 10)).trim();
+      const rawStartTime = (inputStartTime || plan.startTime || "09:00").trim();
+      const realStartTime = rawStartTime.length >= 5 ? rawStartTime.slice(0, 5) : "09:00";
+      const realVenue = (inputVenue || plan.venue || "Main Campus Auditorium").trim().slice(0, 80);
+      const realDept = (inputDepartment || plan.department || "Academic Affairs").trim();
+      const realOrganiser = (plan.organiser || (realDept ? `Department of ${realDept}` : "Campus Life Committee")).trim().slice(0, 80);
+      const realCapacity = Math.max(1, Math.min(20000, Number(inputAudience || plan.audience) || 100));
+      const realBudget = Number(inputBudget || plan.budget) || 0;
+      const realDuration = inputDuration || plan.duration || "1 Day";
+
+      const desc = `${plan.tagline || ""}\n\n${plan.description || ""}\n\nBudget: ₹${realBudget.toLocaleString("en-IN")}\nDuration: ${realDuration}`;
+      const realDescription = desc.slice(0, 1500);
+
       const payload = {
         data: {
-          title: plan.title,
-          type: plan.category,
-          date: plan.date,
-          startTime: plan.startTime,
-          venue: plan.venue,
-          organiser: plan.organiser || `Department of ${plan.department}`,
-          capacity: plan.audience,
+          title: realTitle,
+          type: realCategory,
+          date: realDate,
+          startTime: realStartTime,
+          venue: realVenue,
+          organiser: realOrganiser,
+          capacity: realCapacity,
           registrationOpen: true,
           status,
-          description: `${plan.tagline}\n\n${plan.description}\n\nBudget: ₹${plan.budget.toLocaleString("en-IN")}\nDuration: ${plan.duration}`,
+          description: realDescription,
         },
       };
 
@@ -508,14 +589,53 @@ export function EventGeneratorModule({ role }: { role: Role }) {
         method: "POST",
         body: payload,
       });
-      return res as { id?: string };
+
+      // Synchronize to Academic Calendar
+      try {
+        await apiFetch("/api/v1/academic-calendar/sync-events", z.any(), { method: "POST" });
+      } catch {
+        // Safe to ignore if role does not manage calendar
+      }
+
+      return {
+        id: (res as { id?: string })?.id,
+        title: realTitle,
+        category: realCategory,
+        date: realDate,
+        startTime: realStartTime,
+        venue: realVenue,
+        department: realDept,
+        capacity: realCapacity,
+        budget: realBudget,
+        duration: realDuration,
+        status,
+      };
     },
-    onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ["campus-events-list"] });
-      qc.invalidateQueries({ queryKey: ["records", "events"] });
-      setPlan((p) => ({ ...p, status: "Published", publishedId: data?.id || "EVT-OK" }));
-      setPublishSuccess(`Event successfully created in Campus Events! (Record: ${data?.id || "EVT-NEW"})`);
-      setTimeout(() => setPublishSuccess(null), 6000);
+    onSuccess: async (data) => {
+      await qc.invalidateQueries({ queryKey: ["campus-events-list"] });
+      await qc.refetchQueries({ queryKey: ["campus-events-list"] });
+      await qc.invalidateQueries({ queryKey: ["records", "events"] });
+      await qc.invalidateQueries({ queryKey: ["academic-calendar"] });
+
+      setPlan((p) => ({
+        ...p,
+        title: data.title,
+        category: data.category,
+        date: data.date,
+        startTime: data.startTime,
+        venue: data.venue,
+        department: data.department,
+        audience: data.capacity,
+        budget: data.budget,
+        duration: data.duration,
+        status: data.status,
+        publishedId: data.id || "EVT-OK",
+      }));
+
+      setPublishSuccess(
+        `Event "${data.title}" successfully published to Campus Events! (Record ID: ${data.id || "EVT-NEW"})`
+      );
+      setTimeout(() => setPublishSuccess(null), 8000);
     },
   });
 
@@ -550,7 +670,7 @@ export function EventGeneratorModule({ role }: { role: Role }) {
     }, 2300);
   };
 
-  // Load a preset
+  // Load a preset with instant 1-click update
   const applyPreset = (preset: typeof PRESETS[0]) => {
     setInputTitle(preset.title);
     setInputCategory(preset.category);
@@ -560,6 +680,21 @@ export function EventGeneratorModule({ role }: { role: Role }) {
     setInputVenue(preset.venue);
     setInputBudget(preset.budget);
     setInputBrief(preset.tagline);
+
+    const generated = buildInitialPlan({
+      title: preset.title,
+      category: preset.category,
+      department: preset.department,
+      audience: preset.audience,
+      duration: preset.duration,
+      date: inputDate,
+      startTime: inputStartTime,
+      venue: preset.venue,
+      budget: preset.budget,
+      description: preset.tagline,
+      tagline: `Premier ${preset.category.toLowerCase()} curated for ${preset.audience} participants by the ${preset.department}.`,
+    });
+    setPlan(generated);
   };
 
   // Save current plan into archive
@@ -653,40 +788,55 @@ ${plan.promo.whatsapp}
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full min-w-0">
       {/* ── Top Bar & Stats ─────────────────────────────── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-line pb-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-line pb-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-brand/10 text-brand">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-brand/10 text-brand shrink-0">
               <Sparkles className="size-5" />
             </span>
-            <div>
+            <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl font-bold tracking-tight text-ink">AI Event Generator Studio</h1>
                 <Badge tone="brand">{role.toUpperCase()}</Badge>
-                {campusEventsQuery.data && typeof campusEventsQuery.data === "object" && "total" in campusEventsQuery.data ? (
-                  <Badge tone="sky">{String(campusEventsQuery.data.total)} Events Active</Badge>
-                ) : null}
+                {campusEventsQuery.isLoading ? (
+                  <Badge tone="sky" className="inline-flex items-center gap-1.5 py-0.5 text-xs">
+                    <Spinner className="size-3" /> Loading events...
+                  </Badge>
+                ) : (
+                  <Link
+                    href={`/${role}/events`}
+                    title="Click to view all live events in Campus Events"
+                    className="inline-flex items-center transition-transform hover:scale-[1.02]"
+                  >
+                    <Badge tone="sky" className="cursor-pointer font-medium hover:ring-1 hover:ring-sky/40 inline-flex items-center gap-1.5">
+                      <span className="size-1.5 rounded-full bg-sky-500 animate-pulse" />
+                      {activeEventsCount} {activeEventsCount === 1 ? "Event" : "Events"} Active
+                    </Badge>
+                  </Link>
+                )}
                 {plan.status === "Published" ? (
-                  <Badge tone="teal">Published to Campus</Badge>
+                  <Badge tone="teal" className="inline-flex items-center gap-1">
+                    <CheckCircle2 className="size-3" /> Published to Campus
+                  </Badge>
                 ) : (
                   <Badge tone="amber">Draft Blueprint</Badge>
                 )}
               </div>
-              <p className="text-xs text-ink-3">
+              <p className="text-xs text-ink-3 truncate mt-0.5">
                 Plan, optimize budgets, schedule agendas, generate marketing copy, and publish directly to Campus Life.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
           <Button
             variant="secondary"
             size="sm"
             onClick={handleSavePlan}
-            className="flex items-center gap-1.5"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5"
           >
             {saveToast ? <Check className="size-3.5 text-teal" /> : <Save className="size-3.5" />}
             {saveToast ? "Saved!" : "Save Blueprint"}
@@ -696,7 +846,7 @@ ${plan.promo.whatsapp}
             variant="secondary"
             size="sm"
             onClick={exportMarkdown}
-            className="flex items-center gap-1.5"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5"
           >
             <Download className="size-3.5" /> Export .MD
           </Button>
@@ -706,9 +856,9 @@ ${plan.promo.whatsapp}
             size="sm"
             disabled={publishMutation.isPending}
             onClick={() => publishMutation.mutate({ status: "Published" })}
-            className="flex items-center gap-1.5"
+            className="w-full sm:w-auto flex items-center justify-center gap-1.5"
           >
-            {publishMutation.isPending ? <Spinner /> : <Send className="size-3.5" />}
+            {publishMutation.isPending ? <Spinner className="size-3.5" /> : <Send className="size-3.5" />}
             Publish to Campus Events
           </Button>
         </div>
@@ -716,14 +866,14 @@ ${plan.promo.whatsapp}
 
       {/* Success Banner */}
       {publishSuccess && (
-        <div className="flex items-center justify-between rounded-xl border border-teal/40 bg-teal-soft/60 px-4 py-3 text-sm text-teal">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="size-4 shrink-0" />
-            <span>{publishSuccess}</span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-teal/40 bg-teal-soft/60 px-4 py-3 text-sm text-teal shadow-sm">
+          <div className="flex items-center gap-2 min-w-0">
+            <CheckCircle2 className="size-4 shrink-0 text-teal" />
+            <span className="truncate">{publishSuccess}</span>
           </div>
           <Link
-            href="/institution/events"
-            className="font-medium underline hover:text-teal/80 flex items-center gap-1 text-xs"
+            href={`/${role}/events`}
+            className="font-semibold underline hover:text-teal/80 flex items-center gap-1 text-xs shrink-0"
           >
             Open Campus Events <ExternalLink className="size-3" />
           </Link>
@@ -731,9 +881,9 @@ ${plan.promo.whatsapp}
       )}
 
       {/* ── Main Layout: Configurator & Dynamic Workspace ──── */}
-      <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
+      <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)] w-full min-w-0">
         {/* ── Left Column: Generator Form & Quick Presets ──── */}
-        <div className="space-y-5">
+        <div className="space-y-5 min-w-0 w-full">
           {/* Quick Presets Carousel */}
           <Card className="p-4 bg-surface-2/30">
             <div className="flex items-center justify-between mb-3">
@@ -748,7 +898,7 @@ ${plan.promo.whatsapp}
                   key={preset.name}
                   type="button"
                   onClick={() => applyPreset(preset)}
-                  className="flex items-center justify-between rounded-lg border border-line bg-surface px-3 py-2 text-left text-xs font-medium text-ink hover:border-brand/40 hover:bg-brand-soft/30 transition-all text-ellipsis overflow-hidden"
+                  className="flex items-center justify-between w-full min-w-0 rounded-lg border border-line bg-surface px-3 py-2 text-left text-xs font-medium text-ink hover:border-brand/40 hover:bg-brand-soft/30 transition-all overflow-hidden"
                 >
                   <span className="truncate">{preset.name}</span>
                   <span className="text-[10px] text-ink-3 shrink-0 ml-2">₹{(preset.budget / 1000).toFixed(0)}k · {preset.audience}p</span>
@@ -769,18 +919,18 @@ ${plan.promo.whatsapp}
                   id="evt-title"
                   type="text"
                   value={inputTitle}
-                  onChange={(e) => setInputTitle(e.target.value)}
+                  onChange={(e) => handleTitleChange(e.target.value)}
                   className={inputClass}
                   placeholder="e.g. National Hackathon 2026"
                 />
               </Field>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Category" htmlFor="evt-cat">
                   <select
                     id="evt-cat"
                     value={inputCategory}
-                    onChange={(e) => setInputCategory(e.target.value as EventCategory)}
+                    onChange={(e) => handleCategoryChange(e.target.value as EventCategory)}
                     className={inputClass}
                   >
                     <option value="Workshop">Workshop</option>
@@ -797,7 +947,7 @@ ${plan.promo.whatsapp}
                   <select
                     id="evt-dur"
                     value={inputDuration}
-                    onChange={(e) => setInputDuration(e.target.value)}
+                    onChange={(e) => handleDurationChange(e.target.value)}
                     className={inputClass}
                   >
                     <option value="Half Day">Half Day (4h)</option>
@@ -814,13 +964,13 @@ ${plan.promo.whatsapp}
                   id="evt-dept"
                   type="text"
                   value={inputDepartment}
-                  onChange={(e) => setInputDepartment(e.target.value)}
+                  onChange={(e) => handleDepartmentChange(e.target.value)}
                   className={inputClass}
                   placeholder="e.g. Computer Science & Engineering"
                 />
               </Field>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Expected Footfall" htmlFor="evt-aud">
                   <div className="space-y-1">
                     <input
@@ -830,7 +980,7 @@ ${plan.promo.whatsapp}
                       max={5000}
                       step={50}
                       value={inputAudience}
-                      onChange={(e) => setInputAudience(Number(e.target.value))}
+                      onChange={(e) => handleAudienceChange(Number(e.target.value))}
                       className={inputClass}
                     />
                     <div className="text-[10px] text-ink-3 flex justify-between">
@@ -849,7 +999,7 @@ ${plan.promo.whatsapp}
                       max={2000000}
                       step={5000}
                       value={inputBudget}
-                      onChange={(e) => setInputBudget(Number(e.target.value))}
+                      onChange={(e) => handleBudgetChange(Number(e.target.value))}
                       className={inputClass}
                     />
                     <div className="text-[10px] text-ink-3 text-right font-medium">
@@ -859,13 +1009,13 @@ ${plan.promo.whatsapp}
                 </Field>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Target Date" htmlFor="evt-date">
                   <input
                     id="evt-date"
                     type="date"
                     value={inputDate}
-                    onChange={(e) => setInputDate(e.target.value)}
+                    onChange={(e) => handleDateChange(e.target.value)}
                     className={inputClass}
                   />
                 </Field>
@@ -875,7 +1025,7 @@ ${plan.promo.whatsapp}
                     id="evt-time"
                     type="time"
                     value={inputStartTime}
-                    onChange={(e) => setInputStartTime(e.target.value)}
+                    onChange={(e) => handleStartTimeChange(e.target.value)}
                     className={inputClass}
                   />
                 </Field>
@@ -886,7 +1036,7 @@ ${plan.promo.whatsapp}
                   id="evt-ven"
                   type="text"
                   value={inputVenue}
-                  onChange={(e) => setInputVenue(e.target.value)}
+                  onChange={(e) => handleVenueChange(e.target.value)}
                   className={inputClass}
                   placeholder="e.g. Main Auditorium"
                 />
@@ -972,58 +1122,60 @@ ${plan.promo.whatsapp}
         </div>
 
         {/* ── Right Column: Dynamic Workspace Tabs ─────────── */}
-        <div className="space-y-5">
-          {/* Navigation Tabs */}
-          <div className="flex border-b border-line overflow-x-auto gap-2 pb-px text-sm">
-            {[
-              { id: "overview", label: "Executive Blueprint", icon: Layers },
-              { id: "agenda", label: `Agenda & Timeline (${plan.sessions.length})`, icon: Clock },
-              { id: "budget", label: "Budget Planner", icon: DollarSign },
-              { id: "promo", label: "Promotion Kit", icon: Megaphone },
-              { id: "forms", label: "Forms & Survey", icon: FileText },
-              { id: "volunteers", label: "Committees & Tasks", icon: Users },
-            ].map((tab) => {
-              const Icon = tab.icon;
-              const active = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2.5 font-medium border-b-2 transition-colors whitespace-nowrap text-sm",
-                    active
-                      ? "border-brand text-brand font-semibold"
-                      : "border-transparent text-ink-3 hover:text-ink hover:border-line"
-                  )}
-                >
-                  <Icon className="size-4" />
-                  {tab.label}
-                </button>
-              );
-            })}
+        <div className="space-y-5 min-w-0 w-full overflow-hidden">
+          {/* Navigation Tabs - Responsive Scrollable Bar */}
+          <div className="w-full border-b border-line pb-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-none no-scrollbar touch-pan-x -mb-px">
+              {[
+                { id: "overview", label: "Executive Blueprint", icon: Layers },
+                { id: "agenda", label: `Agenda & Timeline (${plan.sessions.length})`, icon: Clock },
+                { id: "budget", label: "Budget Planner", icon: DollarSign },
+                { id: "promo", label: "Promotion Kit", icon: Megaphone },
+                { id: "forms", label: "Forms & Survey", icon: FileText },
+                { id: "volunteers", label: "Committees & Tasks", icon: Users },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const active = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                    className={cn(
+                      "shrink-0 inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap",
+                      active
+                        ? "bg-brand text-white shadow-sm font-semibold"
+                        : "bg-surface text-ink-2 hover:text-ink hover:bg-surface-2 border border-line/60"
+                    )}
+                  >
+                    <Icon className="size-3.5 sm:size-4" />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* ═════════ TAB 1: EXECUTIVE BLUEPRINT ═════════ */}
           {activeTab === "overview" && (
-            <div className="space-y-5">
+            <div className="space-y-5 min-w-0 w-full">
               {/* Event Hero Banner */}
-              <div className="rounded-2xl border border-line bg-gradient-to-r from-surface to-brand-soft/20 p-6 relative overflow-hidden">
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                  <div className="space-y-2 max-w-2xl">
+              <div className="rounded-2xl border border-line bg-gradient-to-r from-surface to-brand-soft/20 p-4 sm:p-6 relative overflow-hidden">
+                <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                  <div className="space-y-2 max-w-2xl min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge tone="brand">{plan.category}</Badge>
                       <Badge tone="sky">{plan.duration}</Badge>
                       <span className="text-xs text-ink-3 flex items-center gap-1">
-                        <MapPin className="size-3.5" /> {plan.venue}
+                        <MapPin className="size-3.5 shrink-0" /> {plan.venue}
                       </span>
                     </div>
-                    <h2 className="text-2xl font-bold tracking-tight text-ink">{plan.title}</h2>
-                    <p className="text-sm font-medium text-ink-2">{plan.tagline}</p>
-                    <p className="text-xs text-ink-3 leading-relaxed">{plan.description}</p>
+                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-ink break-words">{plan.title}</h2>
+                    <p className="text-xs sm:text-sm font-medium text-ink-2 break-words">{plan.tagline}</p>
+                    <p className="text-xs text-ink-3 leading-relaxed break-words">{plan.description}</p>
                   </div>
 
-                  <div className="rounded-xl border border-line bg-surface p-4 text-center shrink-0 min-w-36 space-y-1">
+                  <div className="rounded-xl border border-line bg-surface p-3.5 sm:p-4 text-center shrink-0 w-full lg:w-36 space-y-1 shadow-sm">
                     <span className="text-[11px] font-medium text-ink-3 uppercase">Status</span>
                     <div>
                       {plan.status === "Published" ? (
@@ -1044,68 +1196,68 @@ ${plan.promo.whatsapp}
               </div>
 
               {/* KPI Stat Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="p-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <Card className="p-3.5 sm:p-4">
                   <div className="flex items-center justify-between text-ink-3 text-xs">
                     <span>Footfall Target</span>
-                    <Users className="size-4 text-brand" />
+                    <Users className="size-4 text-brand shrink-0" />
                   </div>
-                  <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-ink">{plan.audience}</span>
+                  <div className="mt-2 flex items-baseline gap-1.5 sm:gap-2">
+                    <span className="text-xl sm:text-2xl font-bold text-ink">{plan.audience}</span>
                     <span className="text-xs text-ink-3">students</span>
                   </div>
-                  <div className="mt-1 text-[11px] text-teal flex items-center gap-1">
-                    <CheckCircle2 className="size-3" /> Hall capacity matched
+                  <div className="mt-1 text-[11px] text-teal flex items-center gap-1 truncate">
+                    <CheckCircle2 className="size-3 shrink-0" /> Hall capacity matched
                   </div>
                 </Card>
 
-                <Card className="p-4">
+                <Card className="p-3.5 sm:p-4">
                   <div className="flex items-center justify-between text-ink-3 text-xs">
                     <span>Total Financials</span>
-                    <DollarSign className="size-4 text-gold" />
+                    <DollarSign className="size-4 text-gold shrink-0" />
                   </div>
-                  <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-ink">₹{(plan.budget / 1000).toFixed(0)}k</span>
+                  <div className="mt-2 flex items-baseline gap-1.5 sm:gap-2">
+                    <span className="text-xl sm:text-2xl font-bold text-ink">₹{(plan.budget / 1000).toFixed(0)}k</span>
                     <span className="text-xs text-ink-3">allocated</span>
                   </div>
-                  <div className="mt-1 text-[11px] text-ink-3">
+                  <div className="mt-1 text-[11px] text-ink-3 truncate">
                     ₹{costPerStudent}/head economy
                   </div>
                 </Card>
 
-                <Card className="p-4">
+                <Card className="p-3.5 sm:p-4">
                   <div className="flex items-center justify-between text-ink-3 text-xs">
                     <span>Schedule Content</span>
-                    <Clock className="size-4 text-sky" />
+                    <Clock className="size-4 text-sky shrink-0" />
                   </div>
-                  <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-ink">{plan.sessions.length}</span>
+                  <div className="mt-2 flex items-baseline gap-1.5 sm:gap-2">
+                    <span className="text-xl sm:text-2xl font-bold text-ink">{plan.sessions.length}</span>
                     <span className="text-xs text-ink-3">tracks/sessions</span>
                   </div>
-                  <div className="mt-1 text-[11px] text-ink-3">
+                  <div className="mt-1 text-[11px] text-ink-3 truncate">
                     {plan.duration} intensive
                   </div>
                 </Card>
 
-                <Card className="p-4">
+                <Card className="p-3.5 sm:p-4">
                   <div className="flex items-center justify-between text-ink-3 text-xs">
                     <span>Coordinators Squad</span>
-                    <UserCheck className="size-4 text-rose" />
+                    <UserCheck className="size-4 text-rose shrink-0" />
                   </div>
-                  <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-ink">
+                  <div className="mt-2 flex items-baseline gap-1.5 sm:gap-2">
+                    <span className="text-xl sm:text-2xl font-bold text-ink">
                       {plan.volunteerSquads.reduce((sum, s) => sum + s.headcount, 0)}
                     </span>
                     <span className="text-xs text-ink-3">volunteers</span>
                   </div>
-                  <div className="mt-1 text-[11px] text-ink-3">
+                  <div className="mt-1 text-[11px] text-ink-3 truncate">
                     Across 5 committees
                   </div>
                 </Card>
               </div>
 
               {/* Highlights & Preparation Roadmap */}
-              <div className="grid md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
                 <Card>
                   <CardHeader
                     title="Key Program Highlights"
@@ -1481,7 +1633,7 @@ ${plan.promo.whatsapp}
           {activeTab === "budget" && (
             <div className="space-y-5">
               {/* Financial Dashboard Header */}
-              <div className="grid sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <Card className="p-4">
                   <span className="text-xs font-medium text-ink-3">Total Allocated</span>
                   <div className="mt-1 text-2xl font-bold text-ink">
@@ -1523,7 +1675,7 @@ ${plan.promo.whatsapp}
 
               {isAddingBudget && (
                 <Card className="p-4 border-brand/50 bg-brand-soft/20 animate-in fade-in">
-                  <div className="grid sm:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <Field label="Category" htmlFor="new-bud-cat">
                       <select
                         id="new-bud-cat"
@@ -1718,7 +1870,7 @@ ${plan.promo.whatsapp}
               </Card>
 
               {/* Social Channels */}
-              <div className="grid md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
                 {/* Instagram Script */}
                 <Card>
                   <CardHeader
@@ -1821,7 +1973,7 @@ ${plan.promo.whatsapp}
           {/* ═════════ TAB 5: REGISTRATION & FEEDBACK FORMS ═════════ */}
           {activeTab === "forms" && (
             <div className="space-y-5">
-              <div className="grid md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
                 {/* Form Fields Toggler */}
                 <Card>
                   <CardHeader
@@ -1973,7 +2125,7 @@ ${plan.promo.whatsapp}
                 </Badge>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {plan.volunteerSquads.map((squad) => (
                   <Card key={squad.id} className="p-4 space-y-3">
                     <div className="flex items-start justify-between border-b border-line pb-2.5">

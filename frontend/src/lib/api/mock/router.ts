@@ -24,6 +24,8 @@ import { dispatchLearning } from "./learning";
 import { dispatchCourses } from "./course-builder";
 import { dispatchTeaching } from "./teaching";
 import { audit, recentAudit } from "./audit";
+import { createStudent, deleteStudent, getStudentsList, importStudents, updateStudent } from "./students-store";
+import { createFaculty, deleteFaculty, getFacultyList, updateFaculty } from "./faculty-store";
 
 export interface MockResult {
   status: number;
@@ -133,6 +135,10 @@ const PATTERNS = [
   "POST academic-calendar",
   "PUT academic-calendar/:id",
   "DELETE academic-calendar/:id",
+  "GET faculty",
+  "POST faculty",
+  "PUT faculty/:id",
+  "DELETE faculty/:id",
   "POST academic-calendar/sync-events",
   "POST security/revoke-sessions",
   "POST security/scan",
@@ -186,6 +192,8 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
   if (segs[0] === "learning-courses") return dispatchCourses(method, segs, rawBody, session, query);
   if (segs[0] === "teaching") return dispatchTeaching(method, segs, rawBody, session);
   if (LEARNING_AREAS.has(segs[0] ?? "")) return dispatchLearning(method, segs, rawBody, session, query);
+  if (segs[0] === "students" && segs[1] !== "me") return dispatchStudents(method, segs, rawBody, session, query);
+  if (segs[0] === "faculty") return dispatchFaculty(method, segs, rawBody, session, query);
   const found = matchRoute(method, segs);
   if (!found) return notFound();
   const b = found.id;
@@ -396,14 +404,30 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
       return ok(await getCalendarOverview(session));
     case "POST academic-calendar": {
       if (session.role !== "institution" && session.role !== "admin" && session.role !== "hod" && session.role !== "faculty") return forbidden();
-      const parsed = CreateCalendarItemInput.safeParse(rawBody);
+      let body = rawBody;
+      if (typeof body === "string") {
+        try {
+          body = JSON.parse(body);
+        } catch {
+          // keep as string
+        }
+      }
+      const parsed = CreateCalendarItemInput.safeParse(body);
       if (!parsed.success) return err(400, "invalid_body", parsed.error.issues[0]?.message ?? "Invalid calendar payload.");
       return ok(await createCalendarItem(session, parsed.data));
     }
     case "PUT academic-calendar/:id": {
       if (session.role !== "institution" && session.role !== "admin" && session.role !== "hod" && session.role !== "faculty") return forbidden();
       if (!b) return notFound();
-      const parsed = CreateCalendarItemInput.partial().safeParse(rawBody);
+      let body = rawBody;
+      if (typeof body === "string") {
+        try {
+          body = JSON.parse(body);
+        } catch {
+          // keep as string
+        }
+      }
+      const parsed = CreateCalendarItemInput.partial().safeParse(body);
       if (!parsed.success) return err(400, "invalid_body", "Invalid calendar payload.");
       const updated = await updateCalendarItem(session, b, parsed.data);
       return updated ? ok(updated) : notFound();
@@ -581,5 +605,189 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
       if (!can(session.role, "audit:read") && !can(session.role, "assessment:override-score")) return forbidden();
       return ok(await recentAudit(50, session.college));
   }
+  return notFound();
+}
+
+async function dispatchStudents(
+  method: string,
+  segs: string[],
+  rawBody: unknown,
+  session: SessionPayload,
+  query: URLSearchParams
+): Promise<MockResult> {
+  if (!can(session.role, "student:read-any") && !can(session.role, "department:manage") && !can(session.role, "users:manage")) {
+    return forbidden();
+  }
+  const collegeId = session.college === ALL_COLLEGES ? query.get("college") || null : session.college;
+
+  // GET /students
+  if (method === "GET" && segs.length === 1) {
+    const q = query.get("q") || undefined;
+    const section = query.get("section") || undefined;
+    const signal = query.get("signal") || undefined;
+    const list = await getStudentsList({ collegeId, q, section, signal });
+    return ok({ students: list, total: list.length });
+  }
+
+  // POST /students/import
+  if (method === "POST" && segs.length === 2 && segs[1] === "import") {
+    let body = rawBody;
+    if (typeof body === "string") {
+      try {
+        body = JSON.parse(body);
+      } catch {
+        // keep as is
+      }
+    }
+    const items = Array.isArray(body)
+      ? body
+      : (body as { items?: unknown[]; students?: unknown[] })?.items ||
+        (body as { items?: unknown[]; students?: unknown[] })?.students ||
+        [];
+    const res = await importStudents(items as any, collegeId);
+    await audit(session.name, `Imported ${res.imported} students`, "Student Directory", {
+      collegeId: collegeId ?? undefined,
+      actorSub: session.sub,
+    });
+    return { status: 201, body: res };
+  }
+
+  // POST /students
+  if (method === "POST" && segs.length === 1) {
+    let body = rawBody;
+    if (typeof body === "string") {
+      try {
+        body = JSON.parse(body);
+      } catch {
+        // keep as is
+      }
+    }
+    const data = (body as { data?: any })?.data || body;
+    if (!data?.name || !data?.roll) {
+      return err(400, "invalid_body", "Student name and roll number are required.");
+    }
+    const created = await createStudent(data, collegeId);
+    await audit(session.name, `Added student ${created.name}`, created.roll, {
+      collegeId: collegeId ?? undefined,
+      actorSub: session.sub,
+    });
+    return { status: 201, body: created };
+  }
+
+  // PUT /students/:id
+  if (method === "PUT" && segs.length === 2) {
+    const id = segs[1];
+    if (!id) return notFound();
+    let body = rawBody;
+    if (typeof body === "string") {
+      try {
+        body = JSON.parse(body);
+      } catch {
+        // keep as is
+      }
+    }
+    const data = (body as { data?: any })?.data || body;
+    const updated = await updateStudent(id, data);
+    if (!updated) return notFound();
+    await audit(session.name, `Updated student ${updated.name}`, updated.roll, {
+      collegeId: collegeId ?? undefined,
+      actorSub: session.sub,
+    });
+    return ok(updated);
+  }
+
+  // DELETE /students/:id
+  if (method === "DELETE" && segs.length === 2) {
+    const id = segs[1];
+    if (!id) return notFound();
+    const deleted = await deleteStudent(id);
+    if (!deleted) return notFound();
+    await audit(session.name, `Deleted student ${id}`, "Student Directory", {
+      collegeId: collegeId ?? undefined,
+      actorSub: session.sub,
+    });
+    return ok({ ok: true, id });
+  }
+
+  return notFound();
+}
+
+// ── Faculty CRUD ────────────────────────────────────────────────────────────
+
+async function dispatchFaculty(
+  method: string,
+  segs: string[],
+  rawBody: unknown,
+  session: SessionPayload,
+  query: URLSearchParams
+): Promise<MockResult> {
+  // Only roles with department:manage or users:manage may manage faculty
+  if (!can(session.role, "department:manage") && !can(session.role, "users:manage") && !can(session.role, "student:read-any")) {
+    return forbidden();
+  }
+
+  const collegeId = session.college === ALL_COLLEGES ? query.get("college") || null : session.college;
+
+  // GET /faculty — list with optional q / designation / ai filters
+  if (method === "GET" && segs.length === 1) {
+    const q = query.get("q") || undefined;
+    const designation = query.get("designation") || undefined;
+    const ai = query.get("ai") || undefined;
+    const list = await getFacultyList({ collegeId, q, designation, ai });
+    return ok({ faculty: list, total: list.length });
+  }
+
+  // POST /faculty — create single faculty
+  if (method === "POST" && segs.length === 1) {
+    let body = rawBody;
+    if (typeof body === "string") {
+      try { body = JSON.parse(body); } catch { /* keep */ }
+    }
+    const data = (body as { data?: any })?.data || body as any;
+    if (!data?.name) {
+      return err(400, "invalid_body", "Faculty name is required.");
+    }
+    if (!data?.load) {
+      return err(400, "invalid_body", "Teaching load is required.");
+    }
+    const created = await createFaculty(data, collegeId);
+    await audit(session.name, `Added faculty ${created.name}`, created.designation, {
+      collegeId: collegeId ?? undefined,
+      actorSub: session.sub,
+    });
+    return { status: 201, body: created };
+  }
+
+  // PUT /faculty/:id — update faculty
+  if (method === "PUT" && segs.length === 2) {
+    const id = segs[1];
+    if (!id) return notFound();
+    let body = rawBody;
+    if (typeof body === "string") {
+      try { body = JSON.parse(body); } catch { /* keep */ }
+    }
+    const data = (body as { data?: any })?.data || body as any;
+    const updated = await updateFaculty(id, data);
+    if (!updated) return notFound();
+    await audit(session.name, `Updated faculty ${updated.name}`, updated.designation, {
+      collegeId: collegeId ?? undefined,
+      actorSub: session.sub,
+    });
+    return ok(updated);
+  }
+
+  // DELETE /faculty/:id — delete faculty
+  if (method === "DELETE" && segs.length === 2) {
+    const id = segs[1];
+    if (!id) return notFound();
+    const deleted = await deleteFaculty(id);
+    if (!deleted) return notFound();
+    await audit(session.name, `Deleted faculty ${id}`, "Faculty Directory", {
+      collegeId: collegeId ?? undefined,
+      actorSub: session.sub,
+    });
+    return ok({ ok: true, id });
+  }
+
   return notFound();
 }
