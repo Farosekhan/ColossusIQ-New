@@ -75,7 +75,7 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [selectedTag, setSelectedTag] = useState<string>("All");
-  const [selectedDept, setSelectedDept] = useState<string>("All Departments");
+  const [selectedDept, setSelectedDept] = useState<string>("All");
   const [viewMode, setViewMode] = useState<"timeline" | "month">("timeline");
   const [currentMonthDate, setCurrentMonthDate] = useState(new Date(2026, 9, 1)); // Oct 2026
   const [selectedDayEvents, setSelectedDayEvents] = useState<AcademicCalendarItem[] | null>(null);
@@ -249,27 +249,16 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
 
   const filteredItems = useMemo(() => {
     if (!data?.items) return [];
-    const q = search.trim().toLowerCase();
     return data.items.filter((it) => {
       const matchSearch =
-        q === "" ||
-        it.title.toLowerCase().includes(q) ||
-        (it.venue && it.venue.toLowerCase().includes(q)) ||
-        (it.description && it.description.toLowerCase().includes(q)) ||
-        (it.department && it.department.toLowerCase().includes(q));
+        search === "" ||
+        it.title.toLowerCase().includes(search.toLowerCase()) ||
+        (it.venue && it.venue.toLowerCase().includes(search.toLowerCase())) ||
+        (it.description && it.description.toLowerCase().includes(search.toLowerCase())) ||
+        (it.department && it.department.toLowerCase().includes(search.toLowerCase()));
 
-      const matchTag =
-        selectedTag === "All" ||
-        !selectedTag ||
-        it.tag.toLowerCase() === selectedTag.toLowerCase();
-
-      const matchDept =
-        !selectedDept ||
-        selectedDept === "All" ||
-        selectedDept === "All Departments" ||
-        it.department === selectedDept ||
-        it.department === "All Departments" ||
-        it.department === "All";
+      const matchTag = selectedTag === "All" || it.tag === selectedTag;
+      const matchDept = selectedDept === "All Departments" || it.department === selectedDept;
 
       return matchSearch && matchTag && matchDept;
     });
@@ -567,7 +556,7 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
           const count =
             tag === "All"
               ? data.items.length
-              : data.items.filter((it) => it.tag.toLowerCase() === tag.toLowerCase()).length;
+              : data.items.filter((it) => it.tag === tag).length;
           return (
             <button
               key={tag}
