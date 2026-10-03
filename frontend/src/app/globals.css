@@ -372,6 +372,10 @@ h3 {
 
 /* Printing a lesson outline, roadmap or infographic prints only that sheet. */
 @media print {
+  body {
+    background: #ffffff !important;
+    color: #1b2233 !important;
+  }
   body * {
     visibility: hidden !important;
   }

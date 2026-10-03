@@ -32,7 +32,7 @@ export default async function VerifyCertificatePage({ params }: { params: Promis
         <PrintButton />
       </div>
 
-      <Card className="relative overflow-hidden p-2 print:border-0 print:shadow-none">
+      <Card className="print-area relative overflow-hidden p-2 print:border-0 print:shadow-none print:bg-white">
         <div className="rounded-xl border-4 border-double border-gold/70 px-6 py-10 text-center sm:px-14">
           <div className="pointer-events-none absolute inset-0 opacity-[0.04]" aria-hidden>
             <LogoMark className="absolute left-1/2 top-1/2 size-[420px] -translate-x-1/2 -translate-y-1/2" />

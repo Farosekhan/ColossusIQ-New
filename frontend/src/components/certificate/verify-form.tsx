@@ -43,7 +43,15 @@ export function VerifyForm({ initial = "" }: { initial?: string }) {
 
 export function PrintButton() {
   return (
-    <Button variant="secondary" onClick={() => window.print()}>
+    <Button
+      variant="secondary"
+      onClick={() => {
+        if (typeof window !== "undefined") {
+          window.print();
+        }
+      }}
+      aria-label="Print or save certificate as PDF"
+    >
       <Fi name="print" /> Print / save as PDF
     </Button>
   );
