@@ -196,6 +196,70 @@ const ADAPTERS: Record<string, Adapter> = {
         notes: text(d.notes),
       };
     },
+    async afterWrite(t, rowId, d) {
+      if (d.platformAccess !== false) {
+        const staff = await t.staff.findUnique({
+          where: { id: rowId },
+          include: { college: true, designation: true },
+        });
+        if (!staff) return;
+
+        const role = staff.designation.name.toLowerCase().includes("head") ? "hod" : "faculty";
+
+        let user = await t.user.findFirst({
+          where: { email: { equals: staff.email, mode: "insensitive" } },
+        });
+
+        if (!user) {
+          user = await t.user.create({
+            data: {
+              fullName: staff.fullName,
+              email: staff.email,
+              status: "Active",
+              mfaRequired: true,
+              ssoOnly: false,
+              universityId: staff.college.universityId,
+            },
+          });
+        } else if (user.status !== "Active") {
+          await t.user.update({
+            where: { id: user.id },
+            data: { status: "Active" },
+          });
+        }
+
+        const ra = await t.roleAssignment.findFirst({
+          where: { userId: user.id, role: role as any, collegeId: staff.collegeId },
+        });
+
+        if (!ra) {
+          await t.roleAssignment.create({
+            data: {
+              userId: user.id,
+              role: role as any,
+              collegeId: staff.collegeId,
+              departmentId: staff.departmentId,
+            },
+          });
+        }
+
+        if (process.env.DEV_PASSWORD && process.env.NODE_ENV !== "production") {
+          const passwordHash = await hash(process.env.DEV_PASSWORD, ARGON2);
+          await t.userCredential.upsert({
+            where: { userId: user.id },
+            create: { userId: user.id, passwordHash },
+            update: { passwordHash, failedAttempts: 0, lockedUntil: null },
+          });
+        }
+
+        if (staff.userId !== user.id) {
+          await t.staff.update({
+            where: { id: rowId },
+            data: { userId: user.id },
+          });
+        }
+      }
+    },
   },
 
   courses: {
