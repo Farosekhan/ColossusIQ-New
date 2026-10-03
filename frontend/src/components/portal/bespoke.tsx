@@ -29,8 +29,10 @@ import { SecuritySettingsModule } from "./bespoke/security-settings";
 import { AcademicCalendarModule } from "./bespoke/academic-calendar";
 import { EventGeneratorModule } from "./bespoke/event-generator";
 import { ReportsModule } from "./bespoke/reports";
+import { KnowledgeBaseModule } from "./bespoke/knowledge-base";
 
 const BESPOKE: Record<string, (props: { role: Role }) => React.ReactNode> = {
+  "knowledge-base": ({ role }) => <KnowledgeBaseModule role={role} />,
   reports: ({ role }) => <ReportsModule role={role} />,
   "event-generator": ({ role }) => <EventGeneratorModule role={role} />,
   "academic-calendar": ({ role }) => <AcademicCalendarModule role={role} />,
