@@ -141,7 +141,7 @@ export const MODULES: ModuleDef[] = [
 
   // ───────────── Campus Life ─────────────
   { slug: "events", title: "Campus Events", description: "College and department events, seminars, workshops, cultural and alumni events.", group: "Campus Life", roles: ["student", ...ALL_STAFF, "admin"], template: "crud", resource: "events", icon: "party", phase: "Phase 3" },
-  { slug: "event-generator", title: "AI Event Generator", description: "\"Create a one-day technology event for 500 students\" — agenda, budget, promotion and forms.", group: "Campus Life", roles: ["faculty", "hod", "institution"], template: "generator", icon: "wand", phase: "Phase 3", agent: "event" },
+  { slug: "event-generator", title: "AI Event Generator", description: "\"Create a one-day technology event for 500 students\" — agenda, budget, promotion and forms.", group: "Campus Life", roles: ["faculty", "hod", "institution"], template: "bespoke", icon: "wand", phase: "Phase 3", agent: "event" },
   { slug: "clubs", title: "Clubs", description: "Technical, cultural and social clubs, membership and activities.", group: "Campus Life", roles: ["student", "institution"], template: "list", icon: "flag", phase: "Phase 3" },
   { slug: "sports", title: "Sports", description: "Teams, tournaments, registrations and achievements.", group: "Campus Life", roles: ["student", "institution"], template: "list", icon: "ball", phase: "Phase 3" },
   { slug: "experience", title: "Experience Passport", description: "Volunteering, leadership, competitions, conferences and social service — verified.", group: "Campus Life", roles: ["student"], template: "list", icon: "star", phase: "Phase 3" },

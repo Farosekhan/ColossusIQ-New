@@ -116,11 +116,49 @@ export function generate(module: string, inputs: Record<string, string>): Genera
         agent: "exam",
         markdown: `### ${v("course", "Course")} — ${v("units", "Units 1–5")} · ${v("marks", "50")} marks\n\n**Part A (5 × 2 = 10)**\n1. Define functional dependency. (CO2, Remember)\n2. What is a superkey? (CO1, Remember)\n3. State two ACID properties. (CO4, Understand)\n4. Differentiate 3NF and BCNF. (CO3, Understand)\n5. What is a B+ tree? (CO5, Remember)\n\n**Part B (2 × 13 + 1 × 14 = 40)**\n6. (a) Decompose \`R(A,B,C,D,E)\` with the given FDs into BCNF and verify lossless join. (CO3, Apply) **or** (b) …\n7. (a) Explain conflict serialisability with a precedence graph. (CO4, Analyse)\n8. Design an ER model for a hostel management system and map it to relations. (CO1, Create)\n\n**Blueprint coverage:** CO1 22% · CO2 12% · CO3 30% · CO4 24% · CO5 12%`,
       };
-    case "event-generator":
+    case "event-generator": {
+      const brief = v("brief") || v("topic") || "Technology Innovation Summit";
+      const title = v("title") || brief.split(/[.\n]/)[0]?.slice(0, 50) || "Campus Tech Initiative";
+      const budgetNum = parseInt(v("budget", "150000").replace(/[^0-9]/g, ""), 10) || 150000;
+      const audience = v("audience", "500");
+      const duration = v("duration", "1 Day");
+      const venue = v("venue", "Main Campus Auditorium");
+      const type = v("type", "Workshop & Hackathon");
+      const dept = v("department", "Computer Science & Engineering");
+
+      const venueCost = Math.round(budgetNum * 0.25).toLocaleString("en-IN");
+      const foodCost = Math.round(budgetNum * 0.35).toLocaleString("en-IN");
+      const prizesCost = Math.round(budgetNum * 0.20).toLocaleString("en-IN");
+      const promoCost = Math.round(budgetNum * 0.12).toLocaleString("en-IN");
+      const contingencyCost = Math.round(budgetNum * 0.08).toLocaleString("en-IN");
+
       return {
         agent: "event",
-        markdown: `### TechNova Day — one-day technology event (500 students)\n\n**Theme:** "Build for Bharat"\n\n| Time | Session |\n|---|---|\n| 09:00 | Inauguration & keynote |\n| 10:00 | Parallel workshops: GenAI, IoT, Cloud |\n| 13:00 | Lunch & project expo |\n| 14:00 | 3-hour mini hackathon |\n| 17:00 | Prize distribution |\n\n**Volunteer roles:** registration (8), hall managers (6), tech support (4), hospitality (6)\n\n**Budget estimate (₹${v("budget", "150000")}):** venue & AV 25% · food 40% · prizes 20% · printing & promo 10% · contingency 5%\n\n**Promotion:** poster copy, 3 social posts and email invite drafted. Registration and feedback forms ready to publish.`,
+        markdown: `### ${title} — ${type} (${audience} attendees · ${duration})\n\n` +
+          `**Organising Department:** ${dept} | **Venue:** ${venue} | **Total Budget:** ₹${budgetNum.toLocaleString("en-IN")}\n\n` +
+          `**Concept & Objective:** ${brief}\n\n` +
+          `#### 🕒 Master Schedule\n` +
+          `| Time | Session / Activity | Track & Venue | Speaker / Lead |\n` +
+          `|---|---|---|---|\n` +
+          `| 09:00 - 09:45 | Registration, Welcome Kit & Breakfast | Reception Foyer | Student Volunteers |\n` +
+          `| 09:45 - 10:30 | Grand Inauguration, Lamp Lighting & Keynote Address | ${venue} | Chief Guest & Principal |\n` +
+          `| 10:45 - 13:00 | Hands-on Technical Deep-Dive / Hack Sprint | Lab 1 & Seminar Hall | Industry Mentors |\n` +
+          `| 13:00 - 14:00 | Networking Lunch & Sponsor Showcase | Dining Pavilion | Open to all registered |\n` +
+          `| 14:00 - 16:30 | Project Demonstrations & Jury Evaluation | Exhibition Gallery | Faculty & Industry Jury |\n` +
+          `| 16:30 - 17:30 | Valedictory, Award Ceremony & Group Photo | ${venue} | Patron & HOD ${dept} |\n\n` +
+          `#### 💰 Itemised Financial Allocation (₹${budgetNum.toLocaleString("en-IN")})\n` +
+          `- **Venue, Stage & Audio-Visual Production:** ₹${venueCost} (25%)\n` +
+          `- **Food, Hospitality & High Tea:** ₹${foodCost} (35%)\n` +
+          `- **Cash Awards, Trophies & Mementos:** ₹${prizesCost} (20%)\n` +
+          `- **Badges, Kits, Posters & Promotion:** ₹${promoCost} (12%)\n` +
+          `- **Contingency & Emergency Logistics Reserve:** ₹${contingencyCost} (8%)\n\n` +
+          `#### 📢 Multi-Channel Promotion Kit\n` +
+          `- **Email Blast:** Drafted for students & faculty with registration deadline and prerequisite instructions.\n` +
+          `- **Social Media Pack:** 3 carousel posts, 1 LinkedIn press release, and WhatsApp broadcast templates ready.\n` +
+          `- **Forms:** Student registration form with roll-no validation and post-event feedback survey configured.\n\n` +
+          `*AI-generated blueprint. Review and customize before publishing to Campus Events.*`,
       };
+    }
     case "document-ai":
       return {
         agent: "document",

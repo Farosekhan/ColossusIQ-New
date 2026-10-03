@@ -27,8 +27,10 @@ import { ClubsModule } from "./bespoke/clubs";
 import { SportsModule } from "./bespoke/sports";
 import { SecuritySettingsModule } from "./bespoke/security-settings";
 import { AcademicCalendarModule } from "./bespoke/academic-calendar";
+import { EventGeneratorModule } from "./bespoke/event-generator";
 
 const BESPOKE: Record<string, (props: { role: Role }) => React.ReactNode> = {
+  "event-generator": ({ role }) => <EventGeneratorModule role={role} />,
   "academic-calendar": ({ role }) => <AcademicCalendarModule role={role} />,
   "bi-analytics": () => <BiAnalyticsModule />,
   clubs: ({ role }) => <ClubsModule role={role} />,
