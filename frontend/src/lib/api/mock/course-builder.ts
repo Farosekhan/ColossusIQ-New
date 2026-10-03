@@ -647,7 +647,7 @@ async function studentSummary(c: LearningCourse, sub: string) {
 }
 
 /* ───────────────────────────── dispatcher ───────────────────────────────── */
-export async function dispatchCourses(method: string, segs: string[], rawBody: unknown, session: SessionPayload): Promise<MockResult> {
+export async function dispatchCourses(method: string, segs: string[], rawBody: unknown, session: SessionPayload, query?: URLSearchParams): Promise<MockResult> {
   await ensureCourseSeed();
   const store = getStore();
   const [, id, sub1, sub2, sub3] = segs;
@@ -717,7 +717,6 @@ export async function dispatchCourses(method: string, segs: string[], rawBody: u
   if (!sub1 && method === "GET") return ok(await staffDetail(course));
 
   if (!sub1 && method === "PUT") {
-    if (course.status !== "Draft") return err(409, "published", "Move the course back to draft before editing it.");
     const p = UpdateBody.safeParse(rawBody);
     if (!p.success) return err(422, "validation", "Some lessons are incomplete — every lesson needs a title, content (20+ characters) and at least one key point.");
     if (p.data.version !== course.version) return err(409, "version_conflict", "Someone else changed this course. Reload to see the latest version.");
@@ -764,7 +763,6 @@ export async function dispatchCourses(method: string, segs: string[], rawBody: u
   }
 
   if (sub1 === "quiz" && !sub2 && method === "PUT") {
-    if (course.status !== "Draft") return err(409, "published", "Move the course back to draft before editing the assessment.");
     const p = QuizBody.safeParse(rawBody);
     if (!p.success) return err(422, "validation", "Every question needs a prompt, four options and one correct answer (10–50 questions).");
     if (p.data.version !== course.version) return err(409, "version_conflict", "Someone else changed this course. Reload to see the latest version.");
@@ -842,9 +840,12 @@ export async function dispatchCourses(method: string, segs: string[], rawBody: u
 
   if (!sub1 && method === "DELETE") {
     if (!canPublish) return err(403, "forbidden", "Only the HOD or Principal can delete courses.");
-    if (course.status !== "Draft") return err(409, "published", "Unpublish the course before deleting it.");
-    const started = (await store.progress.learners(course.id)).length > 0 || (await store.attempts.list({ quizId: quiz.id })).length > 0;
-    if (started) return err(409, "has_learners", "Students have started this course, so it cannot be deleted. Keep it as a draft instead.");
+    const force = query?.get("force") === "1";
+    if (!force) {
+      if (course.status !== "Draft") return err(409, "published", "Unpublish the course before deleting it.");
+      const started = (await store.progress.learners(course.id)).length > 0 || (await store.attempts.list({ quizId: quiz.id })).length > 0;
+      if (started) return err(409, "has_learners", "Students have started this course, so it cannot be deleted. Keep it as a draft instead.");
+    }
     await store.quizzes.delete(quiz.id);
     await store.courses.delete(course.id);
     await audit(session.name, "Course deleted", course.id, auditOpts(course));

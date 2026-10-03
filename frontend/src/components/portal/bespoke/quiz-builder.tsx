@@ -1,15 +1,16 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { apiFetch, ApiError } from "@/lib/api/client";
-import { GeneratedQuiz, LearningContext, StaffQuizRow, type BankQuestion } from "@/lib/api/learning-schemas";
+import { GeneratedQuiz, LearningContext, StaffQuizDetail, StaffQuizRow, type BankQuestion } from "@/lib/api/learning-schemas";
 import { TemplateSkeleton } from "@/components/modules/shared";
 import { LoadError } from "@/components/ui/load-error";
 import { AiLabel } from "@/components/ui/notices";
 import { Fi } from "@/components/ui/icon";
 import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Field, Spinner, inputClass, toneForScore, toneForStatus } from "@/components/ui/primitives";
+import { ConfirmDelete } from "@/components/crud/confirm-delete";
 import { cn } from "@/lib/utils";
 
 const PLACEMENT_DEPT = "Training & Placement";
@@ -17,25 +18,54 @@ const LETTERS = ["A", "B", "C", "D"];
 
 export function QuizBuilderModule() {
   const ctx = useQuery({ queryKey: ["learning-context"], queryFn: () => apiFetch("/api/v1/learning/context", LearningContext) });
+  const [editingQuizId, setEditingQuizId] = useState<string | null>(null);
   const [building, setBuilding] = useState(false);
+
   if (ctx.isLoading) return <TemplateSkeleton />;
   if (ctx.isError) return <LoadError error={ctx.error} onRetry={() => void ctx.refetch()} />;
   if (!ctx.data?.stream) return <EmptyState title="Choose a college first" body="Quizzes belong to one college. Switch into a college from the top bar." />;
-  return building ? <Builder ctx={ctx.data} onDone={() => setBuilding(false)} /> : <QuizList onNew={() => setBuilding(true)} />;
+
+  return building ? (
+    <Builder
+      ctx={ctx.data}
+      quizId={editingQuizId}
+      onDone={() => {
+        setBuilding(false);
+        setEditingQuizId(null);
+      }}
+    />
+  ) : (
+    <QuizList
+      onNew={() => {
+        setEditingQuizId(null);
+        setBuilding(true);
+      }}
+      onEdit={(id) => {
+        setEditingQuizId(id);
+        setBuilding(true);
+      }}
+    />
+  );
 }
 
-function QuizList({ onNew }: { onNew: () => void }) {
+function QuizList({ onNew, onEdit }: { onNew: () => void; onEdit: (id: string) => void }) {
   const qc = useQueryClient();
   const list = useQuery({ queryKey: ["quizzes"], queryFn: () => apiFetch("/api/v1/quizzes", z.array(StaffQuizRow)) });
   const [error, setError] = useState<string | null>(null);
+  const [toDelete, setToDelete] = useState<StaffQuizRow | null>(null);
+
   const setStatus = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => apiFetch(`/api/v1/quizzes/${encodeURIComponent(id)}/status`, z.object({ id: z.string(), status: z.string() }), { method: "POST", body: { status } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["quizzes"] }),
     onError: (e) => setError(e instanceof ApiError ? e.message : "Update failed."),
   });
+
   const remove = useMutation({
-    mutationFn: (id: string) => apiFetch(`/api/v1/quizzes/${encodeURIComponent(id)}`, z.object({ ok: z.boolean() }), { method: "DELETE" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["quizzes"] }),
+    mutationFn: (id: string) => apiFetch(`/api/v1/quizzes/${encodeURIComponent(id)}?force=1`, z.object({ ok: z.boolean() }), { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["quizzes"] });
+      setToDelete(null);
+    },
     onError: (e) => setError(e instanceof ApiError ? e.message : "Delete failed."),
   });
 
@@ -91,9 +121,7 @@ function QuizList({ onNew }: { onNew: () => void }) {
                 <th className="py-2 pr-3 font-medium">Average</th>
                 <th className="py-2 pr-3 font-medium">Pass rate</th>
                 <th className="py-2 pr-3 font-medium">Status</th>
-                <th className="py-2 font-medium">
-                  <span className="sr-only">Actions</span>
-                </th>
+                <th className="py-2 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -114,7 +142,10 @@ function QuizList({ onNew }: { onNew: () => void }) {
                     <Badge tone={toneForStatus(r.status)}>{r.status}</Badge>
                   </td>
                   <td className="py-3 text-right">
-                    <div className="flex justify-end gap-1">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <Button size="sm" variant="secondary" onClick={() => onEdit(r.id)}>
+                        <Fi name="pencil" /> Edit
+                      </Button>
                       {r.status !== "Published" ? (
                         <Button size="sm" variant="secondary" onClick={() => setStatus.mutate({ id: r.id, status: "Published" })}>
                           Publish
@@ -124,11 +155,9 @@ function QuizList({ onNew }: { onNew: () => void }) {
                           Close
                         </Button>
                       )}
-                      {r.attempts === 0 ? (
-                        <Button size="sm" variant="ghost" aria-label={`Delete ${r.title}`} onClick={() => remove.mutate(r.id)}>
-                          <Fi name="trash" />
-                        </Button>
-                      ) : null}
+                      <Button size="sm" variant="ghost" className="text-rose hover:bg-rose-soft" aria-label={`Delete ${r.title}`} onClick={() => setToDelete(r)}>
+                        <Fi name="trash" />
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -137,11 +166,25 @@ function QuizList({ onNew }: { onNew: () => void }) {
           </table>
         </CardBody>
       </Card>
+
+      {toDelete ? (
+        <ConfirmDelete
+          open={Boolean(toDelete)}
+          recordId={toDelete.id}
+          recordName={toDelete.title}
+          singular="Quiz"
+          warning="Deleting this quiz will also permanently remove all student attempts and attempt answers."
+          busy={remove.isPending}
+          error={remove.error instanceof ApiError ? remove.error.message : null}
+          onCancel={() => setToDelete(null)}
+          onConfirm={() => remove.mutate(toDelete.id)}
+        />
+      ) : null}
     </div>
   );
 }
 
-function Builder({ ctx, onDone }: { ctx: LearningContext; onDone: () => void }) {
+function Builder({ ctx, quizId, onDone }: { ctx: LearningContext; quizId?: string | null; onDone: () => void }) {
   const qc = useQueryClient();
   const departments = [...ctx.departments, PLACEMENT_DEPT];
   const [meta, setMeta] = useState({ title: "", department: departments[0] ?? "", course: "", topic: "", count: 8, passMark: 50, durationMin: 20, certificateEnabled: true });
@@ -149,6 +192,31 @@ function Builder({ ctx, onDone }: { ctx: LearningContext; onDone: () => void }) 
   const [info, setInfo] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [existingStatus, setExistingStatus] = useState<"Draft" | "Published" | "Closed">("Draft");
+
+  const detail = useQuery({
+    queryKey: ["quiz-detail", quizId],
+    queryFn: () => apiFetch(`/api/v1/quizzes/${encodeURIComponent(quizId!)}`, StaffQuizDetail),
+    enabled: Boolean(quizId),
+  });
+
+  useEffect(() => {
+    if (detail.data) {
+      const d = detail.data;
+      setMeta({
+        title: d.title,
+        department: d.department,
+        course: d.course,
+        topic: "",
+        count: d.questions.length,
+        passMark: d.passMark,
+        durationMin: d.durationMin,
+        certificateEnabled: d.certificateEnabled,
+      });
+      setExistingStatus(d.status);
+      setQuestions(d.questions.map((q) => ({ ...q, review: q.review ?? false })));
+    }
+  }, [detail.data]);
 
   const gen = useMutation({
     mutationFn: () => apiFetch("/api/v1/quizzes/generate", GeneratedQuiz, { method: "POST", body: { department: meta.department, topic: meta.topic.trim() || undefined, count: meta.count } }),
@@ -163,8 +231,8 @@ function Builder({ ctx, onDone }: { ctx: LearningContext; onDone: () => void }) 
 
   const save = useMutation({
     mutationFn: (status: "Draft" | "Published") =>
-      apiFetch("/api/v1/quizzes", z.object({ id: z.string() }), {
-        method: "POST",
+      apiFetch(quizId ? `/api/v1/quizzes/${encodeURIComponent(quizId)}` : "/api/v1/quizzes", z.object({ id: z.string() }), {
+        method: quizId ? "PUT" : "POST",
         body: {
           title: meta.title,
           department: meta.department,
@@ -178,6 +246,7 @@ function Builder({ ctx, onDone }: { ctx: LearningContext; onDone: () => void }) 
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["quizzes"] });
+      if (quizId) qc.invalidateQueries({ queryKey: ["quiz-detail", quizId] });
       onDone();
     },
     onError: (e) => {
@@ -192,10 +261,13 @@ function Builder({ ctx, onDone }: { ctx: LearningContext; onDone: () => void }) 
   const setM = <K extends keyof typeof meta>(k: K, v: (typeof meta)[K]) => setMeta((m) => ({ ...m, [k]: v }));
   const unreviewed = questions.filter((q) => q.review).length;
 
+  if (quizId && detail.isLoading) return <TemplateSkeleton />;
+  if (quizId && detail.isError) return <LoadError error={detail.error} onRetry={() => void detail.refetch()} />;
+
   return (
     <div className="grid gap-6 xl:grid-cols-[340px_1fr]">
       <Card className="h-fit">
-        <CardHeader title="Quiz settings" action={<Button size="sm" variant="ghost" onClick={onDone}>Cancel</Button>} />
+        <CardHeader title={quizId ? "Edit quiz settings" : "Quiz settings"} action={<Button size="sm" variant="ghost" onClick={onDone}>Cancel</Button>} />
         <CardBody className="space-y-4">
           <Field label="Department" htmlFor="q-dept">
             <select id="q-dept" className={inputClass} value={meta.department} onChange={(e) => setM("department", e.target.value)}>
@@ -311,10 +383,10 @@ function Builder({ ctx, onDone }: { ctx: LearningContext; onDone: () => void }) 
             </p>
             <div className="flex gap-2">
               <Button variant="secondary" disabled={save.isPending || questions.length < 3} onClick={() => save.mutate("Draft")}>
-                Save draft
+                {quizId && existingStatus === "Draft" ? "Save draft" : quizId ? "Save as draft" : "Save draft"}
               </Button>
               <Button variant="gold" disabled={save.isPending || questions.length < 3 || unreviewed > 0} title={unreviewed ? "Review every templated question first" : undefined} onClick={() => save.mutate("Published")}>
-                {save.isPending ? <Spinner /> : <Fi name="paper-plane" />} Publish quiz
+                {save.isPending ? <Spinner /> : <Fi name="paper-plane" />} {quizId ? "Save & publish" : "Publish quiz"}
               </Button>
             </div>
           </Card>

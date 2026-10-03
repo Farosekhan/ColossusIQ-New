@@ -7,12 +7,13 @@ import { useState } from "react";
 import { z } from "zod";
 import type { Role } from "@/lib/auth/roles";
 import { apiFetch, ApiError } from "@/lib/api/client";
-import { LearningContext, StaffCourseDetail, StaffCourseList, type CourseUnit, type EditableQuestion, type Lesson } from "@/lib/api/learning-schemas";
+import { LearningContext, StaffCourseDetail, StaffCourseList, type StaffCourseSummary, type CourseUnit, type EditableQuestion, type Lesson } from "@/lib/api/learning-schemas";
 import { TemplateSkeleton } from "@/components/modules/shared";
 import { LoadError } from "@/components/ui/load-error";
 import { AiLabel } from "@/components/ui/notices";
 import { Fi } from "@/components/ui/icon";
 import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Field, Spinner, inputClass, toneForStatus } from "@/components/ui/primitives";
+import { ConfirmDelete } from "@/components/crud/confirm-delete";
 import { LessonContent } from "@/components/learning/lesson-content";
 import { ImageField } from "@/components/crud/image-field";
 import { parseVideoUrl } from "@/lib/video";
@@ -81,7 +82,18 @@ function Stepper({ current, onStep, disabled }: { current: number; onStep?: (n: 
 
 /* ─────────────────────────────── list ─────────────────────────────── */
 function CourseListView({ go }: { go: (q: string) => void }) {
+  const qc = useQueryClient();
   const list = useQuery({ queryKey: ["studio-courses"], queryFn: () => apiFetch("/api/v1/learning-courses", StaffCourseList) });
+  const [toDelete, setToDelete] = useState<StaffCourseSummary | null>(null);
+
+  const remove = useMutation({
+    mutationFn: (id: string) => apiFetch(`/api/v1/learning-courses/${id}?force=1`, z.object({ ok: z.boolean() }), { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["studio-courses"] });
+      setToDelete(null);
+    },
+  });
+
   if (list.isError) return <LoadError error={list.error} onRetry={() => void list.refetch()} />;
   if (list.isLoading || !list.data) return <TemplateSkeleton />;
   const items = list.data.items;
@@ -128,9 +140,7 @@ function CourseListView({ go }: { go: (q: string) => void }) {
                     <th className="py-2 pr-3 font-medium">Assessment</th>
                     <th className="py-2 pr-3 font-medium">Students</th>
                     <th className="py-2 pr-3 font-medium">Status</th>
-                    <th className="py-2 font-medium">
-                      <span className="sr-only">Open</span>
-                    </th>
+                    <th className="py-2 text-right font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -167,9 +177,19 @@ function CourseListView({ go }: { go: (q: string) => void }) {
                         <Badge tone={toneForStatus(c.status)}>{c.status}</Badge>
                       </td>
                       <td className="py-3 text-right">
-                        <Button size="sm" variant="secondary" onClick={() => go(`?course=${c.id}`)}>
-                          Open <Fi name="arrow-right" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button size="sm" variant="secondary" onClick={() => go(`?course=${c.id}&step=2`)}>
+                            <Fi name="pencil" /> Edit
+                          </Button>
+                          <Button size="sm" variant="secondary" onClick={() => go(`?course=${c.id}`)}>
+                            Open <Fi name="arrow-right" />
+                          </Button>
+                          {list.data.canPublish ? (
+                            <Button size="sm" variant="ghost" className="text-rose hover:bg-rose-soft" aria-label={`Delete ${c.title}`} onClick={() => setToDelete(c)}>
+                              <Fi name="trash" />
+                            </Button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -179,6 +199,20 @@ function CourseListView({ go }: { go: (q: string) => void }) {
           )}
         </CardBody>
       </Card>
+
+      {toDelete ? (
+        <ConfirmDelete
+          open={Boolean(toDelete)}
+          recordId={toDelete.id}
+          recordName={toDelete.title}
+          singular="Course"
+          warning="Deleting this course will also delete its curriculum lessons, final assessment, student progress, and attempts."
+          busy={remove.isPending}
+          error={remove.error instanceof ApiError ? remove.error.message : null}
+          onCancel={() => setToDelete(null)}
+          onConfirm={() => remove.mutate(toDelete.id)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -324,7 +358,7 @@ function CourseWorkspace({ id, step, go, role }: { id: string; step: number; go:
       <Stepper current={step} onStep={toStep} />
       {c.status === "Published" && (step === 2 || step === 3) ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky/30 bg-sky-soft px-4 py-3 text-sm text-ink-2">
-          <span>This course is live for students, so it&apos;s read-only. {canPublish ? "Move it back to draft (step 4) to edit it." : "Ask your HOD to move it back to draft to make changes."}</span>
+          <span>This course is live for students. You can review, update and save lessons or questions directly.</span>
         </div>
       ) : null}
       {step === 1 ? <DetailsStep course={c} onNext={() => toStep(2)} /> : null}
@@ -426,7 +460,7 @@ function useSave(courseId: string) {
 }
 
 function LessonsStep({ course: c, onBack, onNext }: { course: StaffCourseDetail; onBack: () => void; onNext: () => void }) {
-  const readOnly = c.status === "Published";
+  const readOnly = false;
   const store = useSave(c.id);
   const [units, setUnits] = useState<CourseUnit[]>(c.units);
   const [sel, setSel] = useState<{ u: number; l: number }>({ u: 0, l: 0 });
@@ -722,7 +756,7 @@ function MediaEditor({ lesson, patch }: { lesson: Lesson; patch: (p: Partial<Les
 
 /* ─────────────────────────────── step 3: assessment ─────────────────────────────── */
 function AssessmentStep({ course: c, onBack, onNext }: { course: StaffCourseDetail; onBack: () => void; onNext: () => void }) {
-  const readOnly = c.status === "Published";
+  const readOnly = false;
   const store = useSave(c.id);
   const [questions, setQuestions] = useState<EditableQuestion[]>(c.quiz.questions);
   const [passMark, setPassMark] = useState(c.quiz.passMark);
@@ -930,7 +964,7 @@ function PublishStep({
     onError: (e) => setError(e instanceof ApiError ? e.message : "Action failed."),
   });
   const remove = useMutation({
-    mutationFn: () => apiFetch(`/api/v1/learning-courses/${c.id}`, z.object({ ok: z.boolean() }), { method: "DELETE" }),
+    mutationFn: () => apiFetch(`/api/v1/learning-courses/${c.id}?force=1`, z.object({ ok: z.boolean() }), { method: "DELETE" }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["studio-courses"] });
       onDeleted();
@@ -996,22 +1030,20 @@ function PublishStep({
                     <Fi name="undo" /> Move back to draft
                   </Button>
                 )}
-                {c.status === "Draft" ? (
-                  confirmDelete ? (
-                    <span className="flex items-center gap-2">
-                      <Button variant="danger" disabled={remove.isPending} onClick={() => remove.mutate()}>
-                        Confirm delete
-                      </Button>
-                      <Button variant="ghost" onClick={() => setConfirmDelete(false)}>
-                        Keep
-                      </Button>
-                    </span>
-                  ) : (
-                    <Button variant="ghost" onClick={() => setConfirmDelete(true)}>
-                      <Fi name="trash" /> Delete draft
+                {confirmDelete ? (
+                  <span className="flex items-center gap-2">
+                    <Button variant="danger" disabled={remove.isPending} onClick={() => remove.mutate()}>
+                      Confirm delete
                     </Button>
-                  )
-                ) : null}
+                    <Button variant="ghost" onClick={() => setConfirmDelete(false)}>
+                      Keep
+                    </Button>
+                  </span>
+                ) : (
+                  <Button variant="ghost" className="text-rose hover:bg-rose-soft" onClick={() => setConfirmDelete(true)}>
+                    <Fi name="trash" /> Delete course
+                  </Button>
+                )}
               </div>
             ) : null}
           </CardBody>

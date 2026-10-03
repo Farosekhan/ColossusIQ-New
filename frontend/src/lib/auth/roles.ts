@@ -92,6 +92,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   incubation: ["ai:chat", "student:read-any", "incubation:manage"],
   institution: [
     "ai:chat",
+    "assessment:create",
     "student:read-any",
     "institution:analytics",
     "department:manage",
@@ -107,6 +108,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   recruiter: ["talent:search"],
   admin: [
     "ai:chat",
+    "assessment:create",
     "tenant:manage",
     "ai:governance",
     "audit:read",

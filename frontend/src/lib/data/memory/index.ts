@@ -44,7 +44,8 @@ const progressKey = (sub: string, courseId: string) => `${sub}|${courseId}`;
 
 /* ── records ───────────────────────────────────────── */
 function nextId(res: ResourceDef): string {
-  const n = (counters.get(res.key) ?? 1000) + 1;
+  const initial = res.key === "questions" ? 1039 : 1000;
+  const n = (counters.get(res.key) ?? initial) + 1;
   counters.set(res.key, n);
   return `${res.idPrefix}${n}`;
 }
@@ -221,6 +222,17 @@ export const memoryStore: DataStore = {
     },
     async delete(id) {
       learningCourses.delete(id);
+      for (const [qid, q] of quizzes.entries()) {
+        if (q.courseId === id) {
+          quizzes.delete(qid);
+          for (let i = attempts.length - 1; i >= 0; i--) {
+            if (attempts[i]?.quizId === qid) attempts.splice(i, 1);
+          }
+        }
+      }
+      for (const k of lessonProgress.keys()) {
+        if (k.endsWith(`|${id}`)) lessonProgress.delete(k);
+      }
     },
   },
 
@@ -248,6 +260,9 @@ export const memoryStore: DataStore = {
     },
     async delete(id) {
       quizzes.delete(id);
+      for (let i = attempts.length - 1; i >= 0; i--) {
+        if (attempts[i]?.quizId === id) attempts.splice(i, 1);
+      }
     },
   },
 

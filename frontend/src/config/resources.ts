@@ -409,6 +409,35 @@ RESOURCES.departments = {
   deleteWarning: "Removing a department does not delete its staff or students. Set it to Inactive to keep it on record.",
 };
 
+export const DIFFICULTY_OPTIONS = ["Easy", "Medium", "Hard"] as const;
+export const BLOOM_LEVELS = ["Remember", "Understand", "Apply", "Analyse", "Evaluate", "Create"] as const;
+export const COURSE_OUTCOMES = ["CO1", "CO2", "CO3", "CO4", "CO5", "CO6"] as const;
+export const QUESTION_STATUSES = ["Active", "Draft", "Archived"] as const;
+
+RESOURCES.questions = {
+  key: "questions",
+  scoped: true,
+  title: "Question Bank",
+  singular: "Question",
+  idPrefix: "Q-",
+  managePermission: "assessment:create",
+  titleField: "question",
+  subtitleFields: ["topic", "co"],
+  statusField: "status",
+  sections: ["Question details", "Classification", "Model answer & notes"],
+  fields: [
+    { name: "question", label: "Question", type: "textarea", section: "Question details", required: true, maxLength: 2000, wide: true, column: "text" },
+    { name: "topic", label: "Topic", type: "text", section: "Classification", required: true, maxLength: 100, column: "text" },
+    { name: "difficulty", label: "Difficulty", type: "select", section: "Classification", required: true, options: DIFFICULTY_OPTIONS, defaultValue: "Medium", column: "badge" },
+    { name: "bloom", label: "Bloom level", type: "select", section: "Classification", required: true, options: BLOOM_LEVELS, defaultValue: "Understand", column: "badge" },
+    { name: "co", label: "Course outcome (CO)", type: "select", section: "Classification", required: true, options: COURSE_OUTCOMES, defaultValue: "CO1", column: "text" },
+    { name: "marks", label: "Marks", type: "number", section: "Classification", required: true, min: 1, max: 50, defaultValue: 2, column: "number" },
+    { name: "status", label: "Status", type: "select", section: "Classification", required: true, options: QUESTION_STATUSES, defaultValue: "Active", column: "badge" },
+    { name: "explanation", label: "Model answer / explanation", type: "textarea", section: "Model answer & notes", maxLength: 2000, wide: true },
+  ],
+  deleteWarning: "Deleting a question permanently removes it from the department question bank.",
+};
+
 /** The public college website (one per college) — edited through the College Website module, not the CRUD list. */
 export const WEBSITE: ResourceDef = {
   key: "website",

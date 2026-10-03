@@ -585,6 +585,210 @@ const usersStore = {
   },
 };
 
+/* ── questions (Question Bank) ── */
+interface QuestionDbRow {
+  id: string;
+  public_id: string;
+  college_id: string;
+  question: string;
+  topic: string;
+  difficulty: string;
+  bloom: string;
+  co: string;
+  marks: number;
+  explanation: string;
+  status: string;
+  version: number;
+  created_at: Date | string;
+  updated_at: Date | string;
+  college_public_id?: string;
+  college_name?: string;
+}
+
+function questionRowToRecord(r: QuestionDbRow): ResourceRecord {
+  return {
+    id: r.public_id,
+    createdAt: new Date(r.created_at).toISOString(),
+    updatedAt: new Date(r.updated_at).toISOString(),
+    version: r.version,
+    collegeId: r.college_public_id ?? null,
+    collegeName: r.college_name ?? null,
+    question: r.question,
+    topic: r.topic,
+    difficulty: r.difficulty,
+    bloom: r.bloom,
+    co: r.co,
+    marks: r.marks,
+    explanation: r.explanation ?? "",
+    status: r.status,
+  };
+}
+
+const questionsStore = {
+  async list(query: RecordListQuery): Promise<{ items: ResourceRecord[]; total: number; counts: Record<string, number> }> {
+    const t = db();
+    const whereClauses: string[] = ["1=1"];
+    const params: unknown[] = [];
+
+    if (query.scope !== "all") {
+      params.push(query.scope);
+      whereClauses.push(`c.public_id = $${params.length}`);
+    } else if (query.college) {
+      params.push(query.college);
+      whereClauses.push(`c.public_id = $${params.length}`);
+    }
+
+    const baseWhere = whereClauses.join(" AND ");
+
+    if (query.status) {
+      params.push(query.status);
+      whereClauses.push(`q.status::text = $${params.length}`);
+    }
+
+    if (query.q) {
+      params.push(`%${query.q}%`);
+      const p = `$${params.length}`;
+      whereClauses.push(`(q.public_id ILIKE ${p} OR q.question ILIKE ${p} OR q.topic ILIKE ${p} OR q.co ILIKE ${p} OR q.explanation ILIKE ${p})`);
+    }
+
+    const fullWhere = whereClauses.join(" AND ");
+
+    const countSql = `SELECT count(*)::int AS count FROM question_bank q JOIN colleges c ON c.id = q.college_id WHERE ${fullWhere}`;
+    const totalResult = await t.$queryRawUnsafe<Array<{ count: number }>>(countSql, ...params);
+    const total = totalResult[0]?.count ?? 0;
+
+    const limitParam = `$${params.length + 1}`;
+    const offsetParam = `$${params.length + 2}`;
+    const listSql = `
+      SELECT q.*, c.public_id AS college_public_id, c.name AS college_name
+      FROM question_bank q
+      JOIN colleges c ON c.id = q.college_id
+      WHERE ${fullWhere}
+      ORDER BY q.updated_at DESC, q.created_at DESC
+      LIMIT ${limitParam} OFFSET ${offsetParam}
+    `;
+    const rows = await t.$queryRawUnsafe<QuestionDbRow[]>(listSql, ...params, query.pageSize, (query.page - 1) * query.pageSize);
+
+    // Group counts
+    const groupSql = `
+      SELECT q.status::text AS status, count(*)::int AS count
+      FROM question_bank q
+      JOIN colleges c ON c.id = q.college_id
+      WHERE ${baseWhere}
+      GROUP BY q.status
+    `;
+    const baseParams = query.scope !== "all" ? [query.scope] : query.college ? [query.college] : [];
+    const grouped = await t.$queryRawUnsafe<Array<{ status: string; count: number }>>(groupSql, ...baseParams);
+    const counts: Record<string, number> = {};
+    for (const g of grouped) counts[g.status] = g.count;
+
+    return {
+      items: rows.map(questionRowToRecord),
+      total,
+      counts,
+    };
+  },
+
+  async all(scope: Scope): Promise<ResourceRecord[]> {
+    const res = await this.list({ scope, page: 1, pageSize: 10_000 });
+    return res.items;
+  },
+
+  async get(id: string): Promise<ResourceRecord | undefined> {
+    const t = db();
+    const rows = await t.$queryRaw<QuestionDbRow[]>`
+      SELECT q.*, c.public_id AS college_public_id, c.name AS college_name
+      FROM question_bank q
+      JOIN colleges c ON c.id = q.college_id
+      WHERE q.public_id = ${id}
+      LIMIT 1
+    `;
+    return rows[0] ? questionRowToRecord(rows[0]) : undefined;
+  },
+
+  async create(d: Data, collegeId: string | null): Promise<ResourceRecord> {
+    const t = db();
+    const cUuid = await collegeUuid(collegeId!);
+    const question = s(d.question);
+    const topic = s(d.topic);
+    const difficulty = s(d.difficulty || "Medium");
+    const bloom = s(d.bloom || "Understand");
+    const co = s(d.co || "CO1");
+    const marks = Number(d.marks || 2);
+    const explanation = s(d.explanation || "");
+    const status = s(d.status || "Active");
+
+    const rows = await t.$queryRaw<Array<{ public_id: string }>>`
+      INSERT INTO question_bank (college_id, question, topic, difficulty, bloom, co, marks, explanation, status)
+      VALUES (${cUuid}::uuid, ${question}, ${topic}, ${difficulty}::question_difficulty, ${bloom}::bloom_level, ${co}, ${marks}, ${explanation}, ${status}::question_status)
+      RETURNING public_id
+    `;
+    const created = await this.get(rows[0]!.public_id);
+    return created!;
+  },
+
+  async update(id: string, d: Data, version: number): Promise<ResourceRecord | "stale" | undefined> {
+    const t = db();
+    const check = await t.$queryRaw<Array<{ version: number }>>`SELECT version FROM question_bank WHERE public_id = ${id}`;
+    if (!check[0]) return undefined;
+    if (check[0].version !== version) return "stale";
+
+    const question = s(d.question);
+    const topic = s(d.topic);
+    const difficulty = s(d.difficulty || "Medium");
+    const bloom = s(d.bloom || "Understand");
+    const co = s(d.co || "CO1");
+    const marks = Number(d.marks || 2);
+    const explanation = s(d.explanation || "");
+    const status = s(d.status || "Active");
+
+    const updated = await t.$queryRaw<Array<{ public_id: string }>>`
+      UPDATE question_bank
+      SET question = ${question},
+          topic = ${topic},
+          difficulty = ${difficulty}::question_difficulty,
+          bloom = ${bloom}::bloom_level,
+          co = ${co},
+          marks = ${marks},
+          explanation = ${explanation},
+          status = ${status}::question_status,
+          version = version + 1,
+          updated_at = now()
+      WHERE public_id = ${id} AND version = ${version}
+      RETURNING public_id
+    `;
+    if (!updated[0]) return "stale";
+    return this.get(id);
+  },
+
+  async delete(id: string): Promise<boolean> {
+    const t = db();
+    const rows = await t.$queryRaw<Array<{ id: string }>>`
+      DELETE FROM question_bank WHERE public_id = ${id} RETURNING id
+    `;
+    return rows.length > 0;
+  },
+
+  async count(collegeId: string, where: Record<string, RecordValue> = {}): Promise<number> {
+    const t = db();
+    const status = where.status ? s(where.status) : null;
+    const rows = status
+      ? await t.$queryRaw<Array<{ count: number }>>`
+          SELECT count(*)::int AS count
+          FROM question_bank q
+          JOIN colleges c ON c.id = q.college_id
+          WHERE c.public_id = ${collegeId} AND q.status = ${status}::question_status
+        `
+      : await t.$queryRaw<Array<{ count: number }>>`
+          SELECT count(*)::int AS count
+          FROM question_bank q
+          JOIN colleges c ON c.id = q.college_id
+          WHERE c.public_id = ${collegeId}
+        `;
+    return rows[0]?.count ?? 0;
+  },
+};
+
 /* ── the store ── */
 function adapterFor(res: ResourceDef): Adapter {
   const a = ADAPTERS[res.key];
@@ -595,6 +799,7 @@ function adapterFor(res: ResourceDef): Adapter {
 export const pgRecords: RecordStore = {
   async list(res, query) {
     if (res.key === "users") return usersStore.list(query);
+    if (res.key === "questions") return questionsStore.list(query);
     const a = adapterFor(res);
     const t = db();
     const base = await scopeFilter(res, query.scope, query.college);
@@ -613,6 +818,7 @@ export const pgRecords: RecordStore = {
 
   async all(res, scope) {
     if (res.key === "users") return (await usersStore.list({ scope, page: 1, pageSize: 10_000 })).items;
+    if (res.key === "questions") return questionsStore.all(scope);
     const a = adapterFor(res);
     const rows: Row[] = await a.delegate(db()).findMany({ where: await scopeFilter(res, scope), include: a.include, orderBy: { updatedAt: "desc" } });
     return Promise.all(rows.map((r) => present(res, a, r)));
@@ -620,6 +826,7 @@ export const pgRecords: RecordStore = {
 
   async get(res, id) {
     if (res.key === "users") return usersStore.get(id);
+    if (res.key === "questions") return questionsStore.get(id);
     const a = adapterFor(res);
     const row = await a.delegate(db()).findUnique({ where: { publicId: id }, include: a.include });
     return row ? present(res, a, row) : undefined;
@@ -627,6 +834,7 @@ export const pgRecords: RecordStore = {
 
   async create(res, data, collegeId) {
     if (res.key === "users") return usersStore.create(data, collegeId);
+    if (res.key === "questions") return questionsStore.create(data, collegeId);
     const a = adapterFor(res);
     const t = db();
     const cols = await a.toColumns(data, await streamOf(collegeId));
@@ -638,6 +846,7 @@ export const pgRecords: RecordStore = {
 
   async update(res, id, data, version) {
     if (res.key === "users") return usersStore.update(id, data, version);
+    if (res.key === "questions") return questionsStore.update(id, data, version);
     const a = adapterFor(res);
     const t = db();
     const existing = await a.delegate(t).findUnique({ where: { publicId: id }, select: { id: true, ...(res.scoped ? { collegeId: true } : {}) } });
@@ -651,6 +860,7 @@ export const pgRecords: RecordStore = {
 
   async delete(res, id) {
     if (res.key === "users") return usersStore.delete(id);
+    if (res.key === "questions") return questionsStore.delete(id);
     const a = adapterFor(res);
     const r = await a.delegate(db()).deleteMany({ where: { publicId: id } });
     if (res.key === "colleges") collegesChanged();
@@ -659,6 +869,7 @@ export const pgRecords: RecordStore = {
 
   async taken(res, field, value, collegeId, excludeId) {
     if (!value) return false;
+    if (res.key === "questions") return false;
     const t = db();
     if (res.key === "users" && field === "email") {
       const u = await t.user.findFirst({ where: { email: { equals: value, mode: "insensitive" } }, select: { publicId: true } });
@@ -679,6 +890,7 @@ export const pgRecords: RecordStore = {
   },
 
   async count(res, collegeId, where = {}) {
+    if (res.key === "questions") return questionsStore.count(collegeId, where);
     const uuid = (await collegeByPublic(collegeId))?.id;
     if (!uuid) return 0;
     const t = db();
