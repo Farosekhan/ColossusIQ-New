@@ -1,8 +1,10 @@
 import "server-only";
 /* eslint-disable @typescript-eslint/no-explicit-any -- one generic adapter drives eight Prisma delegates with different types */
+import { hash } from "@node-rs/argon2";
 import { RESOURCES, type RecordValue, type ResourceDef, type ResourceRecord } from "@/config/resources";
 import type { Stream } from "@/config/streams";
 import type { RecordListQuery, RecordStore, Scope } from "../store";
+import { ARGON2 } from "./auth";
 import { db, requestScope, type Tx } from "./db";
 import { enumValue, label, maybeEnum } from "./enums";
 import {
@@ -485,6 +487,14 @@ const usersStore = {
     const t = db();
     const user = await t.user.create({ data: { ...(await userColumns(d)), universityId: await universityId() } as any });
     await t.roleAssignment.create({ data: { ...(await assignmentColumns(d, collegeId)), userId: user.id } as any });
+    if (process.env.DEV_PASSWORD && process.env.NODE_ENV !== "production") {
+      const passwordHash = await hash(process.env.DEV_PASSWORD, ARGON2);
+      await t.userCredential.upsert({
+        where: { userId: user.id },
+        create: { userId: user.id, passwordHash },
+        update: { passwordHash, failedAttempts: 0, lockedUntil: null },
+      });
+    }
     return (await this.get(user.publicId))!;
   },
   async update(id: string, d: Data, version: number) {
