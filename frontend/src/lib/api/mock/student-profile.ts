@@ -505,3 +505,148 @@ export async function getStudentAcademicProfile(
     enrolledSubjects: curr.subjects,
   };
 }
+
+export async function generateDynamicStudentDashboard(
+  session: SessionPayload | { sub: string; name?: string; college: string }
+) {
+  const profile = await getStudentAcademicProfile(session);
+  const subjects = profile.enrolledSubjects;
+
+  // 1. Calculate academic semester progress and exam readiness
+  const semesterProgress = Math.round(
+    subjects.reduce((sum, s) => sum + s.semesterProgress, 0) / (subjects.length || 1)
+  );
+  const avgIa = Math.round(
+    subjects.reduce((sum, s) => sum + (s.ia1Marks + s.ia2Marks) / 2, 0) / (subjects.length || 1)
+  );
+  const examReadiness = Math.min(100, Math.round(avgIa * 0.95));
+
+  // 2. Extract weak topics across all enrolled subjects
+  const allUnits: Array<{ subject: string; topic: string; mastery: number }> = [];
+  for (const s of subjects) {
+    for (const u of s.units) {
+      allUnits.push({
+        subject: s.shortName,
+        topic: u.title,
+        mastery: u.mastery,
+      });
+    }
+  }
+  // Sort lowest mastery first
+  allUnits.sort((a, b) => a.mastery - b.mastery);
+  const weakTopics = allUnits.slice(0, 3);
+  const weakest = weakTopics[0] || {
+    subject: subjects[0]?.shortName || "Major",
+    topic: "Core Concepts",
+    mastery: 50,
+  };
+
+  // 3. Exam countdown based on stream
+  const mainSubject = subjects[0]?.shortName || "Semester";
+  const examName =
+    profile.stream === "medical"
+      ? "Pathology Internal Assessment II"
+      : profile.stream === "artsScience"
+      ? "Continuous Internal Assessment II"
+      : `${mainSubject} Internal Assessment II`;
+
+  // 4. Stream-specific projects and upcoming events
+  const projectMap: Record<Stream, { name: string; progress: number }> = {
+    engineering: { name: "Smart Campus AI & Autonomous Attendance", progress: 68 },
+    medical: { name: "ICMR-STS: Anaemia prevalence among adolescents", progress: 55 },
+    artsScience: { name: "Survey: Digital payment adoption among Tiruchy retailers", progress: 65 },
+    management: { name: "Omnichannel Consumer Acquisition & Retention Model", progress: 60 },
+    polytechnic: { name: "IoT Weather Monitoring & Microcontroller Board", progress: 72 },
+  };
+
+  const upcomingMap: Record<Stream, Array<{ title: string; when: string }>> = {
+    engineering: [
+      { title: `${mainSubject} IA-II Exam`, when: "in 9 days" },
+      { title: "Smart India Hackathon Internal Round", when: "Friday, 2:00 PM" },
+      { title: "Campus AI Buildathon Submission", when: "Oct 21" },
+    ],
+    medical: [
+      { title: "OSCE mock — 8 stations", when: "Friday, 2:00 PM" },
+      { title: "Pathology Internal Assessment II", when: "in 9 days" },
+      { title: "Rural health camp posting", when: "Oct 21" },
+    ],
+    artsScience: [
+      { title: "Continuous Internal Assessment II", when: "in 9 days" },
+      { title: "CBCS elective choice closes", when: "Friday" },
+      { title: "Tamil Mandram literary festival", when: "Oct 8" },
+    ],
+    management: [
+      { title: "Marketing Strategy Case Presentation", when: "in 5 days" },
+      { title: "Mid-Term Business Analytics Test", when: "in 9 days" },
+      { title: "Industry Mentorship Connect", when: "Oct 18" },
+    ],
+    polytechnic: [
+      { title: "Web Development Lab Practical Exam", when: "in 7 days" },
+      { title: "State Polytechnic Skill Competition", when: "Oct 24" },
+    ],
+  };
+
+  // 5. Today's dynamic timetable mapped to enrolled subjects
+  const s1 = subjects[0] || { shortName: "Class 1", facultyName: "Faculty", units: [] };
+  const s2 = subjects[1] || { shortName: "Class 2", facultyName: "Faculty", units: [] };
+  const s3 = subjects[2] || { shortName: "Class 3", facultyName: "Faculty", units: [] };
+
+  const today = [
+    {
+      time: "09:00",
+      title: `${s1.shortName} lecture — ${s1.units[1]?.title || "Theory"} (${s1.facultyName.split(",")[0]})`,
+      kind: "class",
+    },
+    {
+      time: "11:00",
+      title: `${s2.shortName} class — ${s2.units[0]?.title || "Practice"} (${s2.facultyName.split(",")[0]})`,
+      kind: "class",
+    },
+    {
+      time: "14:00",
+      title: `${s3.shortName} laboratory / hands-on session`,
+      kind: "study",
+    },
+    {
+      time: "18:00",
+      title: "Placement aptitude & mock interview drill",
+      kind: "career",
+    },
+    {
+      time: "21:00",
+      title: `Revision: ${weakest.topic} (25 min)`,
+      kind: "study",
+    },
+  ];
+
+  // 6. AI Mentor recommendation
+  const recommendation = `Revise **${weakest.topic} (${weakest.subject})** for 25 minutes and attempt the adaptive 10-question practice set — it is currently your lowest mastery topic (**${weakest.mastery}%**) and the **${examName}** is in 9 days.`;
+
+  return {
+    name: profile.name,
+    priorities: weakTopics.length,
+    academic: {
+      semesterProgress,
+      examReadiness,
+    },
+    skills: {
+      technical: Math.min(95, Math.round(avgIa * 0.9 + 8)),
+      communication: 68,
+      interview: 64,
+    },
+    careerReadiness: 63,
+    today,
+    recommendation,
+    project: projectMap[profile.stream] || projectMap.engineering,
+    upcoming: upcomingMap[profile.stream] || upcomingMap.engineering,
+    streak: profile.streakDays,
+    xp: profile.xp,
+    weakTopics,
+    examCountdown: {
+      exam: examName,
+      days: 9,
+      syllabusCovered: semesterProgress,
+    },
+  };
+}
+
