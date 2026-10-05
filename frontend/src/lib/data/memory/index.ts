@@ -79,6 +79,48 @@ const inScope = (res: ResourceDef, rec: ResourceRecord, scope: string) => !res.s
 const COLLEGE_ID = /^COL-\d{4}$/;
 
 function listRecords(res: ResourceDef, query: RecordListQuery) {
+  if (res.key === "courses") {
+    const s = storeFor(res);
+    for (const lc of learningCourses.values()) {
+      let found: ResourceRecord | undefined;
+      for (const r of s.values()) {
+        if (r.collegeId === lc.collegeId && r.code === lc.code) {
+          found = r;
+          break;
+        }
+      }
+      if (found) {
+        found.title = lc.title;
+        found.department = lc.department;
+        found.semester = lc.semester;
+        found.credits = lc.credits;
+        found.faculty = lc.faculty;
+        found.createdBy = lc.createdBy || lc.faculty;
+        found.status = lc.status === "Published" ? "Active" : "Draft";
+        found.description = lc.summary;
+      } else {
+        const id = nextId(res);
+        s.set(id, {
+          ...emptyValues(res),
+          id,
+          collegeId: lc.collegeId,
+          code: lc.code,
+          title: lc.title,
+          department: lc.department,
+          semester: lc.semester,
+          credits: lc.credits,
+          courseType: "Theory",
+          faculty: lc.faculty,
+          createdBy: lc.createdBy || lc.faculty,
+          status: lc.status === "Published" ? "Active" : "Draft",
+          description: lc.summary,
+          createdAt: stamp(10),
+          updatedAt: stamp(0),
+          version: 1,
+        });
+      }
+    }
+  }
   const q = (query.q ?? "").toLowerCase();
   const searchable = res.fields.filter((f) => !f.sensitive && ["text", "select", "email"].includes(f.type));
   const scoped = [...storeFor(res).values()]
@@ -219,6 +261,49 @@ export const memoryStore: DataStore = {
     },
     async save(course) {
       learningCourses.set(course.id, course);
+      if (RESOURCES.courses) {
+        const s = storeFor(RESOURCES.courses);
+        let found: ResourceRecord | undefined;
+        for (const r of s.values()) {
+          if (r.collegeId === course.collegeId && r.code === course.code) {
+            found = r;
+            break;
+          }
+        }
+        if (found) {
+          found.title = course.title;
+          if (course.department) found.department = course.department;
+          if (course.semester) found.semester = course.semester;
+          if (course.credits) found.credits = course.credits;
+          if (course.createdByName) {
+            found.faculty = course.createdByName;
+            found.createdBy = course.createdByName;
+          }
+          found.status = course.status === "Published" ? "Active" : "Draft";
+          if (course.summary) found.description = course.summary;
+          found.updatedAt = new Date().toISOString();
+        } else {
+          const id = nextId(RESOURCES.courses);
+          s.set(id, {
+            ...emptyValues(RESOURCES.courses),
+            id,
+            collegeId: course.collegeId,
+            code: course.code,
+            title: course.title,
+            department: course.department || "Computer Science and Engineering",
+            semester: course.semester || 1,
+            credits: course.credits || 3,
+            courseType: "Theory",
+            faculty: course.createdByName || "Staff",
+            createdBy: course.createdByName || "Staff",
+            status: course.status === "Published" ? "Active" : "Draft",
+            description: course.summary || "",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            version: 1,
+          });
+        }
+      }
     },
     async delete(id) {
       learningCourses.delete(id);
