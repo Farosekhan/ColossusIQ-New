@@ -28,6 +28,7 @@ import { audit, recentAudit } from "./audit";
 import { createStudent, deleteStudent, getStudentsList, importStudents, updateStudent } from "./students-store";
 import { createFaculty, deleteFaculty, getFacultyList, updateFaculty } from "./faculty-store";
 import { generateDynamicStudentDashboard, getStudentAcademicProfile } from "./student-profile";
+import { getFacultyAllocationProfile } from "./faculty-allocation";
 
 export interface MockResult {
   status: number;
@@ -732,6 +733,11 @@ async function dispatchFaculty(
   session: SessionPayload,
   query: URLSearchParams
 ): Promise<MockResult> {
+  // GET /faculty/me/allocations — faculty subject & section allocations
+  if (method === "GET" && segs.length === 3 && segs[1] === "me" && segs[2] === "allocations") {
+    return ok(await getFacultyAllocationProfile(session));
+  }
+
   // Only roles with department:manage or users:manage may manage faculty
   if (!can(session.role, "department:manage") && !can(session.role, "users:manage") && !can(session.role, "student:read-any")) {
     return forbidden();

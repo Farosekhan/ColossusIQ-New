@@ -426,6 +426,44 @@ export type EvaluationQueueItem = z.infer<typeof EvaluationQueueItem>;
 
 export const Ok = z.object({ ok: z.literal(true) });
 
+/* ── Faculty Allocation ──────────────────────────── */
+export const AllocatedClassSectionSchema = z.object({
+  id: z.string(),
+  courseCode: z.string(),
+  courseTitle: z.string(),
+  shortName: z.string(),
+  section: z.string(),
+  studentsCount: z.number(),
+  attendancePercent: z.number(),
+  averageScore: z.number(),
+  nextClass: z.string(),
+  room: z.string(),
+  hoursPerWeek: z.number(),
+  units: z.array(
+    z.object({
+      id: z.string(),
+      unit: z.string(),
+      title: z.string(),
+      classMastery: z.number(),
+    })
+  ),
+});
+export type AllocatedClassSectionSchema = z.infer<typeof AllocatedClassSectionSchema>;
+
+export const FacultyAllocationProfile = z.object({
+  facultyId: z.string(),
+  name: z.string(),
+  designation: z.string(),
+  department: z.string(),
+  departmentCode: z.string(),
+  stream: z.string(),
+  totalTeachingLoad: z.number(),
+  totalStudents: z.number(),
+  averageAttendance: z.number(),
+  assignedSections: z.array(AllocatedClassSectionSchema),
+});
+export type FacultyAllocationProfile = z.infer<typeof FacultyAllocationProfile>;
+
 /* ── CRUD records ─────────────────────────────────── */
 const RecordValueSchema = z.union([z.string(), z.number(), z.boolean(), z.array(z.string()), z.null()]);
 export const ResourceRecordSchema = z
