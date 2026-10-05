@@ -1,6 +1,7 @@
 import "server-only";
 import type { Stream } from "@/config/streams";
 import type { SessionPayload } from "@/lib/auth/session";
+import type { ScorecardData, DashboardData } from "@/lib/api/schemas";
 import { collegeStream } from "./records";
 
 export interface EnrolledSubject {
@@ -649,4 +650,140 @@ export async function generateDynamicStudentDashboard(
     },
   };
 }
+
+export async function generateDynamicSkillGraph(
+  session: SessionPayload | { sub: string; name?: string; college: string }
+): Promise<ScorecardData> {
+  const profile = await getStudentAcademicProfile(session);
+  const subjects = profile.enrolledSubjects;
+
+  // Compute dimension scores from subjects
+  const dimensions = subjects.map((s) => {
+    const avgUnitMastery = Math.round(
+      s.units.reduce((sum, u) => sum + u.mastery, 0) / (s.units.length || 1)
+    );
+    const score = Math.max(30, Math.min(98, Math.round((avgUnitMastery + s.ia1Marks + s.ia2Marks) / 3)));
+    return {
+      name: s.shortName,
+      score,
+      target: 80,
+    };
+  });
+
+  const overall = Math.round(dimensions.reduce((a, d) => a + d.score, 0) / (dimensions.length || 1));
+
+  // Determine strengths (> 70) and gaps (< 65)
+  const strengths: string[] = [];
+  const gaps: string[] = [];
+  const plan: string[] = [];
+
+  for (const s of subjects) {
+    const lowUnits = s.units.filter((u) => u.mastery < 55);
+    const highUnits = s.units.filter((u) => u.mastery >= 75);
+    if (highUnits.length > 0) {
+      strengths.push(`${s.shortName}: Strong fundamentals in ${highUnits[0]?.title}`);
+    }
+    if (lowUnits.length > 0) {
+      gaps.push(`${s.shortName}: ${lowUnits[0]?.title} (${lowUnits[0]?.mastery}%)`);
+      plan.push(`Complete adaptive revision quiz on ${lowUnits[0]?.title} (${s.shortName})`);
+    }
+  }
+
+  if (strengths.length === 0) strengths.push(`${subjects[0]?.shortName}: Consistent practice streak (12 days)`);
+  if (gaps.length === 0) gaps.push("Advance to mock interview and full-length assessment");
+  if (plan.length === 0) plan.push("Take the departmental certification test");
+
+  return {
+    template: "scorecard",
+    headline: `Target: ${profile.degree.replace(/^B\.E\.|MBBS|B\.Com|BBA|Diploma in /i, "").trim()} Career Benchmark`,
+    overall,
+    dimensions,
+    strengths: strengths.slice(0, 3),
+    gaps: gaps.slice(0, 3),
+    plan: plan.slice(0, 3),
+  };
+}
+
+export async function generateDynamicExamPrep(
+  collegeScope: string
+): Promise<DashboardData> {
+  const profile = await getStudentAcademicProfile({ college: collegeScope, sub: "demo-student" });
+  const subjects = profile.enrolledSubjects;
+  const primarySubject = subjects[0] || { shortName: "Major", units: [], semesterProgress: 60 };
+
+  const avgProgress = Math.round(
+    subjects.reduce((sum, s) => sum + s.semesterProgress, 0) / (subjects.length || 1)
+  );
+
+  // Extract all units for the primary exam subject
+  const topicData = primarySubject.units.map((u) => ({
+    name: u.title.length > 20 ? u.title.slice(0, 18) + "…" : u.title,
+    Mastery: u.mastery,
+  }));
+
+  const allUnits: Array<{ subject: string; topic: string; mastery: number }> = [];
+  for (const s of subjects) {
+    for (const u of s.units) {
+      allUnits.push({ subject: s.shortName, topic: u.title, mastery: u.mastery });
+    }
+  }
+  allUnits.sort((a, b) => a.mastery - b.mastery);
+  const weakest = allUnits[0] || { subject: primarySubject.shortName, topic: "Core Units", mastery: 45 };
+
+  const examName =
+    profile.stream === "medical"
+      ? "Pathology Internal Assessment II"
+      : profile.stream === "artsScience"
+      ? "Continuous Internal Assessment II"
+      : `${primarySubject.shortName} IA-II`;
+
+  return {
+    template: "dashboard",
+    kpis: [
+      { label: "Next exam", value: "9 days", delta: examName, tone: "amber" },
+      { label: "Syllabus covered", value: `${avgProgress}%`, delta: "+8% this week", tone: "brand" },
+      { label: "Mock tests taken", value: "7", delta: "3 this week", tone: "teal" },
+      { label: "Predicted band", value: avgProgress >= 70 ? "A to O" : "B+ to A", delta: "AI estimate", tone: "sky", hint: "Estimate based on mock and quiz attempts" },
+    ],
+    charts: [
+      {
+        type: "bar",
+        title: `${primarySubject.shortName} Topic Mastery (%)`,
+        xKey: "name",
+        series: ["Mastery"],
+        data: topicData,
+      },
+      {
+        type: "area",
+        title: "Daily Study Minutes",
+        xKey: "name",
+        series: ["Minutes"],
+        data: [
+          { name: "Mon", Minutes: 75 },
+          { name: "Tue", Minutes: 90 },
+          { name: "Wed", Minutes: 60 },
+          { name: "Thu", Minutes: 110 },
+          { name: "Fri", Minutes: 85 },
+          { name: "Sat", Minutes: 120 },
+          { name: "Sun", Minutes: 95 },
+        ],
+      },
+    ],
+    insights: [
+      {
+        title: "Remediation plan",
+        body: `${weakest.topic} in ${weakest.subject} accounts for most of your missed questions. Prioritise it over the next 4 days.`,
+        evidence: `Current mastery: ${weakest.mastery}% · Unit test logs`,
+        tone: "amber",
+      },
+      {
+        title: "Last-minute revision mode",
+        body: "Two days before the exam, your study planner automatically unlocks rapid-fire flashcards and formula summaries.",
+        evidence: "Configured by AI Study Planner",
+        tone: "brand",
+      },
+    ],
+  };
+}
+
 

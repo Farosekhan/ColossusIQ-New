@@ -27,7 +27,7 @@ import { getCollegeClubs } from "./clubs";
 import { getCollegeSports } from "./sports";
 import { getCollegeCalendar } from "./academic-calendar";
 import { getStudentsList } from "./students-store";
-import { getStudentAcademicProfile } from "./student-profile";
+import { generateDynamicExamPrep, generateDynamicSkillGraph, getStudentAcademicProfile } from "./student-profile";
 
 /** Live data a builder may need, fetched once per request. */
 interface ScopeData {
@@ -199,15 +199,7 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
       ],
     );
   },
-  "exam-prep": () =>
-    dashboard(
-      [k("Next exam", "9 days", "DBMS IA-II", "amber"), k("Syllabus covered", "62%", "+8% this week", "brand"), k("Mock tests taken", "7", "3 this week", "teal"), k("Predicted band", "B+ to A", "AI estimate", "sky", "Estimate only — based on mock performance")],
-      [
-        chart("bar", "Topic mastery (%)", cats("exam", ["ER model", "Rel. algebra", "SQL", "FDs", "Normalization", "Transactions"], ["Mastery"], 62, 50), ["Mastery"]),
-        chart("area", "Daily study minutes", trend("exam-m", ["Minutes"], 90, 60, ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]), ["Minutes"]),
-      ],
-      [ins("Remediation plan", "Normalization and transactions account for 60% of your lost marks. Prioritise them over the next 4 days.", "Last 3 mocks · 14 of 23 wrong answers", "amber"), ins("Last-minute mode unlocks", "Two days before the exam, your plan switches to quick-revision cards and one full-length mock.", "Configured by Study Planner Agent")],
-    ),
+  "exam-prep": (collegeScope) => generateDynamicExamPrep(collegeScope),
   "class-analytics": () =>
     dashboard(
       [k("Class average", "68%", "+4% vs IA1", "teal"), k("At-risk students", "6", "Review suggested", "amber"), k("Assignments pending", "11", undefined, "brand"), k("AI-assisted lessons", "14", "This semester", "sky")],
@@ -490,8 +482,7 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
     ], 5),
 
   /* ── scorecards ── */
-  "skill-graph": () =>
-    score("Target: Data Scientist", [["Python", 78, 85], ["Statistics", 54, 80], ["SQL", 66, 85], ["Machine Learning", 41, 75], ["Data visualisation", 60, 75], ["Communication", 59, 75]], ["Python fundamentals are job-ready", "Consistent practice streak (12 days)"], ["Statistics: hypothesis testing", "ML: model evaluation", "SQL: window functions"], ["Statistics ch. 4–5 this week", "Kaggle beginner notebook", "SQL window-functions set"]),
+  "skill-graph": (collegeScope) => generateDynamicSkillGraph({ college: collegeScope, sub: "demo-student" }),
   "study-twin": () =>
     score("How you learn best", [["Learning pace", 72, 75], ["Retention (7-day)", 58, 75], ["Practice consistency", 81, 80], ["Revision discipline", 49, 70], ["Focus duration", 64, 70]], ["Visual explanations work best for you", "Most productive 7–9 AM"], ["Revision is often skipped on weekends", "Accuracy drops after 45 minutes"], ["Use 25-minute focus blocks", "Schedule spaced revision on Sat mornings", "Prefer diagrams in Tutor answers"]),
   career: () =>
@@ -813,7 +804,7 @@ function fallback(mod: ModuleDef): ModuleData {
   return dashboard([k("Status", mod.phase, undefined, "sky")], [], [ins(mod.title, mod.description, "Module configuration")]);
 }
 
-const STREAM_RELABEL = new Set(["exam-prep", "class-analytics", "department-academics"]);
+const STREAM_RELABEL = new Set(["class-analytics", "department-academics"]);
 
 export async function moduleData(slug: string, collegeScope = "all"): Promise<ModuleData | null> {
   const mod = findModule(slug);

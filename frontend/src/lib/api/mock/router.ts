@@ -520,6 +520,10 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
           answers.push({ questionId: q.id, correct: null, explanation: "Evaluated by the Answer Evaluation Agent — see rubric below." });
         }
       }
+      await audit(session.name, "Attempted assessment", `${test.title} · ${mcqScore}/${mcqMax} MCQ marks`, {
+        collegeId: session.college === ALL_COLLEGES ? null : session.college,
+        actorSub: session.sub,
+      });
       return ok({
         attemptId: `att-${Date.now().toString(36)}`,
         mcqScore,
