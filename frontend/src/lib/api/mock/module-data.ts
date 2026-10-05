@@ -27,6 +27,7 @@ import { getCollegeClubs } from "./clubs";
 import { getCollegeSports } from "./sports";
 import { getCollegeCalendar } from "./academic-calendar";
 import { getStudentsList } from "./students-store";
+import { getStudentAcademicProfile } from "./student-profile";
 
 /** Live data a builder may need, fetched once per request. */
 interface ScopeData {
@@ -144,15 +145,60 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
   "naac-readiness": naacReadiness,
   "aicte-compliance": aicteCompliance,
   "cbcs-electives": (_scope, live) => cbcsElectives(live.stream),
-  "academic-tracker": () =>
-    dashboard(
-      [k("CGPA", "8.21", "+0.14 this sem", "teal"), k("Attendance", "87%", "Above 75% requirement", "teal"), k("Internal avg.", "71%", "−3% vs last IA", "amber"), k("Credits earned", "96 / 160", undefined, "brand")],
+  "academic-tracker": async (collegeScope) => {
+    const profile = await getStudentAcademicProfile({ college: collegeScope, sub: "demo-student" });
+    const subjects = profile.enrolledSubjects;
+
+    const avgAttendance = Math.round(
+      subjects.reduce((sum, s) => sum + s.attendancePercent, 0) / (subjects.length || 1)
+    );
+    const avgInternal = Math.round(
+      subjects.reduce((sum, s) => sum + (s.ia1Marks + s.ia2Marks) / 2, 0) / (subjects.length || 1)
+    );
+
+    const internalData = subjects.map((s) => ({
+      name: s.shortName,
+      IA1: s.ia1Marks,
+      IA2: s.ia2Marks,
+    }));
+
+    const progressData = subjects.map((s) => ({
+      name: s.shortName,
+      Progress: s.semesterProgress,
+      Target: 75,
+    }));
+
+    const sorted = [...subjects].sort((a, b) => a.ia2Marks - b.ia2Marks);
+    const lowest = sorted[0] || subjects[0]!;
+    const highest = sorted[sorted.length - 1] || subjects[0]!;
+
+    return dashboard(
       [
-        chart("bar", "Subject-wise internal marks (%)", cats("acad", ["DBMS", "OS", "CN", "Python", "ML"], ["IA1", "IA2"], 70, 30), ["IA1", "IA2"]),
-        chart("line", "Semester progress", trend("acad-t", ["Progress", "Target"], 50, 12), ["Progress", "Target"]),
+        k("CGPA", profile.cgpa.toFixed(2), "+0.14 this sem", "teal"),
+        k("Attendance", `${avgAttendance}%`, "Above 75% requirement", "teal"),
+        k("Internal avg.", `${avgInternal}%`, avgInternal >= 70 ? "+2% vs target" : "−3% vs target", avgInternal >= 70 ? "teal" : "amber"),
+        k("Credits earned", `${profile.creditsEarned} / ${profile.totalCredits}`, undefined, "brand"),
       ],
-      [ins("DBMS needs attention", "Your IA2 DBMS score dropped 11 points, mostly in normalization questions.", "IA1 72% → IA2 61% · 4 of 5 lost marks in Unit 3", "amber"), ins("Python is a strength", "You are in the top 15% of your section for Python.", "Section rank 9 / 64", "teal")],
-    ),
+      [
+        chart("bar", "Subject-wise internal marks (%)", internalData, ["IA1", "IA2"]),
+        chart("line", "Syllabus progress vs Target (%)", progressData, ["Progress", "Target"]),
+      ],
+      [
+        ins(
+          `${lowest.shortName} needs attention`,
+          `Your IA2 ${lowest.shortName} score is ${lowest.ia2Marks}%, with lost marks mainly in ${lowest.units[2]?.title || "Unit 3"}.`,
+          `IA1 ${lowest.ia1Marks}% → IA2 ${lowest.ia2Marks}% · ${lowest.facultyName}`,
+          "amber"
+        ),
+        ins(
+          `${highest.shortName} is a strength`,
+          `You are excelling in ${highest.title} with consistent performance across assessments.`,
+          `Current internal score: ${highest.ia2Marks}% · Section top percentile`,
+          "teal"
+        ),
+      ],
+    );
+  },
   "exam-prep": () =>
     dashboard(
       [k("Next exam", "9 days", "DBMS IA-II", "amber"), k("Syllabus covered", "62%", "+8% this week", "brand"), k("Mock tests taken", "7", "3 this week", "teal"), k("Predicted band", "B+ to A", "AI estimate", "sky", "Estimate only — based on mock performance")],
@@ -712,7 +758,7 @@ function fallback(mod: ModuleDef): ModuleData {
   return dashboard([k("Status", mod.phase, undefined, "sky")], [], [ins(mod.title, mod.description, "Module configuration")]);
 }
 
-const STREAM_RELABEL = new Set(["academic-tracker", "exam-prep", "class-analytics", "department-academics"]);
+const STREAM_RELABEL = new Set(["exam-prep", "class-analytics", "department-academics"]);
 
 export async function moduleData(slug: string, collegeScope = "all"): Promise<ModuleData | null> {
   const mod = findModule(slug);
