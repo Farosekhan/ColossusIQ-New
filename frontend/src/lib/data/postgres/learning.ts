@@ -175,6 +175,7 @@ export const pgCourses: CourseStore = {
     const deptId = await lookupId("departments", college.stream, course.department);
     const tId = await lookupId("terms", college.stream, course.semester);
 
+    const published = course.status === "Published";
     if (!courseRecord) {
       courseRecord = await t.course.create({
         data: {

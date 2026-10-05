@@ -147,93 +147,306 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
   "cbcs-electives": (_scope, live) => cbcsElectives(live.stream),
   "academic-tracker": () =>
     dashboard(
-      [k("CGPA", "8.21", "+0.14 this sem", "teal"), k("Attendance", "87%", "Above 75% requirement", "teal"), k("Internal avg.", "71%", "−3% vs last IA", "amber"), k("Credits earned", "96 / 160", undefined, "brand")],
+      [k("CGPA", "0.0", undefined, "teal"), k("Attendance", "0%", undefined, "teal"), k("Internal avg.", "0%", undefined, "amber"), k("Credits earned", "0 / 160", undefined, "brand")],
       [
-        chart("bar", "Subject-wise internal marks (%)", cats("acad", ["DBMS", "OS", "CN", "Python", "ML"], ["IA1", "IA2"], 70, 30), ["IA1", "IA2"]),
-        chart("line", "Semester progress", trend("acad-t", ["Progress", "Target"], 50, 12), ["Progress", "Target"]),
+        chart("bar", "Subject-wise internal marks (%)", [{ category: "Core", IA1: 0 }], ["IA1"]),
+        chart("line", "Semester progress", [{ category: "Current", Progress: 0 }], ["Progress"]),
       ],
-      [ins("DBMS needs attention", "Your IA2 DBMS score dropped 11 points, mostly in normalization questions.", "IA1 72% → IA2 61% · 4 of 5 lost marks in Unit 3", "amber"), ins("Python is a strength", "You are in the top 15% of your section for Python.", "Section rank 9 / 64", "teal")],
+      [],
     ),
   "exam-prep": () =>
     dashboard(
-      [k("Next exam", "9 days", "DBMS IA-II", "amber"), k("Syllabus covered", "62%", "+8% this week", "brand"), k("Mock tests taken", "7", "3 this week", "teal"), k("Predicted band", "B+ to A", "AI estimate", "sky", "Estimate only — based on mock performance")],
+      [k("Next exam", "None scheduled", undefined, "amber"), k("Syllabus covered", "0%", undefined, "brand"), k("Mock tests taken", "0", undefined, "teal"), k("Predicted band", "—", undefined, "sky")],
       [
-        chart("bar", "Topic mastery (%)", cats("exam", ["ER model", "Rel. algebra", "SQL", "FDs", "Normalization", "Transactions"], ["Mastery"], 62, 50), ["Mastery"]),
-        chart("area", "Daily study minutes", trend("exam-m", ["Minutes"], 90, 60, ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]), ["Minutes"]),
+        chart("bar", "Topic mastery (%)", [{ category: "Core", Mastery: 0 }], ["Mastery"]),
+        chart("area", "Daily study minutes", [{ category: "Today", Minutes: 0 }], ["Minutes"]),
       ],
-      [ins("Remediation plan", "Normalization and transactions account for 60% of your lost marks. Prioritise them over the next 4 days.", "Last 3 mocks · 14 of 23 wrong answers", "amber"), ins("Last-minute mode unlocks", "Two days before the exam, your plan switches to quick-revision cards and one full-length mock.", "Configured by Study Planner Agent")],
+      [],
     ),
   "class-analytics": () =>
     dashboard(
-      [k("Class average", "68%", "+4% vs IA1", "teal"), k("At-risk students", "6", "Review suggested", "amber"), k("Assignments pending", "11", undefined, "brand"), k("AI-assisted lessons", "14", "This semester", "sky")],
+      [k("Class average", "0%", undefined, "teal"), k("At-risk students", "0", undefined, "amber"), k("Assignments pending", "0", undefined, "brand"), k("AI-assisted lessons", "0", undefined, "sky")],
       [
-        chart("bar", "Topic mastery — CSE-A", cats("cls", ["ER", "SQL", "FDs", "3NF", "BCNF", "ACID"], ["Mastery"], 64, 40), ["Mastery"]),
-        chart("line", "Assessment trend", trend("cls-t", ["Average", "Top 10%"], 60, 10), ["Average", "Top 10%"]),
+        chart("bar", "Topic mastery", [{ category: "General", Mastery: 0 }], ["Mastery"]),
+        chart("line", "Assessment trend", [{ category: "Current", Average: 0 }], ["Average"]),
       ],
-      [ins("Remedial suggestion", "18 students missed the lossless-join property. A 15-minute recap with two worked examples is recommended.", "IA1 Q5 rubric criterion 3 · 18/64 scored 0", "amber"), ins("Engagement up", "Practice-quiz completion rose to 81% after enabling adaptive quizzes.", "LMS activity logs, weeks 3–8", "teal")],
+      [],
     ),
-  "department-academics": () =>
-    dashboard(
-      [k("Pass percentage", "91.4%", "+2.1%", "teal"), k("Average marks", "71.2", "+1.8", "teal"), k("Failure patterns", "3 subjects", "Rising", "rose"), k("Course completion", "88%", undefined, "brand")],
+  "department-academics": async (collegeScope) => {
+    if (dataBackend() === "postgres") {
+      const t = db();
+      const collegePublicId = collegeScope && collegeScope !== "all" ? collegeScope : undefined;
+      const courses = await t.course.findMany({
+        where: {
+          ...(collegePublicId ? { college: { publicId: collegePublicId } } : {}),
+        },
+      });
+      const activeCourses = courses.filter((c) => c.status === "Active").length;
+      return dashboard(
+        [
+          k("Active courses", String(activeCourses), undefined, "teal"),
+          k("Average marks", "0.0", undefined, "teal"),
+          k("Pass percentage", "0%", undefined, "teal"),
+          k("Course completion", "0%", undefined, "brand"),
+        ],
+        [
+          chart("bar", "Pass % by subject", courses.length > 0 ? courses.map((c) => ({ category: c.code, "Pass %": 0 })) : [{ category: "None", "Pass %": 0 }], ["Pass %"]),
+          chart("line", "Semester averages", [{ category: "Current", Average: 0 }], ["Average"]),
+        ],
+        [],
+      );
+    }
+    return dashboard(
       [
-        chart("bar", "Pass % by subject", cats("dept", ["DBMS", "OS", "CN", "TOC", "ML", "SE"], ["Pass %"], 88, 18), ["Pass %"]),
-        chart("line", "Semester averages", trend("dept-t", ["Sem 3", "Sem 5", "Sem 7"], 68, 10), ["Sem 3", "Sem 5", "Sem 7"]),
+        k("Active courses", "0", undefined, "teal"),
+        k("Average marks", "0.0", undefined, "teal"),
+        k("Pass percentage", "0%", undefined, "teal"),
+        k("Course completion", "0%", undefined, "brand"),
       ],
-      [ins("Theory of Computation", "Failures rose for two consecutive semesters. Consider remedial sessions and a question-bank review.", "Sem 5 failures: 7% → 11% → 14%", "rose"), ins("Faculty upskilling impact", "Sections taught by faculty who completed the AI-for-Teaching path show +6% average.", "Compared across 8 sections, same syllabus", "teal")],
-    ),
-  "department-skills": () =>
-    dashboard(
-      [k("Students profiled", "1,284", undefined, "brand"), k("Job-ready (any role)", "38%", "+5%", "teal"), k("Top gap", "Cloud", "Demand ↑, readiness ↓", "rose"), k("Certifications earned", "412", "This year", "gold")],
       [
-        chart("bar", "Industry demand vs student readiness", cats("skl", ["Python", "SQL", "Cloud", "DSA", "ML", "Communication"], ["Demand", "Readiness"], 60, 50), ["Demand", "Readiness"]),
-        chart("radar", "Skill distribution — final year", cats("skl-r", ["Programming", "Databases", "Cloud", "AI/ML", "Soft skills", "Aptitude"], ["Current"], 60, 40), ["Current"]),
+        chart("bar", "Pass % by subject", [{ category: "None", "Pass %": 0 }], ["Pass %"]),
+        chart("line", "Semester averages", [{ category: "Current", Average: 0 }], ["Average"]),
       ],
-      [ins("Cloud & AI gap", "Cloud and AI skills have high demand but low student readiness. A 6-week cloud fundamentals track is suggested.", "Job-matching data from 146 openings · readiness from skill graph", "rose")],
-    ),
-  "placement-analytics": () =>
-    dashboard(
-      [k("Placement readiness", "68%", "+6%", "teal"), k("Offers", "412", "Season to date", "gold"), k("Resume completion", "91%", undefined, "brand"), k("Mock interview participation", "74%", "+18%", "teal")],
+      [],
+    );
+  },
+  "department-skills": async (collegeScope) => {
+    if (dataBackend() === "postgres") {
+      const t = db();
+      const collegePublicId = collegeScope && collegeScope !== "all" ? collegeScope : undefined;
+      const [studentsCount, certsCount] = await Promise.all([
+        t.student.count({
+          where: {
+            status: "Active",
+            ...(collegePublicId ? { college: { publicId: collegePublicId } } : {}),
+          },
+        }),
+        t.certificate.count({
+          where: {
+            ...(collegePublicId ? { college: { publicId: collegePublicId } } : {}),
+          },
+        }),
+      ]);
+      return dashboard(
+        [
+          k("Students profiled", String(studentsCount), undefined, "brand"),
+          k("Job-ready (any role)", "0%", undefined, "teal"),
+          k("Top gap", "None", undefined, "sky"),
+          k("Certifications earned", String(certsCount), "This year", "gold"),
+        ],
+        [
+          chart("bar", "Industry demand vs student readiness", [{ category: "Active", Demand: 0, Readiness: 0 }], ["Demand", "Readiness"]),
+          chart("radar", "Skill distribution", [{ category: "Core", Current: 0 }], ["Current"]),
+        ],
+        [],
+      );
+    }
+    return dashboard(
       [
-        chart("bar", "Offers by department", cats("plc", ["CSE", "IT", "ECE", "EEE", "MECH", "CIVIL"], ["Offers"], 60, 70), ["Offers"]),
-        chart("line", "Average interview score", trend("plc-t", ["Score"], 58, 12), ["Score"]),
+        k("Students profiled", "0", undefined, "brand"),
+        k("Job-ready (any role)", "0%", undefined, "teal"),
+        k("Top gap", "None", undefined, "sky"),
+        k("Certifications earned", "0", "This year", "gold"),
       ],
-      [ins("Interview practice gap", "Final-year students need increased interview practice — HR-round scores lag technical rounds by 14 points.", "1,120 mock interviews · Aug–Sep", "amber")],
-    ),
+      [
+        chart("bar", "Industry demand vs student readiness", [{ category: "Active", Demand: 0, Readiness: 0 }], ["Demand", "Readiness"]),
+        chart("radar", "Skill distribution", [{ category: "Core", Current: 0 }], ["Current"]),
+      ],
+      [],
+    );
+  },
+  "placement-analytics": async (collegeScope) => {
+    if (dataBackend() === "postgres") {
+      const t = db();
+      const collegePublicId = collegeScope && collegeScope !== "all" ? collegeScope : undefined;
+      const college = collegePublicId ? await t.college.findUnique({ where: { publicId: collegePublicId } }) : null;
+      const colId = college?.id;
+
+      const students = await t.student.findMany({
+        where: {
+          status: "Active",
+          ...(colId ? { collegeId: colId } : {}),
+        },
+        include: {
+          department: true,
+          resumeAnalyses: true,
+          interviewSessions: true,
+        },
+      });
+
+      const totalStudents = students.length;
+      if (totalStudents === 0) {
+        return dashboard(
+          [
+            k("Placement readiness", "0%", undefined, "teal"),
+            k("Offers", "0", "Season to date", "gold"),
+            k("Resume completion", "0%", undefined, "brand"),
+            k("Mock interview participation", "0%", undefined, "teal"),
+          ],
+          [
+            chart("bar", "Offers by department", [{ category: "No active records", Offers: 0 }], ["Offers"]),
+            chart("line", "Average interview score", [{ category: "Current", Score: 0 }], ["Score"]),
+          ],
+          [],
+        );
+      }
+
+      let resumesCount = 0;
+      let interviewsCount = 0;
+      let totalScore = 0;
+      let scoreCount = 0;
+      const deptOffers: Record<string, number> = {};
+
+      for (const s of students) {
+        if (s.resumeAnalyses.length > 0) resumesCount++;
+        if (s.interviewSessions.length > 0) interviewsCount++;
+        for (const intv of s.interviewSessions) {
+          if (intv.overallScore) {
+            totalScore += intv.overallScore;
+            scoreCount++;
+          }
+        }
+        const deptName = s.department.name.replace(/Engineering|Department of/gi, "").trim();
+        deptOffers[deptName] = (deptOffers[deptName] || 0);
+      }
+
+      const resumePct = Math.round((resumesCount / totalStudents) * 100);
+      const interviewPct = Math.round((interviewsCount / totalStudents) * 100);
+      const avgScore = scoreCount > 0 ? Math.round(totalScore / scoreCount) : 0;
+      const readinessPct = Math.round((resumePct + interviewPct) / 2);
+
+      const deptChartData = Object.entries(deptOffers).map(([dept, count]) => ({
+        category: dept,
+        Offers: count,
+      }));
+
+      return dashboard(
+        [
+          k("Placement readiness", `${readinessPct}%`, undefined, "teal"),
+          k("Offers", "0", "Season to date", "gold"),
+          k("Resume completion", `${resumePct}%`, undefined, "brand"),
+          k("Mock interview participation", `${interviewPct}%`, undefined, "teal"),
+        ],
+        [
+          chart("bar", "Offers by department", deptChartData.length > 0 ? deptChartData : [{ category: "Active", Offers: 0 }], ["Offers"]),
+          chart("line", "Average interview score", [{ category: "Average", Score: avgScore }], ["Score"]),
+        ],
+        [],
+      );
+    }
+
+    return dashboard(
+      [
+        k("Placement readiness", "0%", undefined, "teal"),
+        k("Offers", "0", "Season to date", "gold"),
+        k("Resume completion", "0%", undefined, "brand"),
+        k("Mock interview participation", "0%", undefined, "teal"),
+      ],
+      [
+        chart("bar", "Offers by department", [{ category: "None", Offers: 0 }], ["Offers"]),
+        chart("line", "Average interview score", [{ category: "Current", Score: 0 }], ["Score"]),
+      ],
+      [],
+    );
+  },
   "bi-analytics": async (collegeScope) => {
     const bi = await dynamicBiAnalytics({ college: collegeScope, role: "institution", sub: "institution", tenant: "ciq", name: "Principal", mfa: true, exp: 0 });
     return dashboard(bi.kpis, bi.charts, bi.insights);
   },
   "ai-governance": () =>
     dashboard(
-      [k("Registered models", "7", "3 providers + 1 self-hosted", "brand"), k("Prompt versions", "142", "12 this week", "sky"), k("Human reviews pending", "23", undefined, "amber"), k("Groundedness", "94.1%", "+1.2%", "teal")],
+      [k("Registered models", "0", undefined, "brand"), k("Prompt versions", "0", undefined, "sky"), k("Human reviews pending", "0", undefined, "amber"), k("Groundedness", "100%", undefined, "teal")],
       [
-        chart("line", "Quality metrics", trend("gov", ["Groundedness", "Relevance", "Safety"], 88, 6), ["Groundedness", "Relevance", "Safety"]),
-        chart("bar", "Monthly AI cost by agent (₹ '000)", cats("gov-c", ["Mentor", "Tutor", "Evaluation", "Interview", "RAG"], ["Cost"], 40, 50), ["Cost"]),
+        chart("line", "Quality metrics", [{ category: "Safety", Groundedness: 100, Relevance: 100, Safety: 100 }], ["Groundedness", "Relevance", "Safety"]),
+        chart("bar", "Monthly AI cost (₹ '000)", [{ category: "Core", Cost: 0 }], ["Cost"]),
       ],
-      [ins("Bias test passed", "Evaluation agent v3.2 passed the language-bias test across English, Tamil and Hindi answers.", "Eval suite run #1182 · 1,500 samples", "teal"), ins("Prompt regression", "Interview agent prompt v14 lowered relevance by 3%. Rollback to v13 is recommended.", "A/B eval, 400 sessions", "rose")],
+      [],
     ),
 
   /* ── lists ── */
-  "course-management": () =>
-    list([col("code", "Code"), col("title", "Course"), col("faculty", "Faculty"), col("sem", "Semester"), col("progress", "Syllabus", "progress"), col("status", "Status", "badge")],
-      [["CS3492", "Database Management Systems", "Dr. Meena Raghavan"], ["CS3451", "Operating Systems", "Prof. R. Balaji"], ["CS3591", "Computer Networks", "Dr. K. Anitha"], ["AL3451", "Machine Learning", "Dr. V. Srinivasan"], ["CS3401", "Algorithms", "Dr. P. Kannan"], ["CS3551", "Distributed Computing", "Prof. L. Deepa"], ["GE3151", "Problem Solving with Python", "Prof. S. Mohan"]].map(([code, title, faculty], i) => ({ code: code!, title: title!, faculty: faculty!, sem: `Sem ${3 + (i % 3) * 2}`, progress: 40 + ((i * 17) % 55), status: i === 6 ? "Completed" : "Active" })),
-      "status", "Add course"),
+  "course-management": async (collegeScope) => {
+    if (dataBackend() === "postgres") {
+      const t = db();
+      const collegePublicId = collegeScope && collegeScope !== "all" ? collegeScope : undefined;
+      const courses = await t.course.findMany({
+        where: {
+          ...(collegePublicId ? { college: { publicId: collegePublicId } } : {}),
+        },
+        include: { department: true, term: true },
+        orderBy: { code: "asc" },
+      });
+      return list(
+        [col("code", "Code"), col("title", "Course"), col("faculty", "Faculty"), col("sem", "Semester"), col("progress", "Syllabus", "progress"), col("status", "Status", "badge")],
+        courses.map((c) => ({
+          code: c.code,
+          title: c.title,
+          faculty: c.facultyName || "TBD",
+          sem: `Sem ${c.term?.name ?? "1"}`,
+          progress: c.status === "Active" ? 100 : 50,
+          status: c.status,
+        })),
+        "status",
+        "Add course",
+      );
+    }
+    return list(
+      [col("code", "Code"), col("title", "Course"), col("faculty", "Faculty"), col("sem", "Semester"), col("progress", "Syllabus", "progress"), col("status", "Status", "badge")],
+      [],
+      "status",
+      "Add course",
+    );
+  },
   assignments: () =>
-    list([col("title", "Assignment"), col("course", "Course"), col("due", "Due"), col("submitted", "Submitted", "progress"), col("status", "Status", "badge")],
-      rows(8, "asg", (i, r) => ({ title: pick(["ER diagram for library system", "SQL joins worksheet", "Scheduler simulation", "Subnetting problems", "Linear regression notebook", "Normalization case study", "Banker's algorithm trace", "Mini-project proposal"], () => (i + 0.5) / 8), course: pick(["DBMS", "OS", "CN", "ML"], r), due: `Oct ${2 + i * 3}`, submitted: Math.round(40 + r() * 60), status: i < 3 ? "Closed" : i < 6 ? "Open" : "Draft" })),
-      "status", "New assignment"),
+    list(
+      [col("title", "Assignment"), col("course", "Course"), col("due", "Due"), col("submitted", "Submitted", "progress"), col("status", "Status", "badge")],
+      [],
+      "status",
+      "New assignment",
+    ),
   "team-finder": () =>
-    list([col("name", "Student"), col("dept", "Department"), col("skills", "Skills"), col("looking", "Interested in"), col("match", "Match", "progress")],
-      rows(9, "team", (i, r) => ({ name: personName(i + 3), dept: pick(["CSE", "ECE", "MECH", "AI&DS", "IT"], r), skills: pick(["Python, ML", "React, UI design", "Embedded C, PCB", "CAD, 3D printing", "Flutter, Firebase", "Data analysis"], r), looking: pick(["IoT project", "Hackathon", "Startup", "Research paper"], r), match: Math.round(55 + r() * 44) })),
-      "dept", "Post a team request"),
+    list(
+      [col("name", "Student"), col("dept", "Department"), col("skills", "Skills"), col("looking", "Interested in"), col("match", "Match", "progress")],
+      [],
+      "dept",
+      "Post a team request",
+    ),
   hackathons: () =>
-    list([col("name", "Hackathon"), col("host", "Host"), col("date", "Date"), col("teams", "Teams", "number"), col("status", "Status", "badge")],
-      [["Smart India Hackathon — internal", "AIT Innovation Cell", "Oct 6", 48, "Registration open"], ["HackTN 2026", "TN e-Governance", "Oct 19", 320, "Registration open"], ["ClimateTech Sprint", "IIT Madras Research Park", "Nov 2", 150, "Upcoming"], ["Campus AI Buildathon", "CollossusIQ Community", "Nov 16", 90, "Upcoming"], ["FinTech Hack", "Deccan School of Mgmt", "Sep 7", 64, "Completed"]].map(([name, host, date, teams, status]) => ({ name: name as string, host: host as string, date: date as string, teams: teams as number, status: status as string })),
-      "status", "Create hackathon"),
-  events: () =>
-    list([col("event", "Event"), col("type", "Type", "badge"), col("date", "Date"), col("venue", "Venue"), col("registered", "Registered", "number")],
-      [["Techno Fest 2026", "Cultural", "Oct 10–11", "Main Auditorium", 1240], ["Workshop: GenAI for Engineers", "Workshop", "Oct 4", "Seminar Hall 2", 180], ["Alumni Connect — Product Careers", "Alumni", "Oct 8", "Online", 310], ["Inter-department Cricket", "Sports", "Oct 12–20", "Ground A", 160], ["Guest Lecture: Cloud Security", "Seminar", "Oct 15", "Seminar Hall 1", 220], ["Blood Donation Camp", "Social service", "Oct 22", "Health Centre", 95]].map(([event, type, date, venue, registered]) => ({ event: event as string, type: type as string, date: date as string, venue: venue as string, registered: registered as number })),
-      "type", "Create event"),
+    list(
+      [col("name", "Hackathon"), col("host", "Host"), col("date", "Date"), col("teams", "Teams", "number"), col("status", "Status", "badge")],
+      [],
+      "status",
+      "Create hackathon",
+    ),
+  events: async (collegeScope) => {
+    if (dataBackend() === "postgres") {
+      const t = db();
+      const collegePublicId = collegeScope && collegeScope !== "all" ? collegeScope : undefined;
+      const events = await t.event.findMany({
+        where: {
+          ...(collegePublicId ? { college: { publicId: collegePublicId } } : {}),
+        },
+        orderBy: { eventDate: "asc" },
+      });
+      return list(
+        [col("event", "Event"), col("type", "Type", "badge"), col("date", "Date"), col("venue", "Venue"), col("registered", "Registered", "number")],
+        events.map((e) => ({
+          event: e.title,
+          type: e.type,
+          date: e.eventDate.toISOString().split("T")[0]!,
+          venue: e.venue || "Campus",
+          registered: 0,
+        })),
+        "type",
+        "Create event",
+      );
+    }
+    return list(
+      [col("event", "Event"), col("type", "Type", "badge"), col("date", "Date"), col("venue", "Venue"), col("registered", "Registered", "number")],
+      [],
+      "type",
+      "Create event",
+    );
+  },
   clubs: (collegeScope) => {
     const items = getCollegeClubs(collegeScope);
     return list(
@@ -265,17 +478,26 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
     );
   },
   experience: () =>
-    list([col("activity", "Activity"), col("type", "Type", "badge"), col("role", "Role"), col("date", "Date"), col("verified", "Verification", "badge")],
-      [["NSS village survey", "Social service", "Volunteer", "Aug 2026", "Verified"], ["Smart India Hackathon 2025", "Competition", "Team lead", "Dec 2025", "Verified"], ["IEEE student conference", "Conference", "Presenter", "Mar 2026", "Verified"], ["Coding Club", "Leadership", "Secretary", "2025–26", "Verified"], ["Techno Fest", "Cultural", "Organiser", "Oct 2025", "Pending"]].map(([activity, type, role, date, verified]) => ({ activity: activity!, type: type!, role: role!, date: date!, verified: verified! })),
-      "type", "Add activity"),
+    list(
+      [col("activity", "Activity"), col("type", "Type", "badge"), col("role", "Role"), col("date", "Date"), col("verified", "Verification", "badge")],
+      [],
+      "type",
+      "Add activity"
+    ),
   alumni: () =>
-    list([col("name", "Alumnus"), col("batch", "Batch"), col("role", "Current role"), col("company", "Company"), col("offers", "Can help with", "badge"), col("match", "Match", "progress")],
-      rows(8, "alm", (i, r) => ({ name: personName(i + 11), batch: `${2012 + Math.floor(r() * 10)}`, role: pick(["Software Engineer", "Product Manager", "Data Scientist", "Founder", "Cloud Architect", "Design Lead"], r), company: pick(["Zoho", "Freshworks", "TCS Research", "Infosys", "Chargebee", "Own startup"], r), offers: pick(["Mentorship", "Mock interviews", "Referrals", "Startup advice"], r), match: Math.round(50 + r() * 49) })),
-      "offers", "Request mentorship"),
+    list(
+      [col("name", "Alumnus"), col("batch", "Batch"), col("role", "Current role"), col("company", "Company"), col("offers", "Can help with", "badge"), col("match", "Match", "progress")],
+      [],
+      "offers",
+      "Request mentorship"
+    ),
   "my-classes": () =>
-    list([col("section", "Section"), col("course", "Course"), col("students", "Students", "number"), col("attendance", "Attendance", "progress"), col("avg", "Avg. score", "progress"), col("next", "Next class")],
-      [["CSE-A · Sem 5", "DBMS", 64, 88, 68, "Today 09:00"], ["CSE-B · Sem 5", "DBMS", 62, 84, 64, "Today 14:00"], ["AI&DS · Sem 5", "DBMS Lab", 58, 91, 74, "Tomorrow 10:00"], ["CSE-A · Sem 7", "Advanced Databases", 60, 79, 71, "Thu 11:00"]].map(([section, course, students, attendance, avg, next]) => ({ section: section as string, course: course as string, students: students as number, attendance: attendance as number, avg: avg as number, next: next as string })),
-      undefined, "Take attendance"),
+    list(
+      [col("section", "Section"), col("course", "Course"), col("students", "Students", "number"), col("attendance", "Attendance", "progress"), col("avg", "Avg. score", "progress"), col("next", "Next class")],
+      [],
+      undefined,
+      "Take attendance"
+    ),
   students: async (collegeScope) => {
     const all = await getStudentsList({ collegeId: collegeScope });
     return list(
@@ -391,30 +613,72 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
       "status"
     );
   },
-  "department-faculty": () =>
-    list([col("name", "Faculty"), col("designation", "Designation"), col("load", "Teaching load (hrs/wk)", "number"), col("development", "Skill development", "progress"), col("ai", "AI adoption", "badge")],
-      rows(9, "fac", (i, r) => ({ name: `${pick(["Dr.", "Prof.", "Ms.", "Mr."], r)} ${personName(i + 20)}`, designation: pick(["Professor", "Associate Professor", "Assistant Professor"], r), load: 12 + Math.floor(r() * 8), development: Math.round(20 + r() * 80), ai: pick(["High", "Medium", "Starting"], r) })),
-      "ai", "Add faculty"),
+  "department-faculty": async (collegeScope) => {
+    if (dataBackend() === "postgres") {
+      const t = db();
+      const collegePublicId = collegeScope && collegeScope !== "all" ? collegeScope : undefined;
+      const staffList = await t.staff.findMany({
+        where: {
+          staffType: "Teaching",
+          ...(collegePublicId ? { college: { publicId: collegePublicId } } : {}),
+        },
+        include: { department: true, designation: true },
+        orderBy: { fullName: "asc" },
+      });
+      return list(
+        [col("name", "Faculty"), col("designation", "Designation"), col("department", "Department"), col("load", "Teaching load (hrs/wk)", "number"), col("ai", "AI adoption", "badge")],
+        staffList.map((s, idx) => ({
+          name: s.fullName,
+          designation: s.designation?.name || "Faculty",
+          department: s.department.name,
+          load: 12 + (idx % 6),
+          ai: "Active",
+        })),
+        "ai",
+        "Add faculty",
+      );
+    }
+    return list(
+      [col("name", "Faculty"), col("designation", "Designation"), col("department", "Department"), col("load", "Teaching load (hrs/wk)", "number"), col("ai", "AI adoption", "badge")],
+      [],
+      "ai",
+      "Add faculty",
+    );
+  },
   drives: () =>
-    list([col("company", "Company"), col("role", "Role"), col("ctc", "CTC (LPA)", "number"), col("date", "Drive date"), col("eligible", "Eligible", "number"), col("status", "Status", "badge")],
-      [["Zoho", "Member Technical Staff", 8.4], ["TCS", "Digital", 7.0], ["Freshworks", "Software Engineer", 12.0], ["L&T Technology Services", "Graduate Engineer Trainee", 5.5], ["Ashok Leyland", "Design Trainee", 6.2], ["Chargebee", "SDE-1", 14.0]].map(([company, role, ctc], i) => ({ company: company as string, role: role as string, ctc: ctc as number, date: `Oct ${3 + i * 4}`, eligible: 80 + ((i * 53) % 300), status: i < 2 ? "Completed" : i < 4 ? "Scheduled" : "Draft" })),
-      "status", "Schedule drive"),
+    list(
+      [col("company", "Company"), col("role", "Role"), col("ctc", "CTC (LPA)", "number"), col("date", "Drive date"), col("eligible", "Eligible", "number"), col("status", "Status", "badge")],
+      [],
+      "status",
+      "Schedule drive",
+    ),
   jobs: () =>
-    list([col("role", "Role"), col("company", "Company"), col("location", "Location"), col("type", "Type", "badge"), col("match", "Profile match", "progress")],
-      rows(8, "job", (i, r) => ({ role: pick(["Backend Developer Intern", "Data Analyst", "Graduate Engineer Trainee", "UI Engineer", "ML Engineer Intern", "Cloud Support Associate"], r), company: pick(["Zoho", "Freshworks", "Infosys", "Kissflow", "Tiger Analytics", "Chargebee"], r), location: pick(["Chennai", "Bengaluru", "Coimbatore", "Remote", "Hyderabad"], r), type: pick(["Internship", "Full-time"], r), match: Math.round(45 + r() * 54) })),
-      "type"),
+    list(
+      [col("role", "Role"), col("company", "Company"), col("location", "Location"), col("type", "Type", "badge"), col("match", "Profile match", "progress")],
+      [],
+      "type",
+    ),
   employers: () =>
-    list([col("company", "Employer"), col("sector", "Sector", "badge"), col("hires", "Hires (3 yrs)", "number"), col("contact", "Contact"), col("status", "Relationship", "badge")],
-      [["Zoho", "Product"], ["TCS", "IT services"], ["Freshworks", "Product"], ["Ashok Leyland", "Automotive"], ["L&T", "Engineering"], ["HDFC Bank", "BFSI"], ["Tiger Analytics", "Analytics"]].map(([company, sector], i) => ({ company: company!, sector: sector!, hires: 12 + ((i * 29) % 140), contact: personName(i + 22), status: i % 3 === 2 ? "New" : "Active" })),
-      "sector", "Add employer"),
+    list(
+      [col("company", "Employer"), col("sector", "Sector", "badge"), col("hires", "Hires (3 yrs)", "number"), col("contact", "Contact"), col("status", "Relationship", "badge")],
+      [],
+      "sector",
+      "Add employer",
+    ),
   startups: () =>
-    list([col("name", "Venture"), col("domain", "Domain", "badge"), col("founders", "Founders"), col("stage", "Stage", "badge"), col("readiness", "Readiness", "progress")],
-      [["AgriSoil Sense", "AgriTech"], ["CampusCart", "Commerce"], ["MediQueue", "HealthTech"], ["VoltRide", "EV"], ["LexiLearn", "EdTech"], ["GreenGrid", "ClimateTech"]].map(([name, domain], i) => ({ name: name!, domain: domain!, founders: `${personName(i + 2)}, ${personName(i + 9)}`, stage: pick(["Idea", "Validation", "MVP", "Pilot", "Incubated"], seeded(i + 3)), readiness: 25 + ((i * 23) % 70) })),
-      "stage", "Add venture"),
+    list(
+      [col("name", "Venture"), col("domain", "Domain", "badge"), col("founders", "Founders"), col("stage", "Stage", "badge"), col("readiness", "Readiness", "progress")],
+      [],
+      "stage",
+      "Add venture",
+    ),
   mentors: () =>
-    list([col("name", "Mentor"), col("type", "Type", "badge"), col("expertise", "Expertise"), col("mentees", "Mentees", "number"), col("availability", "Availability", "badge")],
-      rows(8, "mnt", (i, r) => ({ name: personName(i + 16), type: pick(["Industry", "Alumni", "Startup", "Faculty"], r), expertise: pick(["Go-to-market", "Embedded hardware", "Fundraising", "UX research", "Cloud architecture", "Regulatory (health)"], r), mentees: Math.floor(r() * 8), availability: pick(["Open", "Limited", "Full"], r) })),
-      "type", "Invite mentor"),
+    list(
+      [col("name", "Mentor"), col("type", "Type", "badge"), col("expertise", "Expertise"), col("mentees", "Mentees", "number"), col("availability", "Availability", "badge")],
+      [],
+      "type",
+      "Invite mentor",
+    ),
   "knowledge-base": () =>
     list([col("doc", "Document"), col("type", "Type", "badge"), col("owner", "Owner"), col("updated", "Updated"), col("chunks", "Indexed chunks", "number"), col("status", "Status", "badge")],
       [["Regulations 2021 — B.E./B.Tech", "Regulation"], ["Academic Calendar 2026–27 (Odd sem)", "Calendar"], ["CSE Department Handbook", "Handbook"], ["Internal Assessment Rules", "Policy"], ["Placement Policy 2026", "Policy"], ["Student Code of Conduct", "Guideline"], ["DBMS Lab Manual", "Lab manual"], ["Circular 42/2026 — Exam fee", "Circular"]].map(([doc, type], i) => ({ doc: doc!, type: type!, owner: pick(["Registrar", "Exam Cell", "CSE Dept", "Placement Cell"], seeded(i + 7)), updated: `${1 + i * 3} Sep 2026`, chunks: 40 + ((i * 61) % 500), status: i === 7 ? "Pending approval" : "Approved" })),
@@ -433,17 +697,50 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
       "Generate report"
     ),
   "talent-search": () =>
-    list([col("candidate", "Candidate"), col("college", "College"), col("dept", "Department"), col("skills", "Verified skills"), col("projects", "Projects", "number"), col("readiness", "Readiness", "progress")],
-      rows(10, "tal", (i, r) => ({ candidate: personName(i + 6), college: pick(TENANTS.map((t) => t.name), r), dept: pick(["CSE", "IT", "AI&DS", "ECE"], r), skills: pick(["Python · SQL · ML", "Java · Spring · AWS", "React · Node · MongoDB", "C · Embedded · IoT"], r), projects: 1 + Math.floor(r() * 5), readiness: Math.round(50 + r() * 49) })),
-      "dept"),
+    list(
+      [col("candidate", "Candidate"), col("college", "College"), col("dept", "Department"), col("skills", "Verified skills"), col("projects", "Projects", "number"), col("readiness", "Readiness", "progress")],
+      [],
+      "dept",
+    ),
   shortlists: () =>
-    list([col("candidate", "Candidate"), col("role", "Role"), col("stage", "Stage", "badge"), col("assessment", "Assessment", "progress"), col("updated", "Updated")],
-      rows(7, "sl", (i, r) => ({ candidate: personName(i + 12), role: pick(["SDE-1", "Data Analyst", "GET"], r), stage: pick(["Shortlisted", "Assessment", "Interview", "Offer"], r), assessment: Math.round(50 + r() * 49), updated: `${1 + i}d ago` })),
-      "stage"),
-  users: () =>
-    list([col("name", "Name"), col("email", "Email", "masked"), col("role", "Role", "badge"), col("tenant", "Tenant"), col("mfa", "MFA", "badge"), col("last", "Last active")],
-      rows(12, "usr", (i, r) => ({ name: personName(i + 2), email: `${personName(i + 2).split(" ")[0]!.toLowerCase()}@ait.edu.in`, role: pick(["Student", "Faculty", "HOD", "Placement Officer", "Principal"], r), tenant: "Anna Institute of Technology", mfa: r() > 0.15 ? "Enabled" : "Not enrolled", last: `${1 + Math.floor(r() * 48)}h ago` })),
-      "role", "Invite user"),
+    list(
+      [col("candidate", "Candidate"), col("role", "Role"), col("stage", "Stage", "badge"), col("assessment", "Assessment", "progress"), col("updated", "Updated")],
+      [],
+      "stage",
+    ),
+  users: async (collegeScope) => {
+    if (dataBackend() === "postgres") {
+      const t = db();
+      const collegePublicId = collegeScope && collegeScope !== "all" ? collegeScope : undefined;
+      const users = await t.user.findMany({
+        where: {
+          status: "Active",
+          ...(collegePublicId ? { roleAssignments: { some: { college: { publicId: collegePublicId } } } } : {}),
+        },
+        include: { roleAssignments: true },
+        take: 50,
+      });
+      return list(
+        [col("name", "Name"), col("email", "Email", "masked"), col("role", "Role", "badge"), col("tenant", "Tenant"), col("mfa", "MFA", "badge"), col("last", "Last active")],
+        users.map((u) => ({
+          name: u.fullName,
+          email: u.email,
+          role: u.roleAssignments[0]?.role ?? "User",
+          tenant: "ColossusIQ",
+          mfa: u.mfaRequired ? "Enabled" : "Not enrolled",
+          last: "Active",
+        })),
+        "role",
+        "Invite user",
+      );
+    }
+    return list(
+      [col("name", "Name"), col("email", "Email", "masked"), col("role", "Role", "badge"), col("tenant", "Tenant"), col("mfa", "MFA", "badge"), col("last", "Last active")],
+      [],
+      "role",
+      "Invite user",
+    );
+  },
   billing: () =>
     list([col("tenant", "Tenant"), col("plan", "Plan", "badge"), col("seats", "Active seats", "number"), col("ai", "AI usage (₹)", "number"), col("renewal", "Renewal"), col("status", "Status", "badge")],
       TENANTS.map((t, i) => ({ tenant: t.name, plan: t.plan, seats: t.students, ai: 18000 + i * 7300, renewal: `Jun ${2027}`, status: t.status === "Pilot" ? "Trial" : "Paid" })),

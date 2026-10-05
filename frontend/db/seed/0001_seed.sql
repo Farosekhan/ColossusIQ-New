@@ -262,50 +262,6 @@ BEGIN
     (apt, 1, '20% of 250 is…', ARRAY['25','40','50','60'], 2, '0.2 × 250 = 50.'),
     (apt, 2, 'The next number in 2, 6, 12, 20, … is', ARRAY['28','30','32','26'], 1, 'Differences 4, 6, 8, 10.');
 
-  -- if any active student exists in COL-1001, seed progress/attempts
-  SELECT s.id INTO st FROM students s WHERE s.college_id = col AND s.status = 'Active' ORDER BY s.roll_no LIMIT 1;
-  IF st IS NOT NULL THEN
-    INSERT INTO lesson_progress (student_id, lesson_id, completed_at)
-    SELECT st, l.id, now() - interval '3 days' + (row_number() OVER (ORDER BY l.code)) * interval '1 hour' FROM lessons l WHERE l.course_id = lc;
-
-    INSERT INTO quiz_attempts (quiz_id, student_id, college_id, started_at, submitted_at, score, total, percentage)
-    VALUES (qz, st, col, now() - interval '2 days', now() - interval '2 days' + interval '20 minutes', 4, 4, 100)
-    RETURNING id INTO att;
-    INSERT INTO quiz_attempt_answers (attempt_id, question_id, chosen, correct)
-    SELECT att, q.id, q.answer, true FROM quiz_questions q WHERE q.quiz_id = qz;
-    INSERT INTO certificates (kind, quiz_id, attempt_id, student_id, college_id, student_name, title, course, department_name, marks, total, percentage, grade, grade_label, signature)
-    SELECT 'course', qz, att, st, col, u.full_name, 'Database Management Systems — final assessment', 'Database Management Systems', 'Computer Science & Engineering', 4, 4, 100, 'O', 'Outstanding',
-           -- demo signature (dev key); the app re-signs with SESSION_SECRET when certificates are issued for real
-           rtrim(translate(encode(hmac(u.full_name || '|course|100', 'seed-demo-key', 'sha256'), 'base64'), '+/', '-_'), '=')
-    FROM students s JOIN users u ON u.id = s.user_id WHERE s.id = st;
-
-    INSERT INTO quiz_attempts (quiz_id, student_id, college_id, started_at, submitted_at, score, total, percentage)
-    VALUES (dq, st, col, now() - interval '5 days', now() - interval '5 days' + interval '9 minutes', 2, 3, 66.67) RETURNING id INTO att;
-    INSERT INTO quiz_attempt_answers (attempt_id, question_id, chosen, correct)
-    SELECT att, q.id, CASE WHEN q.position = 2 THEN 0 ELSE q.answer END, q.position <> 2 FROM quiz_questions q WHERE q.quiz_id = dq;
-    INSERT INTO quiz_attempts (quiz_id, student_id, college_id, started_at, submitted_at, score, total, percentage)
-    VALUES (apt, st, col, now() - interval '4 days', now() - interval '4 days' + interval '6 minutes', 2, 3, 66.67);
-
-    INSERT INTO interview_sessions (student_id, college_id, mode, started_at, completed_at, overall_score, scorecard)
-    VALUES (st, col, 'technical', now() - interval '1 day', now() - interval '1 day' + interval '25 minutes', 64,
-            '{"dimensions":[{"name":"Technical depth","score":66},{"name":"Communication","score":62}],"strengths":["Clear SQL explanations"],"improvements":["Discuss trade-offs"]}');
-    INSERT INTO resume_analyses (student_id, college_id, target_role, ats_score, result)
-    VALUES (st, col, 'Software Engineer', 82, '{"keywordsFound":["SQL","Python"],"keywordsMissing":["Docker"],"sections":[],"suggestions":["Quantify project impact"]}');
-
-    -- a class summary read by the student
-    INSERT INTO class_summary_reads (summary_id, student_id) SELECT id, st FROM class_summaries WHERE college_id = col;
-
-    -- evaluation queue item awaiting faculty review
-    INSERT INTO evaluation_items (college_id, student_id, assigned_to, assessment, question, answer, ai_result, ai_score, max_score, confidence)
-    VALUES (col, st, (SELECT id FROM users WHERE email = 'faculty@ait.edu.in'), 'DBMS internal test 1', 'Explain 3NF with an example.',
-            'A relation is in 3NF when no non-key attribute depends transitively on the key…',
-            '{"rubric":[{"criterion":"Definition","awarded":3,"max":4}],"evidence":["mentions transitive dependency"],"missing":["example decomposition"],"feedback":"Add a worked decomposition."}',
-            7, 10, 0.82);
-
-    INSERT INTO notifications (user_id, college_id, title, body, tone, link)
-    SELECT s.user_id, col, 'New class notes', 'Dr. Meena Raghavan shared “Class summary — Normalization”.', 'brand', '/student/class-notes' FROM students s WHERE s.id = st;
-  END IF;
-
   -- a class summary with infographic
   INSERT INTO class_summaries (college_id, author_id, author_name, department_id, course_title, topic, title, class_date, points, homework, next_class, resources, infographic)
   VALUES (col, (SELECT id FROM users WHERE email = 'faculty@ait.edu.in'), 'Dr. Meena Raghavan', cse, 'Database Management Systems', 'Normalization (1NF–BCNF)',
