@@ -864,4 +864,98 @@ export const UpdateReviewStatusInput = z.object({
 });
 export type UpdateReviewStatusInput = z.infer<typeof UpdateReviewStatusInput>;
 
+/* ── aicte compliance ── */
+export const AicteNormItem = z.object({
+  id: z.string(),
+  category: z.string(),
+  name: z.string(),
+  normRequirement: z.string(),
+  actualValue: z.string(),
+  score: z.number(),
+  status: z.enum(["Compliant", "Needs Attention", "Deficient"]),
+  deficiencyNotes: z.string(),
+});
+export type AicteNormItem = z.infer<typeof AicteNormItem>;
+
+export const AicteDepartmentCompliance = z.object({
+  department: z.string(),
+  studentsCount: z.number(),
+  facultyCount: z.number(),
+  fsrRatio: z.string(),
+  professors: z.number(),
+  assocProfessors: z.number(),
+  asstProfessors: z.number(),
+  coursesCount: z.number(),
+  labCoursesCount: z.number(),
+  status: z.enum(["Compliant", "Action Required"]),
+});
+export type AicteDepartmentCompliance = z.infer<typeof AicteDepartmentCompliance>;
+
+export const AicteCommittee = z.object({
+  id: z.string(),
+  name: z.string(),
+  mandate: z.string(),
+  chairperson: z.string(),
+  membersCount: z.number(),
+  status: z.string(),
+  lastMeetingDate: z.string(),
+  momStatus: z.string(),
+});
+export type AicteCommittee = z.infer<typeof AicteCommittee>;
+
+export const AicteActionItem = z.object({
+  id: z.string(),
+  title: z.string(),
+  category: z.string(),
+  priority: z.enum(["High", "Medium", "Low"]),
+  assignedTo: z.string(),
+  dueDate: z.string(),
+  status: z.enum(["Open", "In Progress", "Resolved"]),
+  notes: z.string(),
+  createdAt: z.string(),
+});
+export type AicteActionItem = z.infer<typeof AicteActionItem>;
+
+export const AicteComplianceData = z.object({
+  college: z.object({
+    id: z.string(),
+    name: z.string(),
+    code: z.string(),
+    stream: z.string(),
+    pid: z.string(),
+  }),
+  academicYear: z.string(),
+  overallScore: z.number(),
+  overallStatus: z.enum(["Compliant", "Action Required", "Deficient"]),
+  kpis: z.array(Kpi),
+  complianceDistribution: ChartSpec,
+  departmentComparison: ChartSpec,
+  norms: z.array(AicteNormItem),
+  departments: z.array(AicteDepartmentCompliance),
+  committees: z.array(AicteCommittee),
+  actions: z.array(AicteActionItem),
+  strengths: z.array(z.string()),
+  deficiencies: z.array(z.string()),
+  availableFaculty: z.array(z.string()),
+  mandatoryDisclosureUrl: z.string(),
+});
+export type AicteComplianceData = z.infer<typeof AicteComplianceData>;
+
+export const CreateAicteActionInput = z.object({
+  title: z.string().min(2, "Title is required"),
+  category: z.string().min(2, "Category is required"),
+  priority: z.enum(["High", "Medium", "Low"]),
+  assignedTo: z.string().min(2, "Assignee is required"),
+  dueDate: z.string().min(4, "Due date is required"),
+  notes: z.string().max(500).default(""),
+});
+export type CreateAicteActionInput = z.infer<typeof CreateAicteActionInput>;
+
+export const UpdateAicteActionStatusInput = z.object({
+  actionId: z.string().min(1, "Action ID is required"),
+  status: z.enum(["Open", "In Progress", "Resolved"]),
+});
+export type UpdateAicteActionStatusInput = z.infer<typeof UpdateAicteActionStatusInput>;
+
+
 

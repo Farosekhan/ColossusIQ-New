@@ -18,9 +18,10 @@ import { moduleData } from "./module-data";
 import { createClub, deleteClub, getClubsOverview, toggleJoinClub, updateClub } from "./clubs";
 import { createSport, deleteSport, getSportsOverview, toggleRegisterTrial, updateSport } from "./sports";
 import { createCalendarItem, deleteCalendarItem, getCalendarOverview, syncCampusEvents, updateCalendarItem } from "./academic-calendar";
-import { CreateCalendarItemInput, CreateClubInput, CreateInterventionInput, CreateSportInput, CreateSupportActionInput, UpdateReviewStatusInput } from "@/lib/api/schemas";
+import { CreateCalendarItemInput, CreateClubInput, CreateInterventionInput, CreateSportInput, CreateSupportActionInput, UpdateReviewStatusInput, CreateAicteActionInput, UpdateAicteActionStatusInput } from "@/lib/api/schemas";
 import { createIntervention, getDepartmentSkillsOverview } from "./department-skills";
 import { createSupportAction, getEarlyWarningOverview, updateReviewStatus } from "./early-warning";
+import { createAicteAction, getAicteComplianceOverview, updateAicteActionStatus } from "./aicte-compliance";
 import { dispatchRecords } from "./records-router";
 import { dispatchLearning } from "./learning";
 import { dispatchCourses } from "./course-builder";
@@ -125,6 +126,9 @@ const PATTERNS = [
   "GET early-warning",
   "POST early-warning/interventions",
   "PATCH early-warning/reviews/:id",
+  "GET aicte-compliance",
+  "POST aicte-compliance/actions",
+  "PATCH aicte-compliance/actions/:id",
   "GET notifications",
   "GET search",
   "GET home/:id",
@@ -284,6 +288,23 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
       const parsed = UpdateReviewStatusInput.safeParse({ ...(typeof rawBody === "object" && rawBody !== null ? rawBody : {}), studentId });
       if (!parsed.success) return err(400, "invalid_body", parsed.error.issues[0]?.message ?? "Invalid review status payload.");
       return ok(await updateReviewStatus(session, parsed.data));
+    }
+    case "GET aicte-compliance": {
+      if (session.role !== "institution" && session.role !== "admin" && session.role !== "hod") return forbidden();
+      return ok(await getAicteComplianceOverview(session));
+    }
+    case "POST aicte-compliance/actions": {
+      if (session.role !== "institution" && session.role !== "admin" && session.role !== "hod") return forbidden();
+      const parsed = CreateAicteActionInput.safeParse(rawBody);
+      if (!parsed.success) return err(400, "invalid_body", parsed.error.issues[0]?.message ?? "Invalid action payload.");
+      return ok(await createAicteAction(session, parsed.data));
+    }
+    case "PATCH aicte-compliance/actions/:id": {
+      if (session.role !== "institution" && session.role !== "admin" && session.role !== "hod") return forbidden();
+      const actionId = found.id ?? segs[2] ?? "";
+      const parsed = UpdateAicteActionStatusInput.safeParse({ ...(typeof rawBody === "object" && rawBody !== null ? rawBody : {}), actionId });
+      if (!parsed.success) return err(400, "invalid_body", parsed.error.issues[0]?.message ?? "Invalid action status payload.");
+      return ok(await updateAicteActionStatus(session, parsed.data));
     }
 
     /* ── session & shell ── */
