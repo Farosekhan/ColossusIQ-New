@@ -18,7 +18,9 @@ import { moduleData } from "./module-data";
 import { createClub, deleteClub, getClubsOverview, toggleJoinClub, updateClub } from "./clubs";
 import { createSport, deleteSport, getSportsOverview, toggleRegisterTrial, updateSport } from "./sports";
 import { createCalendarItem, deleteCalendarItem, getCalendarOverview, syncCampusEvents, updateCalendarItem } from "./academic-calendar";
-import { CreateCalendarItemInput, CreateClubInput, CreateSportInput } from "@/lib/api/schemas";
+import { CreateCalendarItemInput, CreateClubInput, CreateInterventionInput, CreateSportInput, CreateSupportActionInput, UpdateReviewStatusInput } from "@/lib/api/schemas";
+import { createIntervention, getDepartmentSkillsOverview } from "./department-skills";
+import { createSupportAction, getEarlyWarningOverview, updateReviewStatus } from "./early-warning";
 import { dispatchRecords } from "./records-router";
 import { dispatchLearning } from "./learning";
 import { dispatchCourses } from "./course-builder";
@@ -119,6 +121,11 @@ const PATTERNS = [
   "GET colleges/options",
   "GET staff/faculty-options",
   "GET analytics/bi",
+  "GET department-skills",
+  "POST department-skills/interventions",
+  "GET early-warning",
+  "POST early-warning/interventions",
+  "PATCH early-warning/reviews/:id",
   "GET notifications",
   "GET search",
   "GET home/:id",
@@ -245,6 +252,39 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
       if (session.role !== "institution" && session.role !== "admin") return forbidden();
       const targetCollege = query.get("college") || (session.college !== ALL_COLLEGES ? session.college : undefined);
       return ok(await dynamicBiAnalytics(session, targetCollege));
+    }
+    case "GET department-skills": {
+      if (session.role !== "institution" && session.role !== "hod" && session.role !== "admin") return forbidden();
+      const dept = query.get("department") || "all";
+      const batch = query.get("batch") || "all";
+      const domain = query.get("domain") || "all";
+      return ok(await getDepartmentSkillsOverview(session, dept, batch, domain));
+    }
+    case "POST department-skills/interventions": {
+      if (session.role !== "institution" && session.role !== "hod" && session.role !== "admin") return forbidden();
+      const parsed = CreateInterventionInput.safeParse(rawBody);
+      if (!parsed.success) return err(400, "invalid_body", parsed.error.issues[0]?.message ?? "Invalid intervention payload.");
+      return ok(await createIntervention(session, parsed.data));
+    }
+    case "GET early-warning": {
+      if (session.role !== "institution" && session.role !== "hod" && session.role !== "faculty" && session.role !== "admin") return forbidden();
+      const dept = query.get("department") || "all";
+      const riskLevel = query.get("riskLevel") || "all";
+      const q = query.get("q") || "";
+      return ok(await getEarlyWarningOverview(session, dept, riskLevel, q));
+    }
+    case "POST early-warning/interventions": {
+      if (session.role !== "institution" && session.role !== "hod" && session.role !== "faculty" && session.role !== "admin") return forbidden();
+      const parsed = CreateSupportActionInput.safeParse(rawBody);
+      if (!parsed.success) return err(400, "invalid_body", parsed.error.issues[0]?.message ?? "Invalid support action payload.");
+      return ok(await createSupportAction(session, parsed.data));
+    }
+    case "PATCH early-warning/reviews/:id": {
+      if (session.role !== "institution" && session.role !== "hod" && session.role !== "faculty" && session.role !== "admin") return forbidden();
+      const studentId = found.id ?? segs[2] ?? "";
+      const parsed = UpdateReviewStatusInput.safeParse({ ...(typeof rawBody === "object" && rawBody !== null ? rawBody : {}), studentId });
+      if (!parsed.success) return err(400, "invalid_body", parsed.error.issues[0]?.message ?? "Invalid review status payload.");
+      return ok(await updateReviewStatus(session, parsed.data));
     }
 
     /* ── session & shell ── */

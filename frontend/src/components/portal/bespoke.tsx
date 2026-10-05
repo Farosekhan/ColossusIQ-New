@@ -32,9 +32,13 @@ import { ReportsModule } from "./bespoke/reports";
 import { KnowledgeBaseModule } from "./bespoke/knowledge-base";
 import { StudentsModule } from "./bespoke/students";
 import { DepartmentFacultyModule } from "./bespoke/department-faculty";
+import { DepartmentSkillsModule } from "./bespoke/department-skills";
+import { EarlyWarningModule } from "./bespoke/early-warning";
 import { AssignmentsModule } from "./bespoke/assignments";
 
 const BESPOKE: Record<string, (props: { role: Role }) => React.ReactNode> = {
+  "early-warning": ({ role }) => <EarlyWarningModule role={role} />,
+  "department-skills": ({ role }) => <DepartmentSkillsModule role={role} />,
   "department-faculty": ({ role }) => <DepartmentFacultyModule role={role} />,
   students: ({ role }) => <StudentsModule role={role} />,
   "knowledge-base": ({ role }) => <KnowledgeBaseModule role={role} />,
