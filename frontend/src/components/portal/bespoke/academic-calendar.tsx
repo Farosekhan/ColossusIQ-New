@@ -136,6 +136,7 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
       qc.invalidateQueries({ queryKey: ["academic-calendar"] });
       setEditingItem(null);
       resetForm();
+      setShowAddModal(false);
       showToast(`Updated "${item.title}"`);
     },
     onError: (err) => {
@@ -237,20 +238,18 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
     }
   };
 
-  const items = data?.items;
-
   const departments = useMemo(() => {
-    if (!items) return ["All Departments"];
+    if (!data?.items) return ["All Departments"];
     const set = new Set<string>();
-    for (const it of items) {
+    for (const it of data.items) {
       if (it.department) set.add(it.department);
     }
     return ["All Departments", ...Array.from(set).filter((d) => d !== "All Departments").sort()];
-  }, [items]);
+  }, [data?.items]);
 
   const filteredItems = useMemo(() => {
-    if (!items) return [];
-    return items.filter((it) => {
+    if (!data?.items) return [];
+    return data.items.filter((it) => {
       const matchSearch =
         search === "" ||
         it.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -263,10 +262,11 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
 
       return matchSearch && matchTag && matchDept;
     });
-  }, [items, search, selectedTag, selectedDept]);
+  }, [data?.items, search, selectedTag, selectedDept]);
 
   // Group items into Timeline sections: This Week, Next 30 Days, Upcoming Milestones, Completed
   const timelineGroups = useMemo(() => {
+    const todayStr = "2026-10-01"; // Reference simulation date
     const thisWeek: AcademicCalendarItem[] = [];
     const next30Days: AcademicCalendarItem[] = [];
     const laterSemester: AcademicCalendarItem[] = [];
@@ -298,7 +298,7 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
   const handleExportICS = () => {
     if (!data?.items || data.items.length === 0) return;
 
-    const icsContent = [
+    let icsContent = [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
       "PRODID:-//ColossusIQ//Academic Calendar//EN",
@@ -993,7 +993,7 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
                         <button
                           key={c.tag}
                           type="button"
-                          onClick={() => setFormTag(c.tag as AcademicCalendarItem["tag"])}
+                          onClick={() => setFormTag(c.tag as any)}
                           className={cn(
                             "flex flex-col items-start rounded-xl border p-2.5 text-left transition-all",
                             isSelected

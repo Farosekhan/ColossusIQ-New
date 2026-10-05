@@ -201,6 +201,48 @@ export const EvaluationResult = z.object({
 export type EvaluationResult = z.infer<typeof EvaluationResult>;
 
 /* ── Student ─────────────────────────────────────── */
+export const EnrolledSubjectSchema = z.object({
+  code: z.string(),
+  title: z.string(),
+  shortName: z.string(),
+  credits: z.number(),
+  facultyName: z.string(),
+  facultyDesignation: z.string().optional(),
+  semester: z.number(),
+  attendancePercent: z.number(),
+  ia1Marks: z.number(),
+  ia2Marks: z.number(),
+  semesterProgress: z.number(),
+  units: z.array(
+    z.object({
+      id: z.string(),
+      unit: z.string(),
+      title: z.string(),
+      mastery: z.number(),
+    })
+  ),
+});
+export type EnrolledSubjectSchema = z.infer<typeof EnrolledSubjectSchema>;
+
+export const StudentAcademicProfile = z.object({
+  studentId: z.string(),
+  name: z.string(),
+  rollNo: z.string(),
+  degree: z.string(),
+  department: z.string(),
+  departmentCode: z.string(),
+  semester: z.number(),
+  section: z.string(),
+  stream: z.string(),
+  cgpa: z.number(),
+  creditsEarned: z.number(),
+  totalCredits: z.number(),
+  streakDays: z.number(),
+  xp: z.number(),
+  enrolledSubjects: z.array(EnrolledSubjectSchema),
+});
+export type StudentAcademicProfile = z.infer<typeof StudentAcademicProfile>;
+
 export const StudentDashboard = z.object({
   name: z.string(),
   priorities: z.number(),

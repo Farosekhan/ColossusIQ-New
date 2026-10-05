@@ -87,7 +87,7 @@ export const MODULES: ModuleDef[] = [
   { slug: "class-notes", title: "Class Notes", description: "Class summaries, homework, resources and infographic handouts shared by your faculty after each class.", group: "Academics", roles: ["student"], template: "bespoke", icon: "notebook", phase: "MVP" },
   { slug: "course-management", title: "Course Management", description: "Create, edit and retire courses — code, credits, semester and assigned faculty.", group: "Academics", roles: ["faculty", "hod", "institution", "admin"], template: "crud", resource: "courses", icon: "book", phase: "MVP" },
   { slug: "academic-calendar", title: "Academic Calendar", description: "Semester schedule, internal assessments, holidays and exam windows.", group: "Academics", roles: ["student", ...ALL_STAFF], template: "calendar", icon: "calendar", phase: "MVP" },
-  { slug: "assignments", title: "Assignments", description: "Create, distribute and track assignments and lab submissions.", group: "Academics", roles: ["student", "faculty"], template: "list", icon: "clipboard", phase: "MVP" },
+  { slug: "assignments", title: "Assignments", description: "Create, distribute and track assignments and lab submissions.", group: "Academics", roles: ["student", "faculty"], template: "bespoke", icon: "clipboard", phase: "MVP" },
   { slug: "document-ai", title: "Document AI", description: "Upload PDFs, slides or scanned notes — summarise, extract, generate flashcards and questions.", group: "Academics", roles: ["student", "faculty"], template: "generator", icon: "file", phase: "Phase 2", agent: "document" },
 
   { slug: "cbcs-electives", title: "CBCS & Electives", description: "Choice-based credit system: core, allied, skill-enhancement and elective choices with credit tracking.", group: "Academics", roles: ["student", "faculty", "hod", "institution"], template: "list", icon: "list", phase: "MVP", streams: ["artsScience", "management"] },
@@ -161,7 +161,7 @@ export const MODULES: ModuleDef[] = [
   { slug: "class-analytics", title: "Class Performance", description: "Topic-wise mastery, remedial recommendations and at-risk signals for your classes.", group: "Faculty", roles: ["faculty"], template: "dashboard", icon: "chart", phase: "MVP" },
 
   // ───────────── Department (HOD) ─────────────
-  { slug: "department-faculty", title: "Faculty", description: "Faculty load, development progress and AI adoption.", group: "Department", roles: ["hod"], template: "list", icon: "users", phase: "MVP" },
+  { slug: "department-faculty", title: "Faculty", description: "Faculty load, development progress and AI adoption.", group: "Department", roles: ["hod"], template: "bespoke", icon: "users", phase: "MVP" },
   { slug: "department-academics", title: "Academic Performance", description: "Subject-wise pass rates, averages and failure patterns.", group: "Department", roles: ["hod"], template: "dashboard", icon: "chart", phase: "MVP" },
   { slug: "department-skills", title: "Skill Intelligence", description: "Skill distribution and gaps across batches versus industry demand.", group: "Department", roles: ["hod", "institution"], template: "bespoke", icon: "graph", phase: "Phase 2" },
   { slug: "department-labs", title: "Department Portal", description: "Department-specific labs and modules — coding lab, CAD, circuits, GIS, case studies.", group: "Department", roles: ["hod", "student"], template: "gallery", icon: "layers", phase: "Phase 2" },

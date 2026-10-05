@@ -30,10 +30,13 @@ import { AcademicCalendarModule } from "./bespoke/academic-calendar";
 import { EventGeneratorModule } from "./bespoke/event-generator";
 import { ReportsModule } from "./bespoke/reports";
 import { KnowledgeBaseModule } from "./bespoke/knowledge-base";
-import { DepartmentSkillsModule } from "./bespoke/department-skills";
+import { StudentsModule } from "./bespoke/students";
+import { DepartmentFacultyModule } from "./bespoke/department-faculty";
+import { AssignmentsModule } from "./bespoke/assignments";
 
 const BESPOKE: Record<string, (props: { role: Role }) => React.ReactNode> = {
-  "department-skills": ({ role }) => <DepartmentSkillsModule role={role} />,
+  "department-faculty": ({ role }) => <DepartmentFacultyModule role={role} />,
+  students: ({ role }) => <StudentsModule role={role} />,
   "knowledge-base": ({ role }) => <KnowledgeBaseModule role={role} />,
   reports: ({ role }) => <ReportsModule role={role} />,
   "event-generator": ({ role }) => <EventGeneratorModule role={role} />,
@@ -63,7 +66,9 @@ const BESPOKE: Record<string, (props: { role: Role }) => React.ReactNode> = {
   "teaching-studio": () => <TeachingStudioModule />,
   "skill-booster": ({ role }) => <SkillBoosterModule role={role} />,
   "class-notes": () => <ClassNotesModule />,
+  assignments: ({ role }) => <AssignmentsModule role={role} />,
 };
+
 
 export function hasBespoke(slug: string): boolean {
   return slug in BESPOKE;

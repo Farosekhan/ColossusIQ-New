@@ -43,7 +43,7 @@ export async function runInTransaction<T>(ctx: RequestContext, fn: () => Promise
       const all = ctx.scope === "all";
       let collegeUuid: string | null = null;
       if (!all) {
-        const rows = await tx.$queryRaw<Array<{ id: string }>>`SELECT id::text FROM colleges WHERE public_id = ${ctx.scope}`;
+        const rows = await tx.$queryRaw<Array<{ id: string }>>`SELECT id::text FROM colleges WHERE public_id = ${ctx.scope} OR id::text = ${ctx.scope} OR name = ${ctx.scope}`;
         collegeUuid = rows[0]?.id ?? NO_COLLEGE;
       }
       const userUuid = ctx.sub && UUID.test(ctx.sub) ? ctx.sub : null;

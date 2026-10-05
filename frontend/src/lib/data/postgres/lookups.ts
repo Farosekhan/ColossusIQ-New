@@ -135,6 +135,10 @@ export function refOf(media: { publicId: string } | null | undefined, builtin: s
 export const day = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : "");
 export const toDay = (s: unknown) => new Date(`${String(s)}T00:00:00Z`);
 export const hhmm = (d: Date) => d.toISOString().slice(11, 16);
-export const toTime = (s: unknown) => new Date(`1970-01-01T${String(s)}:00Z`);
+export const toTime = (s: unknown) => {
+  const str = String(s || "").trim();
+  const timePart = str.length === 5 ? `${str}:00` : str.length >= 8 ? str.slice(0, 8) : "00:00:00";
+  return new Date(`1970-01-01T${timePart}Z`);
+};
 export const num = (v: unknown): number | null => (v === null || v === undefined || v === "" ? null : Number(v));
 export const text = (v: unknown): string | null => (typeof v === "string" && v.trim() !== "" ? v : null);

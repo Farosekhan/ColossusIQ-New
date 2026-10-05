@@ -10,6 +10,7 @@ export type DataBackend = "memory" | "postgres";
 
 /** Which store the API uses: DATA_BACKEND=postgres (needs DATABASE_URL), otherwise the in-memory demo. */
 export function dataBackend(): DataBackend {
+  if (process.env.VITEST || process.env.NODE_ENV === "test") return "memory";
   return process.env.DATA_BACKEND === "postgres" ? "postgres" : "memory";
 }
 

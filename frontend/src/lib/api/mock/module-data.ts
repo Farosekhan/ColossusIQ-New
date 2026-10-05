@@ -27,6 +27,8 @@ import { getDepartmentSkillsOverview } from "./department-skills";
 import { getCollegeClubs } from "./clubs";
 import { getCollegeSports } from "./sports";
 import { getCollegeCalendar } from "./academic-calendar";
+import { getStudentsList } from "./students-store";
+import { generateDynamicExamPrep, generateDynamicSkillGraph, getStudentAcademicProfile } from "./student-profile";
 
 /** Live data a builder may need, fetched once per request. */
 interface ScopeData {
@@ -144,24 +146,61 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
   "naac-readiness": naacReadiness,
   "aicte-compliance": aicteCompliance,
   "cbcs-electives": (_scope, live) => cbcsElectives(live.stream),
-  "academic-tracker": () =>
-    dashboard(
-      [k("CGPA", "8.21", "+0.14 this sem", "teal"), k("Attendance", "87%", "Above 75% requirement", "teal"), k("Internal avg.", "71%", "−3% vs last IA", "amber"), k("Credits earned", "96 / 160", undefined, "brand")],
+  "academic-tracker": async (collegeScope) => {
+    const profile = await getStudentAcademicProfile({ college: collegeScope, sub: "demo-student" });
+    const subjects = profile.enrolledSubjects;
+
+    const avgAttendance = Math.round(
+      subjects.reduce((sum, s) => sum + s.attendancePercent, 0) / (subjects.length || 1)
+    );
+    const avgInternal = Math.round(
+      subjects.reduce((sum, s) => sum + (s.ia1Marks + s.ia2Marks) / 2, 0) / (subjects.length || 1)
+    );
+
+    const internalData = subjects.map((s) => ({
+      name: s.shortName,
+      IA1: s.ia1Marks,
+      IA2: s.ia2Marks,
+    }));
+
+    const progressData = subjects.map((s) => ({
+      name: s.shortName,
+      Progress: s.semesterProgress,
+      Target: 75,
+    }));
+
+    const sorted = [...subjects].sort((a, b) => a.ia2Marks - b.ia2Marks);
+    const lowest = sorted[0] || subjects[0]!;
+    const highest = sorted[sorted.length - 1] || subjects[0]!;
+
+    return dashboard(
       [
-        chart("bar", "Subject-wise internal marks (%)", cats("acad", ["DBMS", "OS", "CN", "Python", "ML"], ["IA1", "IA2"], 70, 30), ["IA1", "IA2"]),
-        chart("line", "Semester progress", trend("acad-t", ["Progress", "Target"], 50, 12), ["Progress", "Target"]),
+        k("CGPA", profile.cgpa.toFixed(2), "+0.14 this sem", "teal"),
+        k("Attendance", `${avgAttendance}%`, "Above 75% requirement", "teal"),
+        k("Internal avg.", `${avgInternal}%`, avgInternal >= 70 ? "+2% vs target" : "−3% vs target", avgInternal >= 70 ? "teal" : "amber"),
+        k("Credits earned", `${profile.creditsEarned} / ${profile.totalCredits}`, undefined, "brand"),
       ],
-      [ins("DBMS needs attention", "Your IA2 DBMS score dropped 11 points, mostly in normalization questions.", "IA1 72% → IA2 61% · 4 of 5 lost marks in Unit 3", "amber"), ins("Python is a strength", "You are in the top 15% of your section for Python.", "Section rank 9 / 64", "teal")],
-    ),
-  "exam-prep": () =>
-    dashboard(
-      [k("Next exam", "9 days", "DBMS IA-II", "amber"), k("Syllabus covered", "62%", "+8% this week", "brand"), k("Mock tests taken", "7", "3 this week", "teal"), k("Predicted band", "B+ to A", "AI estimate", "sky", "Estimate only — based on mock performance")],
       [
-        chart("bar", "Topic mastery (%)", cats("exam", ["ER model", "Rel. algebra", "SQL", "FDs", "Normalization", "Transactions"], ["Mastery"], 62, 50), ["Mastery"]),
-        chart("area", "Daily study minutes", trend("exam-m", ["Minutes"], 90, 60, ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]), ["Minutes"]),
+        chart("bar", "Subject-wise internal marks (%)", internalData, ["IA1", "IA2"]),
+        chart("line", "Syllabus progress vs Target (%)", progressData, ["Progress", "Target"]),
       ],
-      [ins("Remediation plan", "Normalization and transactions account for 60% of your lost marks. Prioritise them over the next 4 days.", "Last 3 mocks · 14 of 23 wrong answers", "amber"), ins("Last-minute mode unlocks", "Two days before the exam, your plan switches to quick-revision cards and one full-length mock.", "Configured by Study Planner Agent")],
-    ),
+      [
+        ins(
+          `${lowest.shortName} needs attention`,
+          `Your IA2 ${lowest.shortName} score is ${lowest.ia2Marks}%, with lost marks mainly in ${lowest.units[2]?.title || "Unit 3"}.`,
+          `IA1 ${lowest.ia1Marks}% → IA2 ${lowest.ia2Marks}% · ${lowest.facultyName}`,
+          "amber"
+        ),
+        ins(
+          `${highest.shortName} is a strength`,
+          `You are excelling in ${highest.title} with consistent performance across assessments.`,
+          `Current internal score: ${highest.ia2Marks}% · Section top percentile`,
+          "teal"
+        ),
+      ],
+    );
+  },
+  "exam-prep": (collegeScope) => generateDynamicExamPrep(collegeScope),
   "class-analytics": () =>
     dashboard(
       [k("Class average", "68%", "+4% vs IA1", "teal"), k("At-risk students", "6", "Review suggested", "amber"), k("Assignments pending", "11", undefined, "brand"), k("AI-assisted lessons", "14", "This semester", "sky")],
@@ -222,7 +261,18 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
       "status", "Add course"),
   assignments: () =>
     list([col("title", "Assignment"), col("course", "Course"), col("due", "Due"), col("submitted", "Submitted", "progress"), col("status", "Status", "badge")],
-      rows(8, "asg", (i, r) => ({ title: pick(["ER diagram for library system", "SQL joins worksheet", "Scheduler simulation", "Subnetting problems", "Linear regression notebook", "Normalization case study", "Banker's algorithm trace", "Mini-project proposal"], () => (i + 0.5) / 8), course: pick(["DBMS", "OS", "CN", "ML"], r), due: `Oct ${2 + i * 3}`, submitted: Math.round(40 + r() * 60), status: i < 3 ? "Closed" : i < 6 ? "Open" : "Draft" })),
+      [
+        { title: "AI & Neural Networks Lab Assignment", course: "ML", due: "Nov 18", submitted: 0, status: "Open" },
+        { title: "Process Scheduling Simulation", course: "OS", due: "Nov 02", submitted: 0, status: "Open" },
+        { title: "ER diagram for library system", course: "ML", due: "Oct 2", submitted: 80, status: "Closed" },
+        { title: "SQL joins worksheet", course: "CN", due: "Oct 5", submitted: 58, status: "Closed" },
+        { title: "Scheduler simulation", course: "CN", due: "Oct 8", submitted: 61, status: "Closed" },
+        { title: "Subnetting problems", course: "DBMS", due: "Oct 11", submitted: 100, status: "Open" },
+        { title: "Linear regression notebook", course: "OS", due: "Oct 14", submitted: 53, status: "Open" },
+        { title: "Normalization case study", course: "DBMS", due: "Oct 17", submitted: 80, status: "Open" },
+        { title: "Banker's algorithm trace", course: "ML", due: "Oct 20", submitted: 77, status: "Draft" },
+        { title: "Mini-project proposal", course: "OS", due: "Oct 23", submitted: 69, status: "Draft" },
+      ],
       "status", "New assignment"),
   "team-finder": () =>
     list([col("name", "Student"), col("dept", "Department"), col("skills", "Skills"), col("looking", "Interested in"), col("match", "Match", "progress")],
@@ -278,10 +328,30 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
     list([col("section", "Section"), col("course", "Course"), col("students", "Students", "number"), col("attendance", "Attendance", "progress"), col("avg", "Avg. score", "progress"), col("next", "Next class")],
       [["CSE-A · Sem 5", "DBMS", 64, 88, 68, "Today 09:00"], ["CSE-B · Sem 5", "DBMS", 62, 84, 64, "Today 14:00"], ["AI&DS · Sem 5", "DBMS Lab", 58, 91, 74, "Tomorrow 10:00"], ["CSE-A · Sem 7", "Advanced Databases", 60, 79, 71, "Thu 11:00"]].map(([section, course, students, attendance, avg, next]) => ({ section: section as string, course: course as string, students: students as number, attendance: attendance as number, avg: avg as number, next: next as string })),
       undefined, "Take attendance"),
-  students: () =>
-    list([col("name", "Student"), col("roll", "Roll no.", "masked"), col("section", "Section"), col("cgpa", "CGPA", "number"), col("readiness", "Career readiness", "progress"), col("signal", "Support signal", "badge")],
-      rows(12, "stu", (i, r) => ({ name: personName(i), roll: `21CS${String(1001 + i * 13)}`, section: pick(["CSE-A", "CSE-B", "AI&DS"], r), cgpa: Math.round((6.2 + r() * 3.6) * 100) / 100, readiness: Math.round(35 + r() * 60), signal: r() > 0.8 ? "Review suggested" : "None" })),
-      "section", "Import students"),
+  students: async (collegeScope) => {
+    const all = await getStudentsList({ collegeId: collegeScope });
+    return list(
+      [
+        col("name", "Student"),
+        col("roll", "Roll no.", "masked"),
+        col("section", "Section"),
+        col("cgpa", "CGPA", "number"),
+        col("readiness", "Career readiness", "progress"),
+        col("signal", "Support signal", "badge"),
+      ],
+      all.map((s) => ({
+        id: s.id,
+        name: s.name,
+        roll: s.roll,
+        section: s.section,
+        cgpa: s.cgpa,
+        readiness: s.readiness,
+        signal: s.signal,
+      })),
+      "section",
+      "Import students"
+    );
+  },
   "early-warning": () =>
     list([col("student", "Student"), col("roll", "Roll no.", "masked"), col("signals", "Signals observed"), col("since", "Since"), col("recommendation", "Support recommendation"), col("status", "Review", "badge")],
       rows(7, "ew", (i, r) => ({ student: personName(i + 5), roll: `21CS${String(1100 + i * 17)}`, signals: pick(["Declining scores (3 assessments)", "Missed 4 assignments", "Reduced engagement (−60%)", "Repeated failed quizzes in OS", "Skill stagnation for 6 weeks"], r), since: `${2 + Math.floor(r() * 5)} weeks`, recommendation: pick(["Faculty check-in", "Peer tutoring", "Counsellor conversation", "Remedial class"], r), status: pick(["Pending review", "In progress", "Resolved"], r) })),
@@ -416,8 +486,7 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
     ], 5),
 
   /* ── scorecards ── */
-  "skill-graph": () =>
-    score("Target: Data Scientist", [["Python", 78, 85], ["Statistics", 54, 80], ["SQL", 66, 85], ["Machine Learning", 41, 75], ["Data visualisation", 60, 75], ["Communication", 59, 75]], ["Python fundamentals are job-ready", "Consistent practice streak (12 days)"], ["Statistics: hypothesis testing", "ML: model evaluation", "SQL: window functions"], ["Statistics ch. 4–5 this week", "Kaggle beginner notebook", "SQL window-functions set"]),
+  "skill-graph": (collegeScope) => generateDynamicSkillGraph({ college: collegeScope, sub: "demo-student" }),
   "study-twin": () =>
     score("How you learn best", [["Learning pace", 72, 75], ["Retention (7-day)", 58, 75], ["Practice consistency", 81, 80], ["Revision discipline", 49, 70], ["Focus duration", 64, 70]], ["Visual explanations work best for you", "Most productive 7–9 AM"], ["Revision is often skipped on weekends", "Accuracy drops after 45 minutes"], ["Use 25-minute focus blocks", "Schedule spaced revision on Sat mornings", "Prefer diagrams in Tutor answers"]),
   career: () =>
@@ -432,26 +501,70 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
     score("AgriSoil Sense", [["Team", 72, 75], ["Problem validation", 81, 75], ["Product", 55, 70], ["Traction", 30, 60], ["Business model", 60, 70], ["Pitch", 66, 75]], ["Well-validated problem", "Complementary founding team"], ["No paying pilots yet", "Unit economics unproven"], ["Run paid pilot with one FPO", "Refine cost model", "Mentor pitch rehearsal"]),
 
   /* ── calendars ── */
-  "daily-plan": () => ({
-    template: "calendar",
-    days: [
-      { day: "Today", items: [
-        { time: "06:30", title: "Walk / exercise", tag: "Wellness", tone: "teal" },
-        { time: "09:00", title: "DBMS class", tag: "Class", tone: "brand" },
-        { time: "11:00", title: "Python practice", tag: "Study", tone: "sky" },
-        { time: "13:00", title: "Lunch + break", tag: "Break", tone: "neutral" },
-        { time: "15:00", title: "Project: Smart Campus AI", tag: "Project", tone: "gold" },
-        { time: "18:00", title: "Interview practice", tag: "Career", tone: "amber" },
-        { time: "21:00", title: "Revision: normalization (25 min)", tag: "Revision", tone: "sky" },
-      ] },
-      { day: "Tomorrow", items: [
-        { time: "09:00", title: "OS class", tag: "Class", tone: "brand" },
-        { time: "16:00", title: "Coding Club contest", tag: "Club", tone: "teal" },
-        { time: "20:00", title: "Mock test: deadlocks", tag: "Assessment", tone: "rose" },
-      ] },
-    ],
-    tips: ["Planner balances study with rest — you have 2 free blocks today.", "Class timings sync from the academic calendar."],
-  }),
+  "daily-plan": async (collegeScope) => {
+    const profile = await getStudentAcademicProfile({ college: collegeScope, sub: "demo-student" });
+    const subjects = profile.enrolledSubjects;
+
+    const s1 = subjects[0] || { shortName: "Class 1", facultyName: "Faculty", units: [] };
+    const s2 = subjects[1] || { shortName: "Class 2", facultyName: "Faculty", units: [] };
+    const s3 = subjects[2] || { shortName: "Class 3", facultyName: "Faculty", units: [] };
+    const s4 = subjects[3] || { shortName: "Class 4", facultyName: "Faculty", units: [] };
+
+    // Find weakest units for targeted revision
+    const allUnits: Array<{ subject: string; topic: string; mastery: number }> = [];
+    for (const s of subjects) {
+      for (const u of s.units) {
+        allUnits.push({ subject: s.shortName, topic: u.title, mastery: u.mastery });
+      }
+    }
+    allUnits.sort((a, b) => a.mastery - b.mastery);
+    const weakest1 = allUnits[0] || { subject: s1.shortName, topic: "Core Concepts", mastery: 50 };
+    const weakest2 = allUnits[1] || { subject: s2.shortName, topic: "Practice Problems", mastery: 55 };
+
+    const projectName =
+      profile.stream === "medical"
+        ? "ICMR-STS Research Project"
+        : profile.stream === "artsScience"
+        ? "Retail Payment Adoption Survey"
+        : profile.stream === "management"
+        ? "Consumer Strategy Case Study"
+        : profile.stream === "polytechnic"
+        ? "IoT Weather Board Hardware"
+        : "Smart Campus AI Project";
+
+    return {
+      template: "calendar",
+      days: [
+        {
+          day: "Today",
+          items: [
+            { time: "06:30", title: "Morning walk & hydration", tag: "Wellness", tone: "teal" },
+            { time: "09:00", title: `${s1.shortName} lecture: ${s1.units[0]?.title || "Lecture"} (${s1.facultyName.split(",")[0]})`, tag: "Class", tone: "brand" },
+            { time: "11:00", title: `${s2.shortName} classroom discussion (${s2.facultyName.split(",")[0]})`, tag: "Class", tone: "brand" },
+            { time: "13:00", title: "Lunch & relaxation break", tag: "Break", tone: "neutral" },
+            { time: "14:30", title: `${s3.shortName} laboratory / hands-on session`, tag: "Study", tone: "sky" },
+            { time: "16:30", title: `Project work: ${projectName}`, tag: "Project", tone: "gold" },
+            { time: "18:30", title: "Career & placement interview practice", tag: "Career", tone: "amber" },
+            { time: "21:00", title: `Targeted revision: ${weakest1.topic} (${weakest1.subject})`, tag: "Revision", tone: "sky" },
+          ],
+        },
+        {
+          day: "Tomorrow",
+          items: [
+            { time: "09:00", title: `${s3.shortName} class (${s3.facultyName.split(",")[0]})`, tag: "Class", tone: "brand" },
+            { time: "11:00", title: `${s4.shortName} class (${s4.facultyName.split(",")[0]})`, tag: "Class", tone: "brand" },
+            { time: "15:00", title: "Campus club activities & peer collaboration", tag: "Club", tone: "teal" },
+            { time: "17:30", title: "Sports practice & fitness", tag: "Sports", tone: "teal" },
+            { time: "20:30", title: `Adaptive practice mock test on ${weakest2.topic}`, tag: "Assessment", tone: "rose" },
+          ],
+        },
+      ],
+      tips: [
+        "Planner automatically integrates your department course timetable with spaced revision slots.",
+        `Top revision priority today: ${weakest1.topic} in ${weakest1.subject} (current mastery: ${weakest1.mastery}%).`,
+      ],
+    };
+  },
   "academic-calendar": (collegeScope = "all") => {
     const raw = getCollegeCalendar(collegeScope);
     const thisWeek = raw.filter((it) => it.date >= "2026-09-28" && it.date <= "2026-10-05");
@@ -695,7 +808,7 @@ function fallback(mod: ModuleDef): ModuleData {
   return dashboard([k("Status", mod.phase, undefined, "sky")], [], [ins(mod.title, mod.description, "Module configuration")]);
 }
 
-const STREAM_RELABEL = new Set(["academic-tracker", "exam-prep", "class-analytics", "department-academics"]);
+const STREAM_RELABEL = new Set(["class-analytics", "department-academics"]);
 
 export async function moduleData(slug: string, collegeScope = "all"): Promise<ModuleData | null> {
   const mod = findModule(slug);
