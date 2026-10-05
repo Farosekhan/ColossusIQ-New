@@ -18,7 +18,17 @@ import { moduleData } from "./module-data";
 import { createClub, deleteClub, getClubsOverview, toggleJoinClub, updateClub } from "./clubs";
 import { createSport, deleteSport, getSportsOverview, toggleRegisterTrial, updateSport } from "./sports";
 import { createCalendarItem, deleteCalendarItem, getCalendarOverview, syncCampusEvents, updateCalendarItem } from "./academic-calendar";
-import { CreateCalendarItemInput, CreateClubInput, CreateInterventionInput, CreateSportInput, CreateSupportActionInput, UpdateReviewStatusInput, CreateAicteActionInput, UpdateAicteActionStatusInput } from "@/lib/api/schemas";
+import {
+  CreateAicteActionInput,
+  CreateCalendarItemInput,
+  CreateClubInput,
+  CreateInterventionInput,
+  CreateSportInput,
+  CreateSupportActionInput,
+  EvaluationQueueItem,
+  UpdateAicteActionStatusInput,
+  UpdateReviewStatusInput,
+} from "@/lib/api/schemas";
 import { createIntervention, getDepartmentSkillsOverview } from "./department-skills";
 import { createSupportAction, getEarlyWarningOverview, updateReviewStatus } from "./early-warning";
 import { createAicteAction, getAicteComplianceOverview, updateAicteActionStatus } from "./aicte-compliance";
@@ -164,6 +174,8 @@ const PATTERNS = [
   "GET assessments/:id",
   "POST assessments/:id/submit",
   "POST ai/evaluate",
+  "POST evaluations/submit",
+  "GET evaluations/mine",
   "GET projects",
   "POST ai/chat",
   "POST ai/generate",
@@ -601,9 +613,37 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
     }
     case "POST ai/evaluate": {
       if (!can(session.role, "assessment:attempt") && !can(session.role, "assessment:create")) return forbidden();
-      const body = z.object({ answer: z.string().min(1).max(8000), testId: z.string().max(60), questionId: z.string().max(10), max: z.number().min(1).max(100) }).safeParse(rawBody);
+      const body = z
+        .object({
+          answer: z.string().min(1).max(8000),
+          testId: z.string().max(60).optional().default("custom-test"),
+          questionId: z.string().max(30).optional().default("q1"),
+          max: z.number().min(1).max(100),
+          questionText: z.string().max(1000).optional(),
+          expectedKeywords: z.array(z.string().max(80)).optional(),
+          rubric: z
+            .array(
+              z.object({
+                criterion: z.string().max(120),
+                max: z.number(),
+                keywords: z.array(z.string().max(80)).optional(),
+              }),
+            )
+            .optional(),
+        })
+        .safeParse(rawBody);
       if (!body.success) return err(400, "invalid_body", "Invalid request.");
-      return ok(evaluateDescriptive(body.data.testId, body.data.questionId, cleanText(body.data.answer, 8000), body.data.max));
+      return ok(
+        evaluateDescriptive(
+          body.data.testId,
+          body.data.questionId,
+          cleanText(body.data.answer, 8000),
+          body.data.max,
+          body.data.questionText ? cleanText(body.data.questionText, 1000) : undefined,
+          body.data.expectedKeywords,
+          body.data.rubric,
+        ),
+      );
     }
     case "GET projects":
       if (session.role !== "student" && session.role !== "faculty") return forbidden();
@@ -673,6 +713,63 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
       if (!item) return notFound();
       await audit(session.name, c === "approve" ? "Score approved" : "Score override", `${item.assessment} · ${item.rollNo}`, { collegeId: collegeOf(), actorSub: session.sub });
       return ok(item);
+    }
+    case "POST evaluations/submit": {
+      if (!can(session.role, "assessment:create") && !can(session.role, "assessment:override-score") && !can(session.role, "assessment:attempt")) return forbidden();
+      const SubmitEvalSchema = z.object({
+        id: z.string().optional(),
+        student: z.string().min(1).max(100),
+        rollNo: z.string().min(1).max(30),
+        assessment: z.string().min(1).max(120),
+        question: z.string().min(1).max(500),
+        answer: z.string().min(1).max(8000),
+        result: z.object({
+          score: z.number(),
+          max: z.number(),
+          confidence: z.number().min(0).max(1),
+          rubric: z.array(z.object({ criterion: z.string(), awarded: z.number(), max: z.number() })),
+          evidence: z.array(z.string()),
+          missing: z.array(z.string()),
+          feedback: z.string(),
+          reviewRequired: z.boolean(),
+        }),
+        status: z.enum(["pending", "approved", "overridden"]).optional().default("approved"),
+        finalScore: z.number().nullable().optional(),
+        sheetUrl: z.string().optional().nullable(),
+        sheetName: z.string().optional().nullable(),
+        facultyRemarks: z.string().optional().nullable(),
+      });
+      const parsed = SubmitEvalSchema.safeParse(rawBody);
+      if (!parsed.success) return err(400, "invalid_body", "Invalid submission data.");
+      const item: EvaluationQueueItem = {
+        id: parsed.data.id || `ev-${Date.now().toString(36)}`,
+        student: cleanText(parsed.data.student, 100),
+        rollNo: cleanText(parsed.data.rollNo, 30),
+        assessment: cleanText(parsed.data.assessment, 120),
+        question: cleanText(parsed.data.question, 500),
+        answer: cleanText(parsed.data.answer, 8000),
+        result: parsed.data.result,
+        status: parsed.data.status ?? "approved",
+        finalScore: parsed.data.finalScore !== undefined ? parsed.data.finalScore : parsed.data.result.score,
+        sheetUrl: parsed.data.sheetUrl ?? null,
+        sheetName: parsed.data.sheetName ?? null,
+        facultyRemarks: parsed.data.facultyRemarks ? cleanText(parsed.data.facultyRemarks, 500) : null,
+        evaluatedAt: new Date().toISOString(),
+      };
+      const addFn = getStore().evaluations.add;
+      if (addFn) {
+        await addFn(session, item);
+      }
+      await audit(session.name, "Handwritten evaluation saved", `${item.assessment} · ${item.rollNo}`, { collegeId: collegeOf(), actorSub: session.sub });
+      return ok(item);
+    }
+    case "GET evaluations/mine": {
+      if (!can(session.role, "assessment:attempt") && !can(session.role, "assessment:override-score")) return forbidden();
+      const forStudentFn = getStore().evaluations.forStudent;
+      if (forStudentFn) {
+        return ok(await forStudentFn(session));
+      }
+      return ok(await getStore().evaluations.queue(session));
     }
     case "GET audit/recent":
       if (!can(session.role, "audit:read") && !can(session.role, "assessment:override-score")) return forbidden();
