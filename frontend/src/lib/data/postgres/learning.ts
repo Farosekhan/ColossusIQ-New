@@ -163,11 +163,52 @@ export const pgCourses: CourseStore = {
     const t = db();
     const college = await collegeByPublic(course.collegeId);
     if (!college) throw new Error(`Unknown college ${course.collegeId}`);
-    const record = course.courseRecordId ? await t.course.findUnique({ where: { publicId: course.courseRecordId }, select: { id: true } }) : null;
-    const published = course.status === "Published";
+    let courseRecord = course.courseRecordId
+      ? await t.course.findUnique({ where: { publicId: course.courseRecordId }, select: { id: true } })
+      : null;
+    if (!courseRecord) {
+      courseRecord = await t.course.findFirst({
+        where: { collegeId: college.id, code: course.code },
+        select: { id: true },
+      });
+    }
+    const deptId = await lookupId("departments", college.stream, course.department);
+    const tId = await lookupId("terms", college.stream, course.semester);
+
+    if (!courseRecord) {
+      courseRecord = await t.course.create({
+        data: {
+          collegeId: college.id,
+          code: course.code,
+          title: clip(course.title, 100),
+          departmentId: deptId,
+          termId: tId,
+          credits: course.credits,
+          courseType: "Theory",
+          facultyName: clip(course.faculty, 80),
+          status: published ? "Active" : "Draft",
+          description: clip(course.summary, 600),
+        },
+        select: { id: true },
+      });
+    } else {
+      await t.course.update({
+        where: { id: courseRecord.id },
+        data: {
+          title: clip(course.title, 100),
+          departmentId: deptId,
+          termId: tId,
+          credits: course.credits,
+          facultyName: clip(course.faculty, 80),
+          status: published ? "Active" : "Draft",
+          description: clip(course.summary, 600),
+        },
+      });
+    }
+
     const cols = {
-      departmentId: await lookupId("departments", college.stream, course.department),
-      termId: await lookupId("terms", college.stream, course.semester),
+      departmentId: deptId,
+      termId: tId,
       code: course.code,
       title: clip(course.title, 100),
       level: enumValue("CourseLevel", course.level) as never,
@@ -178,7 +219,7 @@ export const pgCourses: CourseStore = {
       summary: clip(course.summary, 600),
       status: enumValue("PublishStatus", course.status) as never,
       publishedAt: published ? new Date(course.publishedAt ?? Date.now()) : null,
-      courseRecordId: record?.id ?? null,
+      courseRecordId: courseRecord.id,
       createdByName: course.createdBy,
       version: course.version,
     };

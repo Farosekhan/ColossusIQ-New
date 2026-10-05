@@ -155,3 +155,18 @@ describe("departments", () => {
     expect((await dispatch("POST", ["records", "departments"], { data: { department: "Civil Engineering" } }, session("student"), q)).status).toBe(403);
   });
 });
+
+describe("courses", () => {
+  const inst = session("institution");
+  it("lists courses for the college including creator information and department", async () => {
+    const res = await dispatch("GET", ["records", "courses"], undefined, inst, new URLSearchParams({ pageSize: "50" }));
+    expect(res.status).toBe(200);
+    const body = res.body as { items: Array<Record<string, unknown>>; total: number };
+    expect(body.total).toBeGreaterThan(0);
+    const first = body.items[0];
+    expect(first).toBeDefined();
+    expect(first?.department).toBeDefined();
+    expect(first?.createdBy).toBeDefined();
+  });
+});
+

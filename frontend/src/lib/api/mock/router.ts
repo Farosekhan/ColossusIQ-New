@@ -18,14 +18,20 @@ import { moduleData } from "./module-data";
 import { createClub, deleteClub, getClubsOverview, toggleJoinClub, updateClub } from "./clubs";
 import { createSport, deleteSport, getSportsOverview, toggleRegisterTrial, updateSport } from "./sports";
 import { createCalendarItem, deleteCalendarItem, getCalendarOverview, syncCampusEvents, updateCalendarItem } from "./academic-calendar";
-import { CreateCalendarItemInput, CreateClubInput, CreateSportInput } from "@/lib/api/schemas";
+import { CreateCalendarItemInput, CreateClubInput, CreateInterventionInput, CreateSportInput, CreateSupportActionInput, UpdateReviewStatusInput, CreateAicteActionInput, UpdateAicteActionStatusInput } from "@/lib/api/schemas";
+import { createIntervention, getDepartmentSkillsOverview } from "./department-skills";
+import { createSupportAction, getEarlyWarningOverview, updateReviewStatus } from "./early-warning";
+import { createAicteAction, getAicteComplianceOverview, updateAicteActionStatus } from "./aicte-compliance";
 import { dispatchRecords } from "./records-router";
 import { dispatchLearning } from "./learning";
 import { dispatchCourses } from "./course-builder";
 import { dispatchTeaching } from "./teaching";
+import { dispatchAssignments } from "./assignments";
 import { audit, recentAudit } from "./audit";
 import { createStudent, deleteStudent, getStudentsList, importStudents, updateStudent } from "./students-store";
 import { createFaculty, deleteFaculty, getFacultyList, updateFaculty } from "./faculty-store";
+import { generateDynamicStudentDashboard, getStudentAcademicProfile } from "./student-profile";
+import { getFacultyAllocationProfile } from "./faculty-allocation";
 
 export interface MockResult {
   status: number;
@@ -116,6 +122,14 @@ const PATTERNS = [
   "GET colleges/options",
   "GET staff/faculty-options",
   "GET analytics/bi",
+  "GET department-skills",
+  "POST department-skills/interventions",
+  "GET early-warning",
+  "POST early-warning/interventions",
+  "PATCH early-warning/reviews/:id",
+  "GET aicte-compliance",
+  "POST aicte-compliance/actions",
+  "PATCH aicte-compliance/actions/:id",
   "GET notifications",
   "GET search",
   "GET home/:id",
@@ -142,6 +156,7 @@ const PATTERNS = [
   "POST academic-calendar/sync-events",
   "POST security/revoke-sessions",
   "POST security/scan",
+  "GET students/me/profile",
   "GET students/me/dashboard",
   "GET courses",
   "GET courses/:id",
@@ -191,6 +206,7 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
   if (segs[0] === "questions" || segs[0] === "question-bank") return dispatchRecords(method, ["records", "questions", ...segs.slice(1)], rawBody, session, query);
   if (segs[0] === "learning-courses") return dispatchCourses(method, segs, rawBody, session, query);
   if (segs[0] === "teaching") return dispatchTeaching(method, segs, rawBody, session);
+  if (segs[0] === "assignments") return dispatchAssignments(method, segs, rawBody, session);
   if (LEARNING_AREAS.has(segs[0] ?? "")) return dispatchLearning(method, segs, rawBody, session, query);
   if (segs[0] === "students" && segs[1] !== "me") return dispatchStudents(method, segs, rawBody, session, query);
   if (segs[0] === "faculty") return dispatchFaculty(method, segs, rawBody, session, query);
@@ -240,6 +256,56 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
       if (session.role !== "institution" && session.role !== "admin") return forbidden();
       const targetCollege = query.get("college") || (session.college !== ALL_COLLEGES ? session.college : undefined);
       return ok(await dynamicBiAnalytics(session, targetCollege));
+    }
+    case "GET department-skills": {
+      if (session.role !== "institution" && session.role !== "hod" && session.role !== "admin") return forbidden();
+      const dept = query.get("department") || "all";
+      const batch = query.get("batch") || "all";
+      const domain = query.get("domain") || "all";
+      return ok(await getDepartmentSkillsOverview(session, dept, batch, domain));
+    }
+    case "POST department-skills/interventions": {
+      if (session.role !== "institution" && session.role !== "hod" && session.role !== "admin") return forbidden();
+      const parsed = CreateInterventionInput.safeParse(rawBody);
+      if (!parsed.success) return err(400, "invalid_body", parsed.error.issues[0]?.message ?? "Invalid intervention payload.");
+      return ok(await createIntervention(session, parsed.data));
+    }
+    case "GET early-warning": {
+      if (session.role !== "institution" && session.role !== "hod" && session.role !== "faculty" && session.role !== "admin") return forbidden();
+      const dept = query.get("department") || "all";
+      const riskLevel = query.get("riskLevel") || "all";
+      const q = query.get("q") || "";
+      return ok(await getEarlyWarningOverview(session, dept, riskLevel, q));
+    }
+    case "POST early-warning/interventions": {
+      if (session.role !== "institution" && session.role !== "hod" && session.role !== "faculty" && session.role !== "admin") return forbidden();
+      const parsed = CreateSupportActionInput.safeParse(rawBody);
+      if (!parsed.success) return err(400, "invalid_body", parsed.error.issues[0]?.message ?? "Invalid support action payload.");
+      return ok(await createSupportAction(session, parsed.data));
+    }
+    case "PATCH early-warning/reviews/:id": {
+      if (session.role !== "institution" && session.role !== "hod" && session.role !== "faculty" && session.role !== "admin") return forbidden();
+      const studentId = found.id ?? segs[2] ?? "";
+      const parsed = UpdateReviewStatusInput.safeParse({ ...(typeof rawBody === "object" && rawBody !== null ? rawBody : {}), studentId });
+      if (!parsed.success) return err(400, "invalid_body", parsed.error.issues[0]?.message ?? "Invalid review status payload.");
+      return ok(await updateReviewStatus(session, parsed.data));
+    }
+    case "GET aicte-compliance": {
+      if (session.role !== "institution" && session.role !== "admin" && session.role !== "hod") return forbidden();
+      return ok(await getAicteComplianceOverview(session));
+    }
+    case "POST aicte-compliance/actions": {
+      if (session.role !== "institution" && session.role !== "admin" && session.role !== "hod") return forbidden();
+      const parsed = CreateAicteActionInput.safeParse(rawBody);
+      if (!parsed.success) return err(400, "invalid_body", parsed.error.issues[0]?.message ?? "Invalid action payload.");
+      return ok(await createAicteAction(session, parsed.data));
+    }
+    case "PATCH aicte-compliance/actions/:id": {
+      if (session.role !== "institution" && session.role !== "admin" && session.role !== "hod") return forbidden();
+      const actionId = found.id ?? segs[2] ?? "";
+      const parsed = UpdateAicteActionStatusInput.safeParse({ ...(typeof rawBody === "object" && rawBody !== null ? rawBody : {}), actionId });
+      if (!parsed.success) return err(400, "invalid_body", parsed.error.issues[0]?.message ?? "Invalid action status payload.");
+      return ok(await updateAicteActionStatus(session, parsed.data));
     }
 
     /* ── session & shell ── */
@@ -469,9 +535,12 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
     }
 
     /* ── student ── */
+    case "GET students/me/profile":
+      if (session.role !== "student") return forbidden();
+      return ok(await getStudentAcademicProfile(session));
     case "GET students/me/dashboard":
       if (session.role !== "student") return forbidden();
-      return ok(studentDashboard(await collegeStream(session.college)));
+      return ok(await generateDynamicStudentDashboard(session));
     case "GET courses":
       if (session.role !== "student") return forbidden();
       return ok(studentCourses(await collegeStream(session.college)).map((course) => Object.fromEntries(Object.entries(course).filter(([key]) => key !== "topics"))));
@@ -513,6 +582,10 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
           answers.push({ questionId: q.id, correct: null, explanation: "Evaluated by the Answer Evaluation Agent — see rubric below." });
         }
       }
+      await audit(session.name, "Attempted assessment", `${test.title} · ${mcqScore}/${mcqMax} MCQ marks`, {
+        collegeId: session.college === ALL_COLLEGES ? null : session.college,
+        actorSub: session.sub,
+      });
       return ok({
         attemptId: `att-${Date.now().toString(36)}`,
         mcqScore,
@@ -721,6 +794,11 @@ async function dispatchFaculty(
   session: SessionPayload,
   query: URLSearchParams
 ): Promise<MockResult> {
+  // GET /faculty/me/allocations — faculty subject & section allocations
+  if (method === "GET" && segs.length === 3 && segs[1] === "me" && segs[2] === "allocations") {
+    return ok(await getFacultyAllocationProfile(session));
+  }
+
   // Only roles with department:manage or users:manage may manage faculty
   if (!can(session.role, "department:manage") && !can(session.role, "users:manage") && !can(session.role, "student:read-any")) {
     return forbidden();

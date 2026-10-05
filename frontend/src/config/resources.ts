@@ -252,11 +252,12 @@ export const RESOURCES: Record<string, ResourceDef> = {
     fields: [
       { name: "code", label: "Course code", type: "text", section: "Course details", required: true, maxLength: 10, pattern: { regex: "^[A-Z]{2,4}[0-9]{3,4}$", message: "Use a code like CS3492 or AN101" }, column: "text" },
       { name: "title", label: "Course title", type: "text", section: "Course details", required: true, maxLength: 100, column: "text", wide: true },
-      { name: "department", label: "Department", type: "select", section: "Course details", required: true, options: DEPARTMENT_OPTIONS, streamOptions: "department", wide: true },
+      { name: "department", label: "Department", type: "select", section: "Course details", required: true, options: DEPARTMENT_OPTIONS, streamOptions: "department", column: "text", wide: true },
       { name: "semester", label: "Semester / phase", type: "select", section: "Course details", required: true, options: ALL_TERMS, streamOptions: "semester", column: "text" },
       { name: "credits", label: "Credits", type: "number", section: "Course details", required: true, min: 1, max: 6, column: "number" },
       { name: "courseType", label: "Type", type: "select", section: "Delivery", required: true, options: ["Theory", "Lab", "Theory + Lab", "Elective", "Project", "Clinical posting", "Practical / skills lab"] },
       { name: "faculty", label: "Course faculty", type: "text", section: "Delivery", required: true, maxLength: 80, column: "text", lookup: "faculty" },
+      { name: "createdBy", label: "Created / Assigned by", type: "text", section: "Delivery", column: "text" },
       { name: "status", label: "Status", type: "select", section: "Delivery", required: true, options: ["Draft", "Active", "Archived"], defaultValue: "Draft", column: "badge" },
       { name: "description", label: "Course outcomes / description", type: "textarea", section: "Delivery", maxLength: 1500, wide: true },
     ],

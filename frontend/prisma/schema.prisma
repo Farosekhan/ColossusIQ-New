@@ -303,6 +303,7 @@ model College {
   updatedAt             DateTime               @default(now()) @map("updated_at") @db.Timestamptz(6)
   admissions            Admission[]
   auditLog              AuditLog[]
+  assignments           Assignment[]
   certificates          Certificate[]
   classSummaries        ClassSummary[]
   clinicalRotations     ClinicalRotation[]
@@ -825,6 +826,28 @@ model RoleAssignment {
   @@map("role_assignments")
 }
 
+model Assignment {
+  id         String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId   String           @unique @default(dbgenerated("('ASN-'::text || nextval('seq_assignment_public'::regclass))")) @map("public_id")
+  collegeId  String           @map("college_id") @db.Uuid
+  authorId   String?          @map("author_id") @db.Uuid
+  authorName String           @default("Faculty Member") @map("author_name")
+  title      String
+  course     String
+  due        String
+  submitted  Int              @default(0)
+  status     AssignmentStatus @default(Open)
+  version    Int              @default(1)
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime         @default(now()) @map("updated_at") @db.Timestamptz(6)
+  author     User?            @relation(fields: [authorId], references: [id], onUpdate: NoAction)
+  college    College          @relation(fields: [collegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([collegeId, status])
+  @@map("assignments")
+}
+
+
 model Staff {
   id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   publicId          String             @unique @default(dbgenerated("('EMP-'::text || nextval('seq_staff_public'::regclass))")) @map("public_id")
@@ -988,6 +1011,7 @@ model User {
   createdAt              DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime                 @default(now()) @map("updated_at") @db.Timestamptz(6)
   admissionStatusHistory AdmissionStatusHistory[]
+  assignments            Assignment[]
   auditLog               AuditLog[]
   boosterStepCompletions BoosterStepCompletion[]
   classSummaries         ClassSummary[]
@@ -1454,4 +1478,12 @@ model QuestionBank {
   @@index([collegeId, topic], map: "idx_question_bank_topic")
   @@index([collegeId, difficulty], map: "idx_question_bank_difficulty")
   @@map("question_bank")
+}
+
+enum AssignmentStatus {
+  Open
+  Closed
+  Draft
+
+  @@map("assignment_status")
 }

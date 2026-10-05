@@ -201,6 +201,48 @@ export const EvaluationResult = z.object({
 export type EvaluationResult = z.infer<typeof EvaluationResult>;
 
 /* ── Student ─────────────────────────────────────── */
+export const EnrolledSubjectSchema = z.object({
+  code: z.string(),
+  title: z.string(),
+  shortName: z.string(),
+  credits: z.number(),
+  facultyName: z.string(),
+  facultyDesignation: z.string().optional(),
+  semester: z.number(),
+  attendancePercent: z.number(),
+  ia1Marks: z.number(),
+  ia2Marks: z.number(),
+  semesterProgress: z.number(),
+  units: z.array(
+    z.object({
+      id: z.string(),
+      unit: z.string(),
+      title: z.string(),
+      mastery: z.number(),
+    })
+  ),
+});
+export type EnrolledSubjectSchema = z.infer<typeof EnrolledSubjectSchema>;
+
+export const StudentAcademicProfile = z.object({
+  studentId: z.string(),
+  name: z.string(),
+  rollNo: z.string(),
+  degree: z.string(),
+  department: z.string(),
+  departmentCode: z.string(),
+  semester: z.number(),
+  section: z.string(),
+  stream: z.string(),
+  cgpa: z.number(),
+  creditsEarned: z.number(),
+  totalCredits: z.number(),
+  streakDays: z.number(),
+  xp: z.number(),
+  enrolledSubjects: z.array(EnrolledSubjectSchema),
+});
+export type StudentAcademicProfile = z.infer<typeof StudentAcademicProfile>;
+
 export const StudentDashboard = z.object({
   name: z.string(),
   priorities: z.number(),
@@ -383,6 +425,44 @@ export const EvaluationQueueItem = z.object({
 export type EvaluationQueueItem = z.infer<typeof EvaluationQueueItem>;
 
 export const Ok = z.object({ ok: z.literal(true) });
+
+/* ── Faculty Allocation ──────────────────────────── */
+export const AllocatedClassSectionSchema = z.object({
+  id: z.string(),
+  courseCode: z.string(),
+  courseTitle: z.string(),
+  shortName: z.string(),
+  section: z.string(),
+  studentsCount: z.number(),
+  attendancePercent: z.number(),
+  averageScore: z.number(),
+  nextClass: z.string(),
+  room: z.string(),
+  hoursPerWeek: z.number(),
+  units: z.array(
+    z.object({
+      id: z.string(),
+      unit: z.string(),
+      title: z.string(),
+      classMastery: z.number(),
+    })
+  ),
+});
+export type AllocatedClassSectionSchema = z.infer<typeof AllocatedClassSectionSchema>;
+
+export const FacultyAllocationProfile = z.object({
+  facultyId: z.string(),
+  name: z.string(),
+  designation: z.string(),
+  department: z.string(),
+  departmentCode: z.string(),
+  stream: z.string(),
+  totalTeachingLoad: z.number(),
+  totalStudents: z.number(),
+  averageAttendance: z.number(),
+  assignedSections: z.array(AllocatedClassSectionSchema),
+});
+export type FacultyAllocationProfile = z.infer<typeof FacultyAllocationProfile>;
 
 /* ── CRUD records ─────────────────────────────────── */
 const RecordValueSchema = z.union([z.string(), z.number(), z.boolean(), z.array(z.string()), z.null()]);
@@ -646,4 +726,274 @@ export const CreateCalendarItemInput = z.object({
   audience: z.enum(["All", "Students", "Faculty", "Staff"]).default("All"),
 });
 export type CreateCalendarItemInput = z.infer<typeof CreateCalendarItemInput>;
+
+/* ── Department Skills (Skill Intelligence) ─────────────── */
+
+export const SkillGapUrgency = z.enum(["Critical", "High", "Moderate", "On Track"]);
+export type SkillGapUrgency = z.infer<typeof SkillGapUrgency>;
+
+export const SkillGapItem = z.object({
+  id: z.string(),
+  skill: z.string(),
+  category: z.string(),
+  demandScore: z.number(),
+  readinessScore: z.number(),
+  gap: z.number(),
+  urgency: SkillGapUrgency,
+  studentsAssessed: z.number(),
+  topRolesRequiring: z.array(z.string()),
+  recommendedIntervention: z.string(),
+});
+export type SkillGapItem = z.infer<typeof SkillGapItem>;
+
+export const SkillStudent = z.object({
+  id: z.string(),
+  name: z.string(),
+  rollNo: z.string(),
+  department: z.string(),
+  batch: z.string(),
+  overallScore: z.number(),
+  topSkills: z.array(z.string()),
+  gapAreas: z.array(z.string()),
+  certifications: z.number(),
+  status: z.enum(["Placement ready", "Almost ready", "Needs work"]),
+});
+export type SkillStudent = z.infer<typeof SkillStudent>;
+
+export const SkillIntervention = z.object({
+  id: z.string(),
+  title: z.string(),
+  department: z.string(),
+  batch: z.string(),
+  targetSkill: z.string(),
+  facultyLead: z.string(),
+  duration: z.string(),
+  enrolledCount: z.number(),
+  status: z.enum(["Active", "Upcoming", "Completed"]),
+  impact: z.string(),
+});
+export type SkillIntervention = z.infer<typeof SkillIntervention>;
+
+export const TopHiringPartner = z.object({
+  name: z.string(),
+  hiringDomain: z.string(),
+  minReadiness: z.number(),
+  openRoles: z.number(),
+  trend: z.string(),
+});
+export type TopHiringPartner = z.infer<typeof TopHiringPartner>;
+
+export const DepartmentSkillsData = z.object({
+  college: z.object({
+    id: z.string(),
+    name: z.string(),
+  }),
+  department: z.string(),
+  availableDepartments: z.array(z.string()),
+  batch: z.string(),
+  availableBatches: z.array(z.string()),
+  domain: z.string(),
+  availableDomains: z.array(z.string()),
+  availableFaculty: z.array(z.string()).default([]),
+  kpis: z.array(Kpi),
+  demandVsReadiness: ChartSpec,
+  domainRadar: ChartSpec,
+  batchProgression: ChartSpec,
+  certDistribution: ChartSpec,
+  skillGaps: z.array(SkillGapItem),
+  insights: z.array(Insight),
+  students: z.array(SkillStudent),
+  interventions: z.array(SkillIntervention),
+  topHiringPartners: z.array(TopHiringPartner),
+});
+export type DepartmentSkillsData = z.infer<typeof DepartmentSkillsData>;
+
+export const CreateInterventionInput = z.object({
+  title: z.string().min(2, "Title is required").max(120),
+  department: z.string().min(1, "Department is required"),
+  batch: z.string().min(1, "Target batch is required"),
+  targetSkill: z.string().min(2, "Target skill is required"),
+  facultyLead: z.string().min(2, "Faculty lead is required"),
+  duration: z.string().min(2, "Duration is required"),
+});
+export type CreateInterventionInput = z.infer<typeof CreateInterventionInput>;
+
+export const EarlyWarningSignal = z.object({
+  id: z.string(),
+  type: z.enum(["academic", "certification", "interview", "resume", "readiness"]),
+  title: z.string(),
+  detail: z.string(),
+  severity: z.enum(["critical", "moderate", "low"]),
+  detectedAt: z.string(),
+});
+export type EarlyWarningSignal = z.infer<typeof EarlyWarningSignal>;
+
+export const EarlyWarningStudent = z.object({
+  id: z.string(),
+  studentName: z.string(),
+  rollNo: z.string(),
+  department: z.string(),
+  batch: z.string(),
+  quizAverage: z.number(),
+  certificatesCount: z.number(),
+  aptitudeScore: z.number(),
+  interviewScore: z.number(),
+  resumeScore: z.number(),
+  overallScore: z.number(),
+  riskLevel: z.enum(["Critical", "Moderate", "Watchlist", "Low Risk"]),
+  signals: z.array(EarlyWarningSignal),
+  recommendation: z.string(),
+  reviewStatus: z.enum(["Pending review", "In progress", "Resolved"]),
+  assignedMentor: z.string().optional(),
+  lastActionDate: z.string().optional(),
+  actionNotes: z.string().optional(),
+});
+export type EarlyWarningStudent = z.infer<typeof EarlyWarningStudent>;
+
+export const EarlyWarningIntervention = z.object({
+  id: z.string(),
+  studentId: z.string(),
+  studentName: z.string(),
+  rollNo: z.string(),
+  department: z.string(),
+  strategy: z.string(),
+  facultyLead: z.string(),
+  targetDate: z.string(),
+  status: z.enum(["Scheduled", "In progress", "Completed"]),
+  notes: z.string(),
+  createdAt: z.string(),
+});
+export type EarlyWarningIntervention = z.infer<typeof EarlyWarningIntervention>;
+
+export const EarlyWarningData = z.object({
+  college: z.object({
+    id: z.string(),
+    name: z.string(),
+  }),
+  department: z.string(),
+  availableDepartments: z.array(z.string()),
+  riskLevel: z.string(),
+  availableRiskLevels: z.array(z.string()),
+  availableFaculty: z.array(z.string()).default([]),
+  kpis: z.array(Kpi),
+  riskDistribution: ChartSpec,
+  signalsBreakdown: ChartSpec,
+  departmentRiskComparison: ChartSpec,
+  students: z.array(EarlyWarningStudent),
+  interventions: z.array(EarlyWarningIntervention),
+  insights: z.array(Insight),
+});
+export type EarlyWarningData = z.infer<typeof EarlyWarningData>;
+
+export const CreateSupportActionInput = z.object({
+  studentId: z.string().min(1, "Student is required"),
+  studentName: z.string().min(1, "Student name is required"),
+  strategy: z.string().min(2, "Support strategy is required"),
+  facultyLead: z.string().min(2, "Faculty lead is required"),
+  targetDate: z.string().min(4, "Target date is required"),
+  notes: z.string().max(500).default(""),
+});
+export type CreateSupportActionInput = z.infer<typeof CreateSupportActionInput>;
+
+export const UpdateReviewStatusInput = z.object({
+  studentId: z.string().min(1, "Student ID is required"),
+  reviewStatus: z.enum(["Pending review", "In progress", "Resolved"]),
+  notes: z.string().max(500).optional(),
+});
+export type UpdateReviewStatusInput = z.infer<typeof UpdateReviewStatusInput>;
+
+/* ── aicte compliance ── */
+export const AicteNormItem = z.object({
+  id: z.string(),
+  category: z.string(),
+  name: z.string(),
+  normRequirement: z.string(),
+  actualValue: z.string(),
+  score: z.number(),
+  status: z.enum(["Compliant", "Needs Attention", "Deficient"]),
+  deficiencyNotes: z.string(),
+});
+export type AicteNormItem = z.infer<typeof AicteNormItem>;
+
+export const AicteDepartmentCompliance = z.object({
+  department: z.string(),
+  studentsCount: z.number(),
+  facultyCount: z.number(),
+  fsrRatio: z.string(),
+  professors: z.number(),
+  assocProfessors: z.number(),
+  asstProfessors: z.number(),
+  coursesCount: z.number(),
+  labCoursesCount: z.number(),
+  status: z.enum(["Compliant", "Action Required"]),
+});
+export type AicteDepartmentCompliance = z.infer<typeof AicteDepartmentCompliance>;
+
+export const AicteCommittee = z.object({
+  id: z.string(),
+  name: z.string(),
+  mandate: z.string(),
+  chairperson: z.string(),
+  membersCount: z.number(),
+  status: z.string(),
+  lastMeetingDate: z.string(),
+  momStatus: z.string(),
+});
+export type AicteCommittee = z.infer<typeof AicteCommittee>;
+
+export const AicteActionItem = z.object({
+  id: z.string(),
+  title: z.string(),
+  category: z.string(),
+  priority: z.enum(["High", "Medium", "Low"]),
+  assignedTo: z.string(),
+  dueDate: z.string(),
+  status: z.enum(["Open", "In Progress", "Resolved"]),
+  notes: z.string(),
+  createdAt: z.string(),
+});
+export type AicteActionItem = z.infer<typeof AicteActionItem>;
+
+export const AicteComplianceData = z.object({
+  college: z.object({
+    id: z.string(),
+    name: z.string(),
+    code: z.string(),
+    stream: z.string(),
+    pid: z.string(),
+  }),
+  academicYear: z.string(),
+  overallScore: z.number(),
+  overallStatus: z.enum(["Compliant", "Action Required", "Deficient"]),
+  kpis: z.array(Kpi),
+  complianceDistribution: ChartSpec,
+  departmentComparison: ChartSpec,
+  norms: z.array(AicteNormItem),
+  departments: z.array(AicteDepartmentCompliance),
+  committees: z.array(AicteCommittee),
+  actions: z.array(AicteActionItem),
+  strengths: z.array(z.string()),
+  deficiencies: z.array(z.string()),
+  availableFaculty: z.array(z.string()),
+  mandatoryDisclosureUrl: z.string(),
+});
+export type AicteComplianceData = z.infer<typeof AicteComplianceData>;
+
+export const CreateAicteActionInput = z.object({
+  title: z.string().min(2, "Title is required"),
+  category: z.string().min(2, "Category is required"),
+  priority: z.enum(["High", "Medium", "Low"]),
+  assignedTo: z.string().min(2, "Assignee is required"),
+  dueDate: z.string().min(4, "Due date is required"),
+  notes: z.string().max(500).default(""),
+});
+export type CreateAicteActionInput = z.infer<typeof CreateAicteActionInput>;
+
+export const UpdateAicteActionStatusInput = z.object({
+  actionId: z.string().min(1, "Action ID is required"),
+  status: z.enum(["Open", "In Progress", "Resolved"]),
+});
+export type UpdateAicteActionStatusInput = z.infer<typeof UpdateAicteActionStatusInput>;
+
+
 

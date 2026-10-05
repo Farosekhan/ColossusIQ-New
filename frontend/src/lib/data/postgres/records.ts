@@ -264,7 +264,11 @@ const ADAPTERS: Record<string, Adapter> = {
 
   courses: {
     delegate: (t) => t.course,
-    include: { department: { select: { name: true } }, term: { select: { name: true } } },
+    include: {
+      department: { select: { name: true } },
+      term: { select: { name: true } },
+      learningCourse: { select: { createdByName: true, source: true } },
+    },
     search: ["code", "title", "facultyName"],
     statusEnum: "CourseStatus",
     async toRecord(r) {
@@ -276,6 +280,7 @@ const ADAPTERS: Record<string, Adapter> = {
         credits: r.credits,
         courseType: label("CourseType", r.courseType),
         faculty: r.facultyName,
+        createdBy: r.learningCourse?.createdByName || r.facultyName || "Staff",
         status: label("CourseStatus", r.status),
         description: r.description ?? "",
       };
@@ -796,12 +801,63 @@ function adapterFor(res: ResourceDef): Adapter {
   return a;
 }
 
+async function syncUnlinkedLearningCourses(t: Tx) {
+  try {
+    const unlinked = await t.learningCourse.findMany({
+      where: { courseRecordId: null },
+      select: {
+        id: true,
+        collegeId: true,
+        code: true,
+        title: true,
+        departmentId: true,
+        termId: true,
+        credits: true,
+        facultyName: true,
+        summary: true,
+        status: true,
+      },
+      take: 50,
+    });
+    for (const lc of unlinked) {
+      let c = await t.course.findFirst({
+        where: { collegeId: lc.collegeId, code: lc.code },
+        select: { id: true },
+      });
+      if (!c) {
+        c = await t.course.create({
+          data: {
+            collegeId: lc.collegeId,
+            code: lc.code,
+            title: lc.title,
+            departmentId: lc.departmentId,
+            termId: lc.termId,
+            credits: lc.credits,
+            courseType: "Theory",
+            facultyName: lc.facultyName,
+            status: lc.status === "Published" ? "Active" : "Draft",
+            description: lc.summary,
+          },
+          select: { id: true },
+        });
+      }
+      await t.learningCourse.update({
+        where: { id: lc.id },
+        data: { courseRecordId: c.id },
+      });
+    }
+  } catch {
+    // continue
+  }
+}
+
 export const pgRecords: RecordStore = {
   async list(res, query) {
     if (res.key === "users") return usersStore.list(query);
     if (res.key === "questions") return questionsStore.list(query);
     const a = adapterFor(res);
     const t = db();
+    if (res.key === "courses") await syncUnlinkedLearningCourses(t);
     const base = await scopeFilter(res, query.scope, query.college);
     const statusValue = query.status && a.statusEnum ? maybeEnum(a.statusEnum, query.status) : undefined;
     if (query.status && a.statusEnum && !statusValue) return { items: [], total: 0, counts: {} };
@@ -820,6 +876,7 @@ export const pgRecords: RecordStore = {
     if (res.key === "users") return (await usersStore.list({ scope, page: 1, pageSize: 10_000 })).items;
     if (res.key === "questions") return questionsStore.all(scope);
     const a = adapterFor(res);
+    if (res.key === "courses") await syncUnlinkedLearningCourses(db());
     const rows: Row[] = await a.delegate(db()).findMany({ where: await scopeFilter(res, scope), include: a.include, orderBy: { updatedAt: "desc" } });
     return Promise.all(rows.map((r) => present(res, a, r)));
   },
