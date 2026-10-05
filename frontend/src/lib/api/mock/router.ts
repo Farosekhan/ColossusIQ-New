@@ -27,6 +27,7 @@ import { dispatchAssignments } from "./assignments";
 import { audit, recentAudit } from "./audit";
 import { createStudent, deleteStudent, getStudentsList, importStudents, updateStudent } from "./students-store";
 import { createFaculty, deleteFaculty, getFacultyList, updateFaculty } from "./faculty-store";
+import { generateDynamicStudentDashboard, getStudentAcademicProfile } from "./student-profile";
 
 export interface MockResult {
   status: number;
@@ -143,6 +144,7 @@ const PATTERNS = [
   "POST academic-calendar/sync-events",
   "POST security/revoke-sessions",
   "POST security/scan",
+  "GET students/me/profile",
   "GET students/me/dashboard",
   "GET courses",
   "GET courses/:id",
@@ -471,9 +473,12 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
     }
 
     /* ── student ── */
+    case "GET students/me/profile":
+      if (session.role !== "student") return forbidden();
+      return ok(await getStudentAcademicProfile(session));
     case "GET students/me/dashboard":
       if (session.role !== "student") return forbidden();
-      return ok(studentDashboard(await collegeStream(session.college)));
+      return ok(await generateDynamicStudentDashboard(session));
     case "GET courses":
       if (session.role !== "student") return forbidden();
       return ok(studentCourses(await collegeStream(session.college)).map((course) => Object.fromEntries(Object.entries(course).filter(([key]) => key !== "topics"))));
