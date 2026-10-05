@@ -32,6 +32,7 @@ import { ReportsModule } from "./bespoke/reports";
 import { KnowledgeBaseModule } from "./bespoke/knowledge-base";
 import { StudentsModule } from "./bespoke/students";
 import { DepartmentFacultyModule } from "./bespoke/department-faculty";
+import { AssignmentsModule } from "./bespoke/assignments";
 
 const BESPOKE: Record<string, (props: { role: Role }) => React.ReactNode> = {
   "department-faculty": ({ role }) => <DepartmentFacultyModule role={role} />,
@@ -65,7 +66,9 @@ const BESPOKE: Record<string, (props: { role: Role }) => React.ReactNode> = {
   "teaching-studio": () => <TeachingStudioModule />,
   "skill-booster": ({ role }) => <SkillBoosterModule role={role} />,
   "class-notes": () => <ClassNotesModule />,
+  assignments: ({ role }) => <AssignmentsModule role={role} />,
 };
+
 
 export function hasBespoke(slug: string): boolean {
   return slug in BESPOKE;

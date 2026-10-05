@@ -219,7 +219,18 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
       "status", "Add course"),
   assignments: () =>
     list([col("title", "Assignment"), col("course", "Course"), col("due", "Due"), col("submitted", "Submitted", "progress"), col("status", "Status", "badge")],
-      rows(8, "asg", (i, r) => ({ title: pick(["ER diagram for library system", "SQL joins worksheet", "Scheduler simulation", "Subnetting problems", "Linear regression notebook", "Normalization case study", "Banker's algorithm trace", "Mini-project proposal"], () => (i + 0.5) / 8), course: pick(["DBMS", "OS", "CN", "ML"], r), due: `Oct ${2 + i * 3}`, submitted: Math.round(40 + r() * 60), status: i < 3 ? "Closed" : i < 6 ? "Open" : "Draft" })),
+      [
+        { title: "AI & Neural Networks Lab Assignment", course: "ML", due: "Nov 18", submitted: 0, status: "Open" },
+        { title: "Process Scheduling Simulation", course: "OS", due: "Nov 02", submitted: 0, status: "Open" },
+        { title: "ER diagram for library system", course: "ML", due: "Oct 2", submitted: 80, status: "Closed" },
+        { title: "SQL joins worksheet", course: "CN", due: "Oct 5", submitted: 58, status: "Closed" },
+        { title: "Scheduler simulation", course: "CN", due: "Oct 8", submitted: 61, status: "Closed" },
+        { title: "Subnetting problems", course: "DBMS", due: "Oct 11", submitted: 100, status: "Open" },
+        { title: "Linear regression notebook", course: "OS", due: "Oct 14", submitted: 53, status: "Open" },
+        { title: "Normalization case study", course: "DBMS", due: "Oct 17", submitted: 80, status: "Open" },
+        { title: "Banker's algorithm trace", course: "ML", due: "Oct 20", submitted: 77, status: "Draft" },
+        { title: "Mini-project proposal", course: "OS", due: "Oct 23", submitted: 69, status: "Draft" },
+      ],
       "status", "New assignment"),
   "team-finder": () =>
     list([col("name", "Student"), col("dept", "Department"), col("skills", "Skills"), col("looking", "Interested in"), col("match", "Match", "progress")],
