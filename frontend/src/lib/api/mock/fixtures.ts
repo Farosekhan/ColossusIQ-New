@@ -331,45 +331,184 @@ export function notificationsFor(role: string): Notification[] {
 }
 
 export function evaluationQueue(): EvaluationQueueItem[] {
-  const answers = [
-    "3NF means no transitive dependency. Example: Student(RollNo, Name, DeptId, DeptName). DeptName depends on DeptId, which depends on RollNo. Split into Student(RollNo, Name, DeptId) and Dept(DeptId, DeptName).",
-    "Third normal form removes redundancy. A table should have a primary key and no repeating groups. We split big tables into small tables.",
-    "A relation is in 3NF if for every FD X→A, X is a superkey or A is prime. Employee(EmpId, Name, Pincode, City): Pincode→City is transitive. Decompose into Employee(EmpId, Name, Pincode) and Location(Pincode, City); lossless since Pincode is a key of Location.",
-  ];
-  const scores = [7, 4, 9];
-  const conf = [0.84, 0.62, 0.91];
-  return answers.map((answer, i) => ({
-    id: `ev-${i + 1}`,
-    student: personName(i + 1),
-    rollNo: `21CS${String(101 + i * 7).padStart(4, "0")}`,
-    assessment: "DBMS Internal Assessment I",
-    question: "Explain Third Normal Form (3NF) with a suitable example. (10 marks)",
-    answer,
-    result: {
-      score: scores[i] ?? 5,
+  const items: Array<{
+    id: string;
+    student: string;
+    rollNo: string;
+    assessment: string;
+    question: string;
+    answer: string;
+    score: number;
+    max: number;
+    finalScore: number | null;
+    status: "approved" | "overridden" | "pending";
+    confidence: number;
+    remarks?: string;
+    criteria: Array<{ criterion: string; awarded: number; max: number }>;
+    evidence: string[];
+    missing: string[];
+  }> = [
+    {
+      id: "ev-1",
+      student: "Anand Kumar",
+      rollNo: "21CS0101",
+      assessment: "DBMS Internal Assessment I",
+      question: "Explain Third Normal Form (3NF) with a suitable example and decomposition. (10 marks)",
+      answer:
+        "3NF: A relation is in 3NF if it is in 2NF and has no transitive dependency. For every non-trivial FD X -> A, either X is a superkey or A is prime attribute.\nExample: Student(RollNo, Name, DeptId, DeptName). DeptId -> DeptName is transitive via DeptId.\nDecomposition: Student(RollNo, Name, DeptId) and Department(DeptId, DeptName). Lossless join justified.",
+      score: 8.5,
       max: 10,
-      confidence: conf[i] ?? 0.7,
-      rubric: [
-        { criterion: "Definition", awarded: i === 1 ? 1 : 3, max: 3 },
-        { criterion: "Example relation", awarded: i === 1 ? 1 : 2, max: 3 },
-        { criterion: "Correct decomposition", awarded: i === 1 ? 1 : i === 2 ? 3 : 2, max: 3 },
-        { criterion: "Presentation", awarded: 1, max: 1 },
+      finalScore: 8.5,
+      status: "approved",
+      confidence: 0.92,
+      remarks: "Accurate decomposition and justification. Full marks on criteria.",
+      criteria: [
+        { criterion: "3NF Formal Definition", awarded: 3, max: 3 },
+        { criterion: "Transitive Dependency Example", awarded: 2.5, max: 3 },
+        { criterion: "Lossless Decomposition", awarded: 2, max: 3 },
+        { criterion: "Technical Clarity & Presentation", awarded: 1, max: 1 },
       ],
-      evidence:
-        i === 1
-          ? ["Mentions redundancy removal", "No functional dependency described"]
-          : ["Identifies transitive dependency", "Provides a decomposition into two relations"],
-      missing:
-        i === 2
-          ? []
-          : i === 1
-            ? ["Formal definition using functional dependencies", "Example relation", "Decomposition"]
-            : ["Formal definition (X is superkey or A is prime)", "Lossless-join justification"],
-      feedback: "",
-      reviewRequired: (conf[i] ?? 0) < 0.8,
+      evidence: ["Defines 3NF using superkeys & prime attributes", "Shows relation Student with DeptId transitive dependency", "Decomposes into two relations with shared key"],
+      missing: [],
     },
-    status: "pending" as const,
-    finalScore: null,
+    {
+      id: "ev-2",
+      student: "Divya Raman",
+      rollNo: "21CS0108",
+      assessment: "Operating Systems Midterm",
+      question: "Explain Banker's Algorithm for deadlock avoidance with safety algorithm vectors. (10 marks)",
+      answer:
+        "Banker's Algorithm: Deadlock avoidance ensuring system never enters unsafe state.\nData structures: Available[m], Max[n,m], Allocation[n,m], Need[n,m] where Need = Max - Allocation.\nSafety Algorithm: Initialize Work = Available, Finish[i] = false. Find process i where Finish[i] == false & Need[i] <= Work. Update Work += Allocation[i], Finish[i] = true. If all Finish, system is safe.",
+      score: 9.0,
+      max: 10,
+      finalScore: 9.0,
+      status: "approved",
+      confidence: 0.94,
+      remarks: "Clear step-by-step safety sequence and matrix definitions. Excellent work.",
+      criteria: [
+        { criterion: "Deadlock Avoidance & Safety Definition", awarded: 2.5, max: 2.5 },
+        { criterion: "Data Structures (Available, Max, Need)", awarded: 2.5, max: 2.5 },
+        { criterion: "Safety Algorithm Step Sequence", awarded: 3, max: 3.5 },
+        { criterion: "Safe State Explanation", awarded: 1, max: 1.5 },
+      ],
+      evidence: ["Correct Need = Max - Allocation equation", "Iterative safety check step with Work vector", "Defines safe sequence condition"],
+      missing: [],
+    },
+    {
+      id: "ev-3",
+      student: "Karthik Raja",
+      rollNo: "21CS0115",
+      assessment: "DBMS Internal Assessment I",
+      question: "Explain Third Normal Form (3NF) with a suitable example and decomposition. (10 marks)",
+      answer:
+        "3NF means no transitive dependency. Example Student(RollNo, Name, DeptId, DeptName). DeptName depends on DeptId, which depends on RollNo. Split into Student(RollNo, Name, DeptId) and Dept(DeptId, DeptName).",
+      score: 5.0,
+      max: 10,
+      finalScore: 6.5,
+      status: "overridden",
+      confidence: 0.72,
+      remarks: "Teacher override from 5.0 to 6.5: Definition is brief but decomposition logic is sound.",
+      criteria: [
+        { criterion: "3NF Formal Definition", awarded: 1.5, max: 3 },
+        { criterion: "Transitive Dependency Example", awarded: 2, max: 3 },
+        { criterion: "Lossless Decomposition", awarded: 2, max: 3 },
+        { criterion: "Technical Clarity & Presentation", awarded: 1, max: 1 },
+      ],
+      evidence: ["Identifies transitive dependency", "Provides a decomposition into two relations"],
+      missing: ["Formal definition with superkey and prime attributes", "Lossless-join justification"],
+    },
+    {
+      id: "ev-4",
+      student: "Meera Nair",
+      rollNo: "21CS0122",
+      assessment: "Data Structures Unit Test II",
+      question: "Describe AVL Tree single and double rotations (LL, RR, LR, RL) with balance factor. (10 marks)",
+      answer:
+        "AVL Tree is a self-balancing binary search tree. Balance Factor BF = Height(Left) - Height(Right) in {-1, 0, 1}.\nLL Rotation: Single right rotation when insert into left of left child.\nRR Rotation: Single left rotation when insert into right of right child.\nLR Rotation: Left rotate left child, then right rotate parent.\nRL Rotation: Right rotate right child, then left rotate parent.\nTime complexity O(log n).",
+      score: 8.0,
+      max: 10,
+      finalScore: 8.0,
+      status: "approved",
+      confidence: 0.88,
+      remarks: "Good explanation of LL and LR rotations with balance factor formula.",
+      criteria: [
+        { criterion: "AVL Property & Balance Factor", awarded: 2.5, max: 2.5 },
+        { criterion: "Single Rotations (LL, RR)", awarded: 2.5, max: 2.5 },
+        { criterion: "Double Rotations (LR, RL)", awarded: 2, max: 3 },
+        { criterion: "Time Complexity Analysis", awarded: 1, max: 2 },
+      ],
+      evidence: ["Defines BF = Height(L) - Height(R)", "Accurate LL, RR, LR, RL rotation steps", "Mentions O(log n) efficiency"],
+      missing: ["Diagrammatic rotation examples"],
+    },
+    {
+      id: "ev-5",
+      student: "Rahul Sharma",
+      rollNo: "21CS0129",
+      assessment: "DBMS Internal Assessment I",
+      question: "Explain Third Normal Form (3NF) with a suitable example and decomposition. (10 marks)",
+      answer:
+        "Third normal form removes redundancy. A table should have a primary key and no repeating groups. We split big tables into small tables.",
+      score: 4.0,
+      max: 10,
+      finalScore: null,
+      status: "pending",
+      confidence: 0.61,
+      remarks: "Pending faculty review. Very brief answer, missed transitive dependency.",
+      criteria: [
+        { criterion: "3NF Formal Definition", awarded: 1, max: 3 },
+        { criterion: "Transitive Dependency Example", awarded: 1, max: 3 },
+        { criterion: "Lossless Decomposition", awarded: 1, max: 3 },
+        { criterion: "Technical Clarity & Presentation", awarded: 1, max: 1 },
+      ],
+      evidence: ["Mentions redundancy removal"],
+      missing: ["Functional dependencies", "Transitive dependency concept", "Lossless decomposition"],
+    },
+    {
+      id: "ev-6",
+      student: "Sneha Iyer",
+      rollNo: "21CS0136",
+      assessment: "Computer Networks Cycle Test",
+      question: "Explain distance vector routing algorithm and count-to-infinity problem. (10 marks)",
+      answer:
+        "Distance Vector Routing uses Bellman-Ford equation Dx(y) = min_v { c(x,v) + Dv(y) }. Nodes exchange vectors with neighbors.\nCount-to-infinity problem: upon link break, nodes form routing loops incrementing hop count to infinity (16 in RIP).\nFix: Split Horizon with Poison Reverse.",
+      score: 7.5,
+      max: 10,
+      finalScore: 7.5,
+      status: "approved",
+      confidence: 0.89,
+      remarks: "Correct formulation of Bellman-Ford and poison reverse mitigation.",
+      criteria: [
+        { criterion: "Bellman-Ford Formula", awarded: 2.5, max: 3 },
+        { criterion: "Routing Loop & Count-to-Infinity", awarded: 2.5, max: 3 },
+        { criterion: "Split Horizon / Poison Reverse", awarded: 2.5, max: 3 },
+        { criterion: "Convergence Details", awarded: 0, max: 1 },
+      ],
+      evidence: ["States Bellman-Ford equation", "Explains count-to-infinity loop upon link failure", "Describes poison reverse fix"],
+      missing: ["Detailed numerical example with 3 nodes"],
+    },
+  ];
+
+  return items.map((item) => ({
+    id: item.id,
+    student: item.student,
+    rollNo: item.rollNo,
+    assessment: item.assessment,
+    question: item.question,
+    answer: item.answer,
+    result: {
+      score: item.score,
+      max: item.max,
+      confidence: item.confidence,
+      rubric: item.criteria,
+      evidence: item.evidence.map((e) => `✓ ${e}`),
+      missing: item.missing,
+      feedback: item.missing.length === 0 ? "Complete answer covering expected points." : `Improve by covering: ${item.missing.join("; ")}`,
+      reviewRequired: item.confidence < 0.8,
+    },
+    status: item.status,
+    finalScore: item.finalScore,
+    facultyRemarks: item.remarks ?? null,
+    evaluatedAt: new Date(Date.now() - 86400000 * (parseInt(item.id.replace("ev-", ""), 10) || 1)).toISOString(),
   }));
 }
 
