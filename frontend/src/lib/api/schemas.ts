@@ -647,3 +647,95 @@ export const CreateCalendarItemInput = z.object({
 });
 export type CreateCalendarItemInput = z.infer<typeof CreateCalendarItemInput>;
 
+/* ── Department Skills (Skill Intelligence) ─────────────── */
+
+export const SkillGapUrgency = z.enum(["Critical", "High", "Moderate", "On Track"]);
+export type SkillGapUrgency = z.infer<typeof SkillGapUrgency>;
+
+export const SkillGapItem = z.object({
+  id: z.string(),
+  skill: z.string(),
+  category: z.string(),
+  demandScore: z.number(),
+  readinessScore: z.number(),
+  gap: z.number(),
+  urgency: SkillGapUrgency,
+  studentsAssessed: z.number(),
+  topRolesRequiring: z.array(z.string()),
+  recommendedIntervention: z.string(),
+});
+export type SkillGapItem = z.infer<typeof SkillGapItem>;
+
+export const SkillStudent = z.object({
+  id: z.string(),
+  name: z.string(),
+  rollNo: z.string(),
+  department: z.string(),
+  batch: z.string(),
+  overallScore: z.number(),
+  topSkills: z.array(z.string()),
+  gapAreas: z.array(z.string()),
+  certifications: z.number(),
+  status: z.enum(["Placement ready", "Almost ready", "Needs work"]),
+});
+export type SkillStudent = z.infer<typeof SkillStudent>;
+
+export const SkillIntervention = z.object({
+  id: z.string(),
+  title: z.string(),
+  department: z.string(),
+  batch: z.string(),
+  targetSkill: z.string(),
+  facultyLead: z.string(),
+  duration: z.string(),
+  enrolledCount: z.number(),
+  status: z.enum(["Active", "Upcoming", "Completed"]),
+  impact: z.string(),
+});
+export type SkillIntervention = z.infer<typeof SkillIntervention>;
+
+export const TopHiringPartner = z.object({
+  name: z.string(),
+  hiringDomain: z.string(),
+  minReadiness: z.number(),
+  openRoles: z.number(),
+  trend: z.string(),
+});
+export type TopHiringPartner = z.infer<typeof TopHiringPartner>;
+
+export const DepartmentSkillsData = z.object({
+  college: z.object({
+    id: z.string(),
+    name: z.string(),
+  }),
+  department: z.string(),
+  availableDepartments: z.array(z.string()),
+  batch: z.string(),
+  availableBatches: z.array(z.string()),
+  domain: z.string(),
+  availableDomains: z.array(z.string()),
+  availableFaculty: z.array(z.string()).default([]),
+  kpis: z.array(Kpi),
+  demandVsReadiness: ChartSpec,
+  domainRadar: ChartSpec,
+  batchProgression: ChartSpec,
+  certDistribution: ChartSpec,
+  skillGaps: z.array(SkillGapItem),
+  insights: z.array(Insight),
+  students: z.array(SkillStudent),
+  interventions: z.array(SkillIntervention),
+  topHiringPartners: z.array(TopHiringPartner),
+});
+export type DepartmentSkillsData = z.infer<typeof DepartmentSkillsData>;
+
+export const CreateInterventionInput = z.object({
+  title: z.string().min(2, "Title is required").max(120),
+  department: z.string().min(1, "Department is required"),
+  batch: z.string().min(1, "Target batch is required"),
+  targetSkill: z.string().min(2, "Target skill is required"),
+  facultyLead: z.string().min(2, "Faculty lead is required"),
+  duration: z.string().min(2, "Duration is required"),
+});
+export type CreateInterventionInput = z.infer<typeof CreateInterventionInput>;
+
+

@@ -23,6 +23,7 @@ import type { Stream } from "@/config/streams";
 import { getStore } from "@/lib/data";
 import { collegeStream } from "./records";
 import { dynamicBiAnalytics } from "./bi-analytics";
+import { getDepartmentSkillsOverview } from "./department-skills";
 import { getCollegeClubs } from "./clubs";
 import { getCollegeSports } from "./sports";
 import { getCollegeCalendar } from "./academic-calendar";
@@ -179,15 +180,18 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
       ],
       [ins("Theory of Computation", "Failures rose for two consecutive semesters. Consider remedial sessions and a question-bank review.", "Sem 5 failures: 7% → 11% → 14%", "rose"), ins("Faculty upskilling impact", "Sections taught by faculty who completed the AI-for-Teaching path show +6% average.", "Compared across 8 sections, same syllabus", "teal")],
     ),
-  "department-skills": () =>
-    dashboard(
-      [k("Students profiled", "1,284", undefined, "brand"), k("Job-ready (any role)", "38%", "+5%", "teal"), k("Top gap", "Cloud", "Demand ↑, readiness ↓", "rose"), k("Certifications earned", "412", "This year", "gold")],
-      [
-        chart("bar", "Industry demand vs student readiness", cats("skl", ["Python", "SQL", "Cloud", "DSA", "ML", "Communication"], ["Demand", "Readiness"], 60, 50), ["Demand", "Readiness"]),
-        chart("radar", "Skill distribution — final year", cats("skl-r", ["Programming", "Databases", "Cloud", "AI/ML", "Soft skills", "Aptitude"], ["Current"], 60, 40), ["Current"]),
-      ],
-      [ins("Cloud & AI gap", "Cloud and AI skills have high demand but low student readiness. A 6-week cloud fundamentals track is suggested.", "Job-matching data from 146 openings · readiness from skill graph", "rose")],
-    ),
+  "department-skills": async (collegeScope) => {
+    const data = await getDepartmentSkillsOverview({
+      college: collegeScope,
+      role: "institution",
+      sub: "institution",
+      tenant: "ciq",
+      name: "Principal",
+      mfa: true,
+      exp: 0,
+    });
+    return dashboard(data.kpis, [data.demandVsReadiness, data.domainRadar], data.insights);
+  },
   "placement-analytics": () =>
     dashboard(
       [k("Placement readiness", "68%", "+6%", "teal"), k("Offers", "412", "Season to date", "gold"), k("Resume completion", "91%", undefined, "brand"), k("Mock interview participation", "74%", "+18%", "teal")],

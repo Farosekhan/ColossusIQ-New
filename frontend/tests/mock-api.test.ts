@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { MODULES } from "@/config/modules";
-import { ModuleData, RoleHome, SettingsData } from "@/lib/api/schemas";
+import { DepartmentSkillsData, ModuleData, RoleHome, SettingsData, SkillIntervention } from "@/lib/api/schemas";
 import { moduleData, _hasData } from "@/lib/api/mock/module-data";
 import { dispatch } from "@/lib/api/mock/router";
 import { looksLikeInjection, chatReply } from "@/lib/api/mock/ai";
@@ -504,5 +504,54 @@ describe("Security settings and runtime actions", () => {
 
     const scanRes = await dispatch("POST", ["security", "scan"], undefined, studentSession, new URLSearchParams());
     expect(scanRes.status).toBe(403);
+  });
+
+  it("provides dynamic department skill intelligence for institution and hod roles", async () => {
+    const instSession = session("institution");
+    const res = await dispatch("GET", ["department-skills"], undefined, instSession, new URLSearchParams());
+    expect(res.status).toBe(200);
+    const body = res.body as DepartmentSkillsData;
+    expect(body.kpis.length).toBeGreaterThanOrEqual(4);
+    expect(body.skillGaps.length).toBeGreaterThan(0);
+    expect(body.students.length).toBeGreaterThan(0);
+    expect(body.demandVsReadiness.series).toContain("Syllabus Target");
+
+    // Filter by specific department
+    const deptRes = await dispatch(
+      "GET",
+      ["department-skills"],
+      undefined,
+      instSession,
+      new URLSearchParams({ department: "Computer Science & Engineering" }),
+    );
+    expect(deptRes.status).toBe(200);
+    const deptBody = deptRes.body as DepartmentSkillsData;
+    expect(deptBody.department).toBe("Computer Science & Engineering");
+
+    // Denies student role
+    const studentSession = session("student");
+    const forbiddenRes = await dispatch("GET", ["department-skills"], undefined, studentSession, new URLSearchParams());
+    expect(forbiddenRes.status).toBe(403);
+  });
+
+  it("allows institution to schedule a curricular bridge course intervention", async () => {
+    const instSession = session("institution");
+    const createRes = await dispatch(
+      "POST",
+      ["department-skills", "interventions"],
+      {
+        title: "Test Docker & K8s Sprint",
+        department: "Computer Science & Engineering",
+        batch: "2023–2027 (Final Year)",
+        targetSkill: "Cloud Architecture",
+        facultyLead: "Dr. K. Anitha",
+        duration: "4 Weeks",
+      },
+      instSession,
+      new URLSearchParams(),
+    );
+    expect(createRes.status).toBe(200);
+    const item = createRes.body as SkillIntervention;
+    expect(item.title).toBe("Test Docker & K8s Sprint");
   });
 });
