@@ -506,26 +506,70 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
     score("AgriSoil Sense", [["Team", 72, 75], ["Problem validation", 81, 75], ["Product", 55, 70], ["Traction", 30, 60], ["Business model", 60, 70], ["Pitch", 66, 75]], ["Well-validated problem", "Complementary founding team"], ["No paying pilots yet", "Unit economics unproven"], ["Run paid pilot with one FPO", "Refine cost model", "Mentor pitch rehearsal"]),
 
   /* ── calendars ── */
-  "daily-plan": () => ({
-    template: "calendar",
-    days: [
-      { day: "Today", items: [
-        { time: "06:30", title: "Walk / exercise", tag: "Wellness", tone: "teal" },
-        { time: "09:00", title: "DBMS class", tag: "Class", tone: "brand" },
-        { time: "11:00", title: "Python practice", tag: "Study", tone: "sky" },
-        { time: "13:00", title: "Lunch + break", tag: "Break", tone: "neutral" },
-        { time: "15:00", title: "Project: Smart Campus AI", tag: "Project", tone: "gold" },
-        { time: "18:00", title: "Interview practice", tag: "Career", tone: "amber" },
-        { time: "21:00", title: "Revision: normalization (25 min)", tag: "Revision", tone: "sky" },
-      ] },
-      { day: "Tomorrow", items: [
-        { time: "09:00", title: "OS class", tag: "Class", tone: "brand" },
-        { time: "16:00", title: "Coding Club contest", tag: "Club", tone: "teal" },
-        { time: "20:00", title: "Mock test: deadlocks", tag: "Assessment", tone: "rose" },
-      ] },
-    ],
-    tips: ["Planner balances study with rest — you have 2 free blocks today.", "Class timings sync from the academic calendar."],
-  }),
+  "daily-plan": async (collegeScope) => {
+    const profile = await getStudentAcademicProfile({ college: collegeScope, sub: "demo-student" });
+    const subjects = profile.enrolledSubjects;
+
+    const s1 = subjects[0] || { shortName: "Class 1", facultyName: "Faculty", units: [] };
+    const s2 = subjects[1] || { shortName: "Class 2", facultyName: "Faculty", units: [] };
+    const s3 = subjects[2] || { shortName: "Class 3", facultyName: "Faculty", units: [] };
+    const s4 = subjects[3] || { shortName: "Class 4", facultyName: "Faculty", units: [] };
+
+    // Find weakest units for targeted revision
+    const allUnits: Array<{ subject: string; topic: string; mastery: number }> = [];
+    for (const s of subjects) {
+      for (const u of s.units) {
+        allUnits.push({ subject: s.shortName, topic: u.title, mastery: u.mastery });
+      }
+    }
+    allUnits.sort((a, b) => a.mastery - b.mastery);
+    const weakest1 = allUnits[0] || { subject: s1.shortName, topic: "Core Concepts", mastery: 50 };
+    const weakest2 = allUnits[1] || { subject: s2.shortName, topic: "Practice Problems", mastery: 55 };
+
+    const projectName =
+      profile.stream === "medical"
+        ? "ICMR-STS Research Project"
+        : profile.stream === "artsScience"
+        ? "Retail Payment Adoption Survey"
+        : profile.stream === "management"
+        ? "Consumer Strategy Case Study"
+        : profile.stream === "polytechnic"
+        ? "IoT Weather Board Hardware"
+        : "Smart Campus AI Project";
+
+    return {
+      template: "calendar",
+      days: [
+        {
+          day: "Today",
+          items: [
+            { time: "06:30", title: "Morning walk & hydration", tag: "Wellness", tone: "teal" },
+            { time: "09:00", title: `${s1.shortName} lecture: ${s1.units[0]?.title || "Lecture"} (${s1.facultyName.split(",")[0]})`, tag: "Class", tone: "brand" },
+            { time: "11:00", title: `${s2.shortName} classroom discussion (${s2.facultyName.split(",")[0]})`, tag: "Class", tone: "brand" },
+            { time: "13:00", title: "Lunch & relaxation break", tag: "Break", tone: "neutral" },
+            { time: "14:30", title: `${s3.shortName} laboratory / hands-on session`, tag: "Study", tone: "sky" },
+            { time: "16:30", title: `Project work: ${projectName}`, tag: "Project", tone: "gold" },
+            { time: "18:30", title: "Career & placement interview practice", tag: "Career", tone: "amber" },
+            { time: "21:00", title: `Targeted revision: ${weakest1.topic} (${weakest1.subject})`, tag: "Revision", tone: "sky" },
+          ],
+        },
+        {
+          day: "Tomorrow",
+          items: [
+            { time: "09:00", title: `${s3.shortName} class (${s3.facultyName.split(",")[0]})`, tag: "Class", tone: "brand" },
+            { time: "11:00", title: `${s4.shortName} class (${s4.facultyName.split(",")[0]})`, tag: "Class", tone: "brand" },
+            { time: "15:00", title: "Campus club activities & peer collaboration", tag: "Club", tone: "teal" },
+            { time: "17:30", title: "Sports practice & fitness", tag: "Sports", tone: "teal" },
+            { time: "20:30", title: `Adaptive practice mock test on ${weakest2.topic}`, tag: "Assessment", tone: "rose" },
+          ],
+        },
+      ],
+      tips: [
+        "Planner automatically integrates your department course timetable with spaced revision slots.",
+        `Top revision priority today: ${weakest1.topic} in ${weakest1.subject} (current mastery: ${weakest1.mastery}%).`,
+      ],
+    };
+  },
   "academic-calendar": (collegeScope = "all") => {
     const raw = getCollegeCalendar(collegeScope);
     const thisWeek = raw.filter((it) => it.date >= "2026-09-28" && it.date <= "2026-10-05");
