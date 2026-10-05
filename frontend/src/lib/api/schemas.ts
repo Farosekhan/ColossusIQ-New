@@ -780,4 +780,88 @@ export const CreateInterventionInput = z.object({
 });
 export type CreateInterventionInput = z.infer<typeof CreateInterventionInput>;
 
+export const EarlyWarningSignal = z.object({
+  id: z.string(),
+  type: z.enum(["academic", "certification", "interview", "resume", "readiness"]),
+  title: z.string(),
+  detail: z.string(),
+  severity: z.enum(["critical", "moderate", "low"]),
+  detectedAt: z.string(),
+});
+export type EarlyWarningSignal = z.infer<typeof EarlyWarningSignal>;
+
+export const EarlyWarningStudent = z.object({
+  id: z.string(),
+  studentName: z.string(),
+  rollNo: z.string(),
+  department: z.string(),
+  batch: z.string(),
+  quizAverage: z.number(),
+  certificatesCount: z.number(),
+  aptitudeScore: z.number(),
+  interviewScore: z.number(),
+  resumeScore: z.number(),
+  overallScore: z.number(),
+  riskLevel: z.enum(["Critical", "Moderate", "Watchlist", "Low Risk"]),
+  signals: z.array(EarlyWarningSignal),
+  recommendation: z.string(),
+  reviewStatus: z.enum(["Pending review", "In progress", "Resolved"]),
+  assignedMentor: z.string().optional(),
+  lastActionDate: z.string().optional(),
+  actionNotes: z.string().optional(),
+});
+export type EarlyWarningStudent = z.infer<typeof EarlyWarningStudent>;
+
+export const EarlyWarningIntervention = z.object({
+  id: z.string(),
+  studentId: z.string(),
+  studentName: z.string(),
+  rollNo: z.string(),
+  department: z.string(),
+  strategy: z.string(),
+  facultyLead: z.string(),
+  targetDate: z.string(),
+  status: z.enum(["Scheduled", "In progress", "Completed"]),
+  notes: z.string(),
+  createdAt: z.string(),
+});
+export type EarlyWarningIntervention = z.infer<typeof EarlyWarningIntervention>;
+
+export const EarlyWarningData = z.object({
+  college: z.object({
+    id: z.string(),
+    name: z.string(),
+  }),
+  department: z.string(),
+  availableDepartments: z.array(z.string()),
+  riskLevel: z.string(),
+  availableRiskLevels: z.array(z.string()),
+  availableFaculty: z.array(z.string()).default([]),
+  kpis: z.array(Kpi),
+  riskDistribution: ChartSpec,
+  signalsBreakdown: ChartSpec,
+  departmentRiskComparison: ChartSpec,
+  students: z.array(EarlyWarningStudent),
+  interventions: z.array(EarlyWarningIntervention),
+  insights: z.array(Insight),
+});
+export type EarlyWarningData = z.infer<typeof EarlyWarningData>;
+
+export const CreateSupportActionInput = z.object({
+  studentId: z.string().min(1, "Student is required"),
+  studentName: z.string().min(1, "Student name is required"),
+  strategy: z.string().min(2, "Support strategy is required"),
+  facultyLead: z.string().min(2, "Faculty lead is required"),
+  targetDate: z.string().min(4, "Target date is required"),
+  notes: z.string().max(500).default(""),
+});
+export type CreateSupportActionInput = z.infer<typeof CreateSupportActionInput>;
+
+export const UpdateReviewStatusInput = z.object({
+  studentId: z.string().min(1, "Student ID is required"),
+  reviewStatus: z.enum(["Pending review", "In progress", "Resolved"]),
+  notes: z.string().max(500).optional(),
+});
+export type UpdateReviewStatusInput = z.infer<typeof UpdateReviewStatusInput>;
+
 

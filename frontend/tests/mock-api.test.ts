@@ -720,4 +720,77 @@ describe("faculty CRUD API", () => {
   });
 });
 
+describe("Student Success & Early Warning API", () => {
+  it("fetches early-warning overview with real computed metrics, KPIs and signals", async () => {
+    const instSession = session("institution");
+    const res = await dispatch("GET", ["early-warning"], undefined, instSession, new URLSearchParams());
+    expect(res.status).toBe(200);
+    const body = res.body as {
+      college: { id: string; name: string };
+      kpis: Array<{ label: string; value: string }>;
+      students: Array<{ id: string; studentName: string; rollNo: string; riskLevel: string; signals: any[] }>;
+      riskDistribution: { title: string; data: any[] };
+      signalsBreakdown: { title: string; data: any[] };
+      insights: Array<{ title: string; body: string }>;
+    };
+    expect(body.college.name).toBeTruthy();
+    expect(body.kpis.length).toBeGreaterThanOrEqual(4);
+    expect(Array.isArray(body.students)).toBe(true);
+    expect(body.riskDistribution.data.length).toBe(4);
+    expect(body.signalsBreakdown.data.length).toBeGreaterThan(0);
+    expect(body.insights.length).toBeGreaterThan(0);
+  });
+
+  it("filters early-warning by department and risk level", async () => {
+    const instSession = session("institution");
+    const query = new URLSearchParams({ department: "All Departments", riskLevel: "Critical" });
+    const res = await dispatch("GET", ["early-warning"], undefined, instSession, query);
+    expect(res.status).toBe(200);
+    const body = res.body as { students: Array<{ riskLevel: string }> };
+    body.students.forEach((s) => {
+      expect(s.riskLevel).toBe("Critical");
+    });
+  });
+
+  it("logs a support plan for an at-risk student", async () => {
+    const instSession = session("institution");
+    const payload = {
+      studentId: "student-sub-123",
+      studentName: "Anand Kumar",
+      strategy: "1-on-1 Faculty Mentorship",
+      facultyLead: "Dr. Meena Raghavan",
+      targetDate: "2026-10-20",
+      notes: "Focus on Operating Systems algorithms and practice quizzes",
+    };
+    const res = await dispatch("POST", ["early-warning", "interventions"], payload, instSession, new URLSearchParams());
+    expect(res.status).toBe(200);
+    const body = res.body as { id: string; studentName: string; strategy: string; status: string };
+    expect(body.id).toMatch(/^ACT-/);
+    expect(body.studentName).toBe("Anand Kumar");
+    expect(body.strategy).toBe("1-on-1 Faculty Mentorship");
+    expect(body.status).toBe("In progress");
+  });
+
+  it("updates case review status via PATCH", async () => {
+    const hodSession = session("hod");
+    const res = await dispatch(
+      "PATCH",
+      ["early-warning", "reviews", "student-sub-123"],
+      { reviewStatus: "Resolved", notes: "Completed 3 mentorship sessions and cleared exam" },
+      hodSession,
+      new URLSearchParams()
+    );
+    expect(res.status).toBe(200);
+    const body = res.body as { ok: boolean; status: string };
+    expect(body.ok).toBe(true);
+    expect(body.status).toBe("Resolved");
+  });
+
+  it("forbids student role from accessing early-warning", async () => {
+    const studentSession = session("student");
+    const res = await dispatch("GET", ["early-warning"], undefined, studentSession, new URLSearchParams());
+    expect(res.status).toBe(403);
+  });
+});
+
 

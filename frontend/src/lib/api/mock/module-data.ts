@@ -24,6 +24,7 @@ import { getStore } from "@/lib/data";
 import { collegeStream } from "./records";
 import { dynamicBiAnalytics } from "./bi-analytics";
 import { getDepartmentSkillsOverview } from "./department-skills";
+import { getEarlyWarningOverview } from "./early-warning";
 import { getCollegeClubs } from "./clubs";
 import { getCollegeSports } from "./sports";
 import { getCollegeCalendar } from "./academic-calendar";
@@ -352,10 +353,30 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
       "Import students"
     );
   },
-  "early-warning": () =>
-    list([col("student", "Student"), col("roll", "Roll no.", "masked"), col("signals", "Signals observed"), col("since", "Since"), col("recommendation", "Support recommendation"), col("status", "Review", "badge")],
-      rows(7, "ew", (i, r) => ({ student: personName(i + 5), roll: `21CS${String(1100 + i * 17)}`, signals: pick(["Declining scores (3 assessments)", "Missed 4 assignments", "Reduced engagement (−60%)", "Repeated failed quizzes in OS", "Skill stagnation for 6 weeks"], r), since: `${2 + Math.floor(r() * 5)} weeks`, recommendation: pick(["Faculty check-in", "Peer tutoring", "Counsellor conversation", "Remedial class"], r), status: pick(["Pending review", "In progress", "Resolved"], r) })),
-      "status"),
+  "early-warning": async (scope) => {
+    const session: any = { role: "institution", sub: "sys", name: "System", college: scope, tenant: "t-1", mfa: true, exp: 9999999999 };
+    const ew = await getEarlyWarningOverview(session);
+    return list(
+      [
+        col("student", "Student"),
+        col("roll", "Roll no.", "masked"),
+        col("signals", "Signals observed"),
+        col("risk", "Risk Level", "badge"),
+        col("recommendation", "Support recommendation"),
+        col("status", "Review", "badge"),
+      ],
+      ew.students.map((s) => ({
+        student: s.studentName,
+        roll: s.rollNo,
+        signals: s.signals.map((sig) => sig.title).join(" · ") || "On Track",
+        risk: s.riskLevel,
+        recommendation: s.recommendation,
+        status: s.reviewStatus,
+      })),
+      "risk",
+      "Support Action"
+    );
+  },
   "department-faculty": () =>
     list([col("name", "Faculty"), col("designation", "Designation"), col("load", "Teaching load (hrs/wk)", "number"), col("development", "Skill development", "progress"), col("ai", "AI adoption", "badge")],
       rows(9, "fac", (i, r) => ({ name: `${pick(["Dr.", "Prof.", "Ms.", "Mr."], r)} ${personName(i + 20)}`, designation: pick(["Professor", "Associate Professor", "Assistant Professor"], r), load: 12 + Math.floor(r() * 8), development: Math.round(20 + r() * 80), ai: pick(["High", "Medium", "Starting"], r) })),
