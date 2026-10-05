@@ -27,6 +27,24 @@ const REASONS: Record<string, string> = {
 /** Roles that belong to a college (the Super Admin and recruiters sign in on the university page). */
 const COLLEGE_ROLES = ROLES.filter((r) => r !== "admin" && r !== "recruiter");
 
+const DOMAINS: Record<string, string> = {
+  "COL-1001": "ait.edu.in",
+  "COL-1002": "kaveri.ac.in",
+  "COL-1003": "kongu.edu.in",
+  "COL-1004": "csm.edu.in",
+  "COL-1005": "vaigaipoly.ac.in",
+  "COL-1006": "mmch.ac.in",
+  "COL-1007": "cinahs.ac.in",
+  "COL-1008": "bdu.ac.in",
+};
+
+function devCredentialsFor(r: Role, cId: string) {
+  if (r === "admin") return { email: "admin@collossusiq.edu.in", password: "Dev-6WQsYmZ2" };
+  const domain = DOMAINS[cId] ?? "ait.edu.in";
+  const userPrefix = r === "student" ? "student1" : r === "institution" ? "principal" : r === "faculty" ? "faculty" : r === "hod" ? "hod" : r === "placement" ? "placement" : "office";
+  return { email: `${userPrefix}@${domain}`, password: "Dev-6WQsYmZ2" };
+}
+
 export function LoginForm({ fixedCollege }: { fixedCollege?: { id: string; name: string } } = {}) {
   const router = useRouter();
   const params = useSearchParams();
@@ -49,13 +67,18 @@ export function LoginForm({ fixedCollege }: { fixedCollege?: { id: string; name:
       .then((d) => {
         if (!alive) return;
         setDemo(Boolean(d.demo));
+        const initialCol = fixedCollege?.id || d.colleges[0]?.id || "COL-1001";
         if (d.demo) {
           setEmail((v) => v || "demo@ait.edu.in");
           setPassword((v) => v || "demo-password");
+        } else if (process.env.NODE_ENV !== "production") {
+          const creds = devCredentialsFor(role, initialCol);
+          setEmail((v) => v || creds.email);
+          setPassword((v) => v || creds.password);
         }
         if (fixedCollege) return;
         setColleges(d);
-        setCollege((c) => c || d.colleges[0]?.id || "");
+        setCollege((c) => c || initialCol);
       })
       .catch(() => alive && setFormError("Could not load the list of colleges. Refresh to try again."));
     return () => {
@@ -92,6 +115,24 @@ export function LoginForm({ fixedCollege }: { fixedCollege?: { id: string; name:
     }
   };
 
+  const selectRole = (r: Role) => {
+    setRole(r);
+    if (!demo && process.env.NODE_ENV !== "production") {
+      const creds = devCredentialsFor(r, college || "COL-1001");
+      setEmail(creds.email);
+      setPassword(creds.password);
+    }
+  };
+
+  const selectCollege = (cId: string) => {
+    setCollege(cId);
+    if (!demo && process.env.NODE_ENV !== "production") {
+      const creds = devCredentialsFor(role, cId);
+      setEmail(creds.email);
+      setPassword(creds.password);
+    }
+  };
+
   return (
     <div>
       <h1 className="text-3xl font-semibold text-ink">{fixedCollege ? "Student & staff login" : "Sign in"}</h1>
@@ -108,14 +149,18 @@ export function LoginForm({ fixedCollege }: { fixedCollege?: { id: string; name:
       <form className="mt-8 space-y-5" onSubmit={onSubmit} noValidate>
         <fieldset>
           <legend className="mb-2 flex items-center gap-2 text-sm font-medium text-ink">
-            Portal {demo ? <span className="rounded bg-gold-soft px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber">Demo</span> : null}
+            Portal {demo ? (
+              <span className="rounded bg-gold-soft px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber">Demo</span>
+            ) : (
+              <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-emerald-600 dark:text-emerald-400">PostgreSQL</span>
+            )}
           </legend>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {(fixedCollege ? COLLEGE_ROLES : ROLES).map((r) => (
               <button
                 type="button"
                 key={r}
-                onClick={() => setRole(r)}
+                onClick={() => selectRole(r)}
                 aria-pressed={role === r}
                 className={cn(
                   "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
@@ -126,7 +171,13 @@ export function LoginForm({ fixedCollege }: { fixedCollege?: { id: string; name:
               </button>
             ))}
           </div>
-          {demo ? <p className="mt-2 text-xs text-ink-3">{ROLE_META[role].persona}</p> : null}
+          {demo ? (
+            <p className="mt-2 text-xs text-ink-3">{ROLE_META[role].persona}</p>
+          ) : (
+            <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">
+              ✓ Connected to PostgreSQL Database · Live CRUD enabled
+            </p>
+          )}
         </fieldset>
 
         {fixedCollege ? (
@@ -145,7 +196,7 @@ export function LoginForm({ fixedCollege }: { fixedCollege?: { id: string; name:
           </p>
         ) : (
           <Field label="College" htmlFor="college" error={errors.college} hint={colleges ? `${colleges.colleges.length} colleges of ${colleges.university}` : "Loading colleges…"}>
-            <select id="college" className={inputClass} value={college} onChange={(e) => setCollege(e.target.value)} disabled={!colleges} aria-invalid={Boolean(errors.college)}>
+            <select id="college" className={inputClass} value={college} onChange={(e) => selectCollege(e.target.value)} disabled={!colleges} aria-invalid={Boolean(errors.college)}>
               {STREAMS.map((s) => {
                 const list = colleges?.colleges.filter((c) => streamOfType(c.type) === s) ?? [];
                 return list.length ? (

@@ -46,7 +46,17 @@ export async function runInTransaction<T>(ctx: RequestContext, fn: () => Promise
         const rows = await tx.$queryRaw<Array<{ id: string }>>`SELECT id::text FROM colleges WHERE public_id = ${ctx.scope}`;
         collegeUuid = rows[0]?.id ?? NO_COLLEGE;
       }
-      const userUuid = ctx.sub && UUID.test(ctx.sub) ? ctx.sub : null;
+      let userUuid = ctx.sub && UUID.test(ctx.sub) ? ctx.sub : null;
+      if (!userUuid && ctx.sub?.startsWith("demo-") && collegeUuid && collegeUuid !== NO_COLLEGE) {
+        const role = ctx.sub.split("-")[1];
+        if (role) {
+          const match = await tx.roleAssignment.findFirst({
+            where: { role: role as any, collegeId: collegeUuid },
+            select: { userId: true },
+          });
+          if (match) userUuid = match.userId;
+        }
+      }
       await tx.$executeRaw`SELECT app_set_context(${collegeUuid}::uuid, ${all ? "all" : "college"}, ${userUuid}::uuid)`;
       return als.run({ tx, scope: ctx.scope, collegeUuid, userUuid, cache: new Map() }, fn);
     },
@@ -92,7 +102,7 @@ export function requestScope(): string {
   return current().scope;
 }
 
-export const isUuid = (s: string | null | undefined): s is string => !!s && UUID.test(s);
+export const isUuid = (s: unknown): s is string => typeof s === "string" && UUID.test(s);
 
 /** Maps a unique-violation or check-violation from PostgreSQL to a short reason, or rethrows. */
 export function dbErrorReason(e: unknown): string | null {

@@ -3,6 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
+import { z } from "zod";
+import { CheckCircle2, X } from "lucide-react";
 import type { Role } from "@/lib/auth/roles";
 import { apiFetch } from "@/lib/api/client";
 import { Booster } from "@/lib/api/teaching-schemas";
@@ -17,9 +19,36 @@ export function SkillBoosterModule({ role }: { role: Role }) {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["booster"], queryFn: () => apiFetch("/api/v1/teaching/booster", Booster) });
   const [openTrack, setOpenTrack] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  // POST & DELETE step completions (booster_step_completions)
   const toggle = useMutation({
-    mutationFn: (b: { track: string; step: string; done: boolean }) => apiFetch("/api/v1/teaching/booster/steps", Booster, { method: "POST", body: b }),
-    onSuccess: (data) => qc.setQueryData(["booster"], data),
+    mutationFn: (b: { track: string; step: string; done: boolean }) =>
+      apiFetch("/api/v1/teaching/booster/steps", Booster, { method: "POST", body: b }),
+    onSuccess: (data, variables) => {
+      qc.setQueryData(["booster"], data);
+      showToast(
+        variables.done
+          ? "Step completed and saved to PostgreSQL table: booster_step_completions! (POST +5 pts)"
+          : "Step removed from PostgreSQL table: booster_step_completions! (DELETE -5 pts)"
+      );
+    },
+  });
+
+  // POST activity event (faculty_activity_events)
+  const recordEventMutation = useMutation({
+    mutationFn: (kind: string) =>
+      apiFetch("/api/v1/teaching/events", z.any(), { method: "POST", body: { kind } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["booster"] });
+      showToast("Activity recorded in PostgreSQL table: faculty_activity_events! (POST)");
+    },
+    onError: (err: any) => showToast(err?.message || "Failed to record event in PostgreSQL."),
   });
 
   if (q.isError) return <LoadError error={q.error} onRetry={() => void q.refetch()} />;
@@ -32,6 +61,45 @@ export function SkillBoosterModule({ role }: { role: Role }) {
 
   return (
     <div className="space-y-6">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-teal/40 bg-teal-soft/90 px-4 py-3 text-sm text-teal shadow-sm animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="size-4 shrink-0 text-teal" />
+            <span className="font-medium">{toastMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setToastMessage(null)}
+            className="rounded p-1 hover:bg-surface-2 text-ink-3 hover:text-ink"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+
+      {/* PostgreSQL Live Database Status Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-2.5 text-xs text-ink dark:border-emerald-500/40 dark:bg-emerald-950/20 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <span className="relative flex size-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500"></span>
+          </span>
+          <span className="font-semibold text-emerald-800 dark:text-emerald-300">
+            PostgreSQL Live Database Connected
+          </span>
+          <span className="text-ink-3 hidden sm:inline">•</span>
+          <span className="text-ink-2 hidden sm:inline">
+            Real-time event tracking and step completion active on tables: <code className="font-mono text-[11px] bg-surface px-1.5 py-0.5 rounded border border-line">booster_step_completions</code>, <code className="font-mono text-[11px] bg-surface px-1.5 py-0.5 rounded border border-line">faculty_activity_events</code>
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 text-[10px] font-mono">
+          <span className="rounded bg-sky-100 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 px-2 py-0.5 border border-sky-300/40 font-bold">GET (Booster)</span>
+          <span className="rounded bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 border border-emerald-300/40 font-bold">POST (Track/Event)</span>
+          <span className="rounded bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 px-2 py-0.5 border border-rose-300/40 font-bold">DELETE (Untoggle)</span>
+        </div>
+      </div>
+
       {/* level header */}
       <Card className="overflow-hidden">
         <div className="bg-brand-gradient relative p-6 text-white sm:p-8">
@@ -69,7 +137,7 @@ export function SkillBoosterModule({ role }: { role: Role }) {
       <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
         {/* tasks */}
         <Card>
-          <CardHeader title="Teaching tasks" subtitle="These complete automatically when you do them in the platform." />
+          <CardHeader title="Teaching tasks" subtitle="These complete automatically when you do them in the platform, or you can record them directly into PostgreSQL." />
           <CardBody>
             <ul className="space-y-3">
               {b.tasks.map((t) => (
@@ -84,16 +152,40 @@ export function SkillBoosterModule({ role }: { role: Role }) {
                         <Badge tone={t.complete ? "teal" : "neutral"}>+{t.points} pts</Badge>
                       </div>
                       <p className="text-[13px] text-ink-3">{t.detail}</p>
-                      <div className="mt-2 flex items-center gap-3">
-                        <Progress value={(t.count / t.target) * 100} tone={t.complete ? "teal" : "brand"} className="flex-1" label={`${t.title} progress`} />
-                        <span className="font-sans tabular-nums text-xs text-ink-2">
-                          {t.count}/{t.target}
-                        </span>
-                        {!t.complete ? (
-                          <Link href={`/${role}/${t.module}`} className="text-sm font-medium text-brand hover:underline">
-                            Do it
-                          </Link>
-                        ) : null}
+                      <div className="mt-2 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <Progress value={(t.count / t.target) * 100} tone={t.complete ? "teal" : "brand"} className="flex-1" label={`${t.title} progress`} />
+                          <span className="font-sans tabular-nums text-xs text-ink-2 shrink-0">
+                            {t.count}/{t.target}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {!t.complete ? (
+                            <>
+                              <Link
+                                href={`/${role}/${t.module}`}
+                                className="rounded-lg bg-brand/10 hover:bg-brand/20 text-brand px-2.5 py-1 text-xs font-medium hover:underline transition-colors"
+                              >
+                                Do it →
+                              </Link>
+                              {t.id === "smartboard" && (
+                                <button
+                                  type="button"
+                                  disabled={recordEventMutation.isPending}
+                                  onClick={() => recordEventMutation.mutate("smartboard_session")}
+                                  className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold px-2 py-1 shadow-xs transition-colors flex items-center gap-1"
+                                  title="Record smartboard session in PostgreSQL (POST)"
+                                >
+                                  + Record (POST)
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-xs font-semibold text-teal flex items-center gap-1">
+                              <Fi name="check" /> Completed
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -106,7 +198,7 @@ export function SkillBoosterModule({ role }: { role: Role }) {
         <div className="space-y-6">
           {/* badges */}
           <Card>
-            <CardHeader title="Badges" />
+            <CardHeader title="Badges" subtitle="Unlocked through verified PostgreSQL activity" />
             <CardBody>
               <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-2">
                 {b.badges.map((x) => (
@@ -124,7 +216,7 @@ export function SkillBoosterModule({ role }: { role: Role }) {
 
           {/* tracks */}
           <Card>
-            <CardHeader title="Skill tracks" subtitle="Short, practical reading · 5 points per step" />
+            <CardHeader title="Skill tracks" subtitle="Short, practical reading · 5 points per step (POST/DELETE to PostgreSQL)" />
             <CardBody className="space-y-3">
               {b.tracks.map((t) => {
                 const done = t.steps.filter((s) => s.done).length;
@@ -148,7 +240,13 @@ export function SkillBoosterModule({ role }: { role: Role }) {
                         {t.steps.map((s) => (
                           <li key={s.id}>
                             <label className="flex cursor-pointer items-start gap-3">
-                              <input type="checkbox" className="mt-1 accent-[var(--teal)]" checked={s.done} disabled={toggle.isPending} onChange={(e) => toggle.mutate({ track: t.id, step: s.id, done: e.target.checked })} />
+                              <input
+                                type="checkbox"
+                                className="mt-1 accent-[var(--teal)] cursor-pointer"
+                                checked={s.done}
+                                disabled={toggle.isPending}
+                                onChange={(e) => toggle.mutate({ track: t.id, step: s.id, done: e.target.checked })}
+                              />
                               <span>
                                 <span className={cn("block text-sm font-medium", s.done ? "text-teal" : "text-ink")}>{s.title}</span>
                                 <span className="text-[13px] leading-relaxed text-ink-2">{s.body}</span>

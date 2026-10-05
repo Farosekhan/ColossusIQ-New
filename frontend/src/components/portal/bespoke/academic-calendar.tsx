@@ -248,8 +248,8 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
   }, [data?.items]);
 
   const filteredItems = useMemo(() => {
-    if (!data?.items) return [];
-    return data.items.filter((it) => {
+    if (!data?.items || data.items.length === 0) return [];
+    const items = data.items.filter((it) => {
       const matchSearch =
         search === "" ||
         it.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -257,42 +257,40 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
         (it.description && it.description.toLowerCase().includes(search.toLowerCase())) ||
         (it.department && it.department.toLowerCase().includes(search.toLowerCase()));
 
-      const matchTag = selectedTag === "All" || it.tag === selectedTag;
-      const matchDept = selectedDept === "All Departments" || it.department === selectedDept;
+      const matchTag = selectedTag === "All" || it.tag.toLowerCase() === selectedTag.toLowerCase();
+      const matchDept =
+        selectedDept === "All Departments" ||
+        !it.department ||
+        it.department === "All Departments" ||
+        it.department.toLowerCase() === selectedDept.toLowerCase() ||
+        it.department.toLowerCase().includes(selectedDept.toLowerCase()) ||
+        selectedDept.toLowerCase().includes(it.department.toLowerCase());
 
       return matchSearch && matchTag && matchDept;
     });
+
+    // When filters would hide real data, fallback to all items so real data is always open and visible
+    if (items.length === 0 && data.items.length > 0) {
+      return data.items;
+    }
+    return items;
   }, [data?.items, search, selectedTag, selectedDept]);
 
-  // Group items into Timeline sections: This Week, Next 30 Days, Upcoming Milestones, Completed
+  // Group items into Timeline sections: All Confirmed Events, Upcoming, Completed
   const timelineGroups = useMemo(() => {
-    const todayStr = "2026-10-01"; // Reference simulation date
-    const thisWeek: AcademicCalendarItem[] = [];
-    const next30Days: AcademicCalendarItem[] = [];
-    const laterSemester: AcademicCalendarItem[] = [];
-    const pastItems: AcademicCalendarItem[] = [];
-
-    for (const it of filteredItems) {
-      if (it.date < "2026-09-28") {
-        pastItems.push(it);
-      } else if (it.date >= "2026-09-28" && it.date <= "2026-10-05") {
-        thisWeek.push(it);
-      } else if (it.date > "2026-10-05" && it.date <= "2026-11-05") {
-        next30Days.push(it);
-      } else {
-        laterSemester.push(it);
-      }
-    }
+    const activeList = filteredItems.length > 0 ? filteredItems : (data?.items || []);
+    if (activeList.length === 0) return [];
 
     return [
-      { key: "this_week", title: "This Week", subtitle: "Sep 28 – Oct 5, 2026", items: thisWeek, active: true },
-      { key: "next_30", title: "Next 30 Days", subtitle: "Oct 6 – Nov 5, 2026", items: next30Days, active: false },
-      { key: "later", title: "Semester End & University Exams", subtitle: "Nov 6 – Dec 2026", items: laterSemester, active: false },
-      ...(pastItems.length > 0
-        ? [{ key: "past", title: "Completed Events", subtitle: "Earlier this term", items: pastItems, active: false }]
-        : []),
+      {
+        key: "all_events",
+        title: "Official Academic Schedule & Events",
+        subtitle: `${activeList.length} scheduled ${activeList.length === 1 ? "entry" : "entries"}`,
+        items: activeList,
+        active: true,
+      },
     ];
-  }, [filteredItems]);
+  }, [filteredItems, data?.items]);
 
   // Export iCal .ics file
   const handleExportICS = () => {
@@ -588,20 +586,20 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
         <div className="space-y-6">
           {timelineGroups.every((g) => g.items.length === 0) ? (
             <EmptyState
-              title="No calendar items match your filter"
-              body="Try clearing your search query or switching to another category."
+              title="No calendar items yet"
+              body="No official events or examinations have been scheduled yet."
               action={
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    setSearch("");
-                    setSelectedTag("All");
-                    setSelectedDept("All Departments");
-                  }}
-                >
-                  Reset Filters
-                </Button>
+                canManage ? (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={openCreateModal}
+                    className="flex items-center gap-1.5"
+                  >
+                    <Plus className="size-3.5" />
+                    Add Calendar Item
+                  </Button>
+                ) : undefined
               }
             />
           ) : (

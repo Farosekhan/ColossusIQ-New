@@ -20,7 +20,8 @@ import { TENANTS, hashString, personName, seeded } from "./fixtures";
 import { ADMISSION_FLOW, RESOURCES } from "@/config/resources";
 import type { ResourceRecord } from "@/config/resources";
 import type { Stream } from "@/config/streams";
-import { getStore } from "@/lib/data";
+import { getStore, dataBackend } from "@/lib/data";
+import { db } from "@/lib/data/postgres/db";
 import { collegeStream } from "./records";
 import { dynamicBiAnalytics } from "./bi-analytics";
 import { getCollegeClubs } from "./clubs";
@@ -299,10 +300,97 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
       "Import students"
     );
   },
-  "early-warning": () =>
-    list([col("student", "Student"), col("roll", "Roll no.", "masked"), col("signals", "Signals observed"), col("since", "Since"), col("recommendation", "Support recommendation"), col("status", "Review", "badge")],
-      rows(7, "ew", (i, r) => ({ student: personName(i + 5), roll: `21CS${String(1100 + i * 17)}`, signals: pick(["Declining scores (3 assessments)", "Missed 4 assignments", "Reduced engagement (−60%)", "Repeated failed quizzes in OS", "Skill stagnation for 6 weeks"], r), since: `${2 + Math.floor(r() * 5)} weeks`, recommendation: pick(["Faculty check-in", "Peer tutoring", "Counsellor conversation", "Remedial class"], r), status: pick(["Pending review", "In progress", "Resolved"], r) })),
-      "status"),
+  "early-warning": async (collegeScope) => {
+    if (dataBackend() === "postgres") {
+      const all = await getStudentsList({ collegeId: collegeScope });
+      if (all.length > 0) {
+        const ewStudents = all.slice(0, 10);
+        const signalOptions = [
+          "Declining scores (3 assessments)",
+          "Missed 4 assignments",
+          "Reduced engagement (−60%)",
+          "Repeated failed quizzes in OS",
+          "Skill stagnation for 6 weeks",
+        ];
+        const recOptions = [
+          "Faculty check-in",
+          "Peer tutoring",
+          "Counsellor conversation",
+          "Remedial class",
+        ];
+        const statusOptions = ["Pending review", "In progress", "Resolved"];
+
+        return list(
+          [
+            col("student", "Student"),
+            col("roll", "Roll no.", "masked"),
+            col("signals", "Signals observed"),
+            col("since", "Since"),
+            col("recommendation", "Support recommendation"),
+            col("status", "Review", "badge"),
+          ],
+          ewStudents.map((s, idx) => ({
+            id: s.id,
+            student: s.name,
+            roll: s.roll,
+            signals: signalOptions[idx % signalOptions.length]!,
+            since: `${2 + (idx % 5)} weeks`,
+            recommendation: recOptions[idx % recOptions.length]!,
+            status: statusOptions[idx % statusOptions.length]!,
+          })),
+          "status"
+        );
+      }
+      return list(
+        [
+          col("student", "Student"),
+          col("roll", "Roll no.", "masked"),
+          col("signals", "Signals observed"),
+          col("since", "Since"),
+          col("recommendation", "Support recommendation"),
+          col("status", "Review", "badge"),
+        ],
+        [],
+        "status"
+      );
+    }
+    return list(
+      [
+        col("student", "Student"),
+        col("roll", "Roll no.", "masked"),
+        col("signals", "Signals observed"),
+        col("since", "Since"),
+        col("recommendation", "Support recommendation"),
+        col("status", "Review", "badge"),
+      ],
+      rows(7, "ew", (i, r) => ({
+        student: personName(i + 5),
+        roll: `21CS${String(1100 + i * 17)}`,
+        signals: pick(
+          [
+            "Declining scores (3 assessments)",
+            "Missed 4 assignments",
+            "Reduced engagement (−60%)",
+            "Repeated failed quizzes in OS",
+            "Skill stagnation for 6 weeks",
+          ],
+          r
+        ),
+        since: `${2 + Math.floor(r() * 5)} weeks`,
+        recommendation: pick(
+          [
+            "Faculty check-in",
+            "Peer tutoring",
+            "Counsellor conversation",
+            "Remedial class",
+          ],
+          r
+        ),
+        status: pick(["Pending review", "In progress", "Resolved"], r),
+      })),
+      "status"
+    );
+  },
   "department-faculty": () =>
     list([col("name", "Faculty"), col("designation", "Designation"), col("load", "Teaching load (hrs/wk)", "number"), col("development", "Skill development", "progress"), col("ai", "AI adoption", "badge")],
       rows(9, "fac", (i, r) => ({ name: `${pick(["Dr.", "Prof.", "Ms.", "Mr."], r)} ${personName(i + 20)}`, designation: pick(["Professor", "Associate Professor", "Assistant Professor"], r), load: 12 + Math.floor(r() * 8), development: Math.round(20 + r() * 80), ai: pick(["High", "Medium", "Starting"], r) })),
@@ -332,9 +420,18 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
       [["Regulations 2021 — B.E./B.Tech", "Regulation"], ["Academic Calendar 2026–27 (Odd sem)", "Calendar"], ["CSE Department Handbook", "Handbook"], ["Internal Assessment Rules", "Policy"], ["Placement Policy 2026", "Policy"], ["Student Code of Conduct", "Guideline"], ["DBMS Lab Manual", "Lab manual"], ["Circular 42/2026 — Exam fee", "Circular"]].map(([doc, type], i) => ({ doc: doc!, type: type!, owner: pick(["Registrar", "Exam Cell", "CSE Dept", "Placement Cell"], seeded(i + 7)), updated: `${1 + i * 3} Sep 2026`, chunks: 40 + ((i * 61) % 500), status: i === 7 ? "Pending approval" : "Approved" })),
       "type", "Upload document"),
   reports: () =>
-    list([col("report", "Report"), col("scope", "Scope"), col("period", "Period"), col("format", "Formats", "badge"), col("generated", "Last generated")],
-      [["Semester academic report", "Institution"], ["Department performance", "CSE"], ["Course outcome attainment", "DBMS"], ["Skill report", "Final year"], ["Placement report", "Institution"], ["Faculty development", "All departments"], ["Activity & engagement", "Institution"], ["Student progress", "CSE-A"]].map(([report, scope], i) => ({ report: report!, scope: scope!, period: "Odd sem 2026", format: "PDF · Excel · CSV", generated: `${2 + i} days ago` })),
-      undefined, "Generate report"),
+    list(
+      [
+        col("report", "Report"),
+        col("scope", "Scope"),
+        col("period", "Period"),
+        col("format", "Formats", "badge"),
+        col("generated", "Last generated"),
+      ],
+      [],
+      undefined,
+      "Generate report"
+    ),
   "talent-search": () =>
     list([col("candidate", "Candidate"), col("college", "College"), col("dept", "Department"), col("skills", "Verified skills"), col("projects", "Projects", "number"), col("readiness", "Readiness", "progress")],
       rows(10, "tal", (i, r) => ({ candidate: personName(i + 6), college: pick(TENANTS.map((t) => t.name), r), dept: pick(["CSE", "IT", "AI&DS", "ECE"], r), skills: pick(["Python · SQL · ML", "Java · Spring · AWS", "React · Node · MongoDB", "C · Embedded · IoT"], r), projects: 1 + Math.floor(r() * 5), readiness: Math.round(50 + r() * 49) })),
@@ -452,20 +549,24 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
   "daily-plan": () => ({
     template: "calendar",
     days: [
-      { day: "Today", items: [
-        { time: "06:30", title: "Walk / exercise", tag: "Wellness", tone: "teal" },
-        { time: "09:00", title: "DBMS class", tag: "Class", tone: "brand" },
-        { time: "11:00", title: "Python practice", tag: "Study", tone: "sky" },
-        { time: "13:00", title: "Lunch + break", tag: "Break", tone: "neutral" },
-        { time: "15:00", title: "Project: Smart Campus AI", tag: "Project", tone: "gold" },
-        { time: "18:00", title: "Interview practice", tag: "Career", tone: "amber" },
-        { time: "21:00", title: "Revision: normalization (25 min)", tag: "Revision", tone: "sky" },
-      ] },
-      { day: "Tomorrow", items: [
-        { time: "09:00", title: "OS class", tag: "Class", tone: "brand" },
-        { time: "16:00", title: "Coding Club contest", tag: "Club", tone: "teal" },
-        { time: "20:00", title: "Mock test: deadlocks", tag: "Assessment", tone: "rose" },
-      ] },
+      {
+        day: "Today", items: [
+          { time: "06:30", title: "Walk / exercise", tag: "Wellness", tone: "teal" },
+          { time: "09:00", title: "DBMS class", tag: "Class", tone: "brand" },
+          { time: "11:00", title: "Python practice", tag: "Study", tone: "sky" },
+          { time: "13:00", title: "Lunch + break", tag: "Break", tone: "neutral" },
+          { time: "15:00", title: "Project: Smart Campus AI", tag: "Project", tone: "gold" },
+          { time: "18:00", title: "Interview practice", tag: "Career", tone: "amber" },
+          { time: "21:00", title: "Revision: normalization (25 min)", tag: "Revision", tone: "sky" },
+        ]
+      },
+      {
+        day: "Tomorrow", items: [
+          { time: "09:00", title: "OS class", tag: "Class", tone: "brand" },
+          { time: "16:00", title: "Coding Club contest", tag: "Club", tone: "teal" },
+          { time: "20:00", title: "Mock test: deadlocks", tag: "Assessment", tone: "rose" },
+        ]
+      },
     ],
     tips: ["Planner balances study with rest — you have 2 free blocks today.", "Class timings sync from the academic calendar."],
   }),
@@ -498,16 +599,16 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
         },
         ...(later.length > 0
           ? [
-              {
-                day: "Semester Milestones & Exams",
-                items: later.map((it) => ({
-                  time: it.date.slice(5) + " · " + it.time,
-                  title: it.title,
-                  tag: it.tag,
-                  tone: it.tone,
-                })),
-              },
-            ]
+            {
+              day: "Semester Milestones & Exams",
+              items: later.map((it) => ({
+                time: it.date.slice(5) + " · " + it.time,
+                title: it.title,
+                tag: it.tag,
+                tone: it.tone,
+              })),
+            },
+          ]
           : []),
       ],
       tips: ["Class timings and assessment windows sync from the official academic calendar."],
@@ -516,23 +617,27 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
   wellness: () => ({
     template: "calendar",
     days: [
-      { day: "Healthy routine suggestions", items: [
-        { time: "Morning", title: "10 minutes of light movement and sunlight", tag: "Activity", tone: "teal" },
-        { time: "Every 45 min", title: "5-minute study break, look away from screens", tag: "Breaks", tone: "sky" },
-        { time: "All day", title: "Aim for regular water intake", tag: "Hydration", tone: "sky" },
-        { time: "Evening", title: "Screen-free wind-down 30 minutes before bed", tag: "Sleep", tone: "brand" },
-        { time: "Night", title: "Consistent 7–8 hour sleep window", tag: "Sleep", tone: "brand" },
-      ] },
+      {
+        day: "Healthy routine suggestions", items: [
+          { time: "Morning", title: "10 minutes of light movement and sunlight", tag: "Activity", tone: "teal" },
+          { time: "Every 45 min", title: "5-minute study break, look away from screens", tag: "Breaks", tone: "sky" },
+          { time: "All day", title: "Aim for regular water intake", tag: "Hydration", tone: "sky" },
+          { time: "Evening", title: "Screen-free wind-down 30 minutes before bed", tag: "Sleep", tone: "brand" },
+          { time: "Night", title: "Consistent 7–8 hour sleep window", tag: "Sleep", tone: "brand" },
+        ]
+      },
     ],
     tips: ["Educational guidance only — not medical advice.", "Student Welfare Office: Block C, Room 104 · Counsellor hours 10:00–17:00."],
   }),
   "recruiter-interviews": () => ({
     template: "calendar",
     days: [
-      { day: "Today", items: [
-        { time: "10:00", title: "Divya Raman — SDE-1 technical", tag: "Technical", tone: "brand" },
-        { time: "14:30", title: "Karthik Iyer — Data Analyst", tag: "Technical", tone: "brand" },
-      ] },
+      {
+        day: "Today", items: [
+          { time: "10:00", title: "Divya Raman — SDE-1 technical", tag: "Technical", tone: "brand" },
+          { time: "14:30", title: "Karthik Iyer — Data Analyst", tag: "Technical", tone: "brand" },
+        ]
+      },
       { day: "Tomorrow", items: [{ time: "11:00", title: "Priya Nair — HR round", tag: "HR", tone: "gold" }] },
     ],
     tips: [],
@@ -590,16 +695,95 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
       ["Communication Level Up", "Reach Intermediate+", "Badge", "59 / 65", "amber", 90],
       ["Hackathon Participant", "Joined a hackathon", "Badge", "Earned", "rose", 100],
     ]),
-  "department-labs": () =>
-    gallery([
-      ["Coding Lab", "Practice problems, contests and auto-graded labs", "Computer Science / IT", "1,240 problems", "brand"],
-      ["AI Lab", "Notebooks, datasets and GPU queue", "Computer Science / IT", "Beta", "sky"],
-      ["CAD Practice", "Guided modelling exercises", "Mechanical", "Phase 2", "gold"],
-      ["Circuit Design", "Simulations and PCB project templates", "Electronics / ECE", "Phase 2", "teal"],
-      ["Structural Design & GIS", "Estimation, planning and site safety modules", "Civil", "Phase 2", "amber"],
-      ["Business Simulations", "Case studies, accounting and finance labs", "Commerce / Management", "Phase 2", "rose"],
-      ["Language & Research", "Communication, research and presentation", "Humanities / Arts", "Phase 2", "brand"],
-    ]),
+  "department-labs": async (collegeScope, live) => {
+    if (dataBackend() === "postgres" && collegeScope && collegeScope !== "all") {
+      try {
+        const t = db();
+        const [colDepts, colCourses] = await Promise.all([
+          t.collegeDepartment.findMany({
+            where: { college: { publicId: collegeScope }, status: "Active" },
+            include: { department: true },
+            orderBy: { department: { name: "asc" } },
+          }),
+          t.course.findMany({
+            where: { college: { publicId: collegeScope }, status: "Active" },
+            include: { department: true },
+            orderBy: { title: "asc" },
+          }),
+        ]);
+
+        if (colDepts.length > 0 || colCourses.length > 0) {
+          const tones = ["brand", "sky", "teal", "gold", "amber", "rose"] as const;
+          const items: Array<[string, string, string, string, (typeof tones)[number]]> = [];
+
+          // Add practical labs for active courses in PostgreSQL
+          for (let i = 0; i < colCourses.length; i++) {
+            const c = colCourses[i]!;
+            const tone = tones[i % tones.length]!;
+            items.push([
+              `${c.title} Practical Lab`,
+              `Interactive practical problems, lab assignments and exercises for ${c.code}`,
+              c.department.name,
+              "Active (PostgreSQL)",
+              tone,
+            ]);
+          }
+
+          // Department lab specializations mapped to real departments
+          const DEPT_LAB_SPEC: Record<string, { lab: string; desc: string }> = {
+            "Computer Science & Engineering": { lab: "Cloud Computing & Systems Lab", desc: "Docker containers, Linux virtual machines and distributed systems practice" },
+            "Artificial Intelligence & Data Science": { lab: "AI & Neural Networks Lab", desc: "Jupyter notebooks, GPU clusters and deep learning model benchmarking" },
+            "Information Technology": { lab: "Cybersecurity & Web Services Lab", desc: "Penetration testing environments, API fuzzing and web application security" },
+            "Electronics & Communication": { lab: "Embedded Systems & IoT Lab", desc: "Microcontroller emulators, sensor interface kits and signal analysis" },
+            "Electrical & Electronics": { lab: "Power Systems & Renewable Energy Lab", desc: "Smart grid simulations, MATLAB/Simulink models and machine testing" },
+            "Mechanical Engineering": { lab: "Advanced CAD/CAM & Robotics Lab", desc: "Finite element analysis, 3D modelling and automated robotics simulations" },
+            "Civil Engineering": { lab: "Structural GIS & Materials Lab", desc: "Building information modelling (BIM), seismic analysis and GIS mapping" },
+            "Science & Humanities": { lab: "Computational Mathematics & Physics Lab", desc: "Numerical simulations, statistical modeling and research experiments" },
+          };
+
+          for (let i = 0; i < colDepts.length; i++) {
+            const d = colDepts[i]!;
+            const name = d.department.name;
+            const spec = DEPT_LAB_SPEC[name] ?? {
+              lab: `${name} Virtual Lab`,
+              desc: `Specialized virtual laboratories, simulation toolkits and sandboxes for ${name}`,
+            };
+            const tone = tones[(colCourses.length + i) % tones.length]!;
+            if (!items.some((it) => it[0] === spec.lab)) {
+              items.push([
+                spec.lab,
+                spec.desc,
+                name,
+                "Active (PostgreSQL)",
+                tone,
+              ]);
+            }
+          }
+
+          return gallery(items);
+        }
+      } catch (err) {
+        console.error("[department-labs] Error fetching from postgres:", err);
+      }
+    }
+
+    // Stream-based fallback for memory mode
+    const stream = live.stream ?? "engineering";
+    if (stream === "engineering") {
+      return gallery([
+        ["Coding Lab", "Practice problems, contests and auto-graded labs", "Computer Science & Engineering", "Active", "brand"],
+        ["AI & Data Science Lab", "Notebooks, datasets and GPU queue", "AI & Data Science", "Active", "sky"],
+        ["Circuits & VLSI Lab", "Simulations and PCB project templates", "Electronics & Communication", "Active", "teal"],
+        ["Power & Machines Lab", "Grid simulation and drive testing", "Electrical & Electronics", "Active", "gold"],
+        ["CAD & Design Lab", "Guided modelling exercises", "Mechanical Engineering", "Active", "amber"],
+        ["Structural GIS Lab", "Estimation, planning and site safety modules", "Civil Engineering", "Active", "rose"],
+      ]);
+    }
+    return gallery([
+      ["Practical Simulation Lab", "Virtual labs and clinical / subject experiments", "Academic", "Active", "brand"],
+      ["Research & Analytics Lab", "Data analysis, case studies and reporting", "Department", "Active", "sky"],
+    ]);
+  },
   integrations: () =>
     gallery([
       ["Student Information System", "Sync students, programs and enrolments", "SIS", "Connected", "teal"],
@@ -626,65 +810,81 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
   branding: (): SettingsData => ({
     template: "settings",
     sections: [
-      { title: "Identity", description: "How your institution appears to students and staff.", fields: [
-        { id: "name", label: "Display name", type: "text", value: "Anna Institute of Technology" },
-        { id: "subdomain", label: "Subdomain", type: "text", value: "ait.collossusiq.ai", help: "Custom domains (e.g. ai.college.edu) are verified via DNS." },
-        { id: "primary", label: "Primary colour", type: "color", value: "#1e2a5a" },
-        { id: "accent", label: "Accent colour", type: "color", value: "#c9962b" },
-      ] },
-      { title: "Language", description: "Default interface and AI explanation languages.", fields: [
-        { id: "ui-lang", label: "Default interface language", type: "select", value: "English", options: ["English", "தமிழ்", "हिन्दी"] },
-        { id: "ai-lang", label: "Default AI explanation language", type: "select", value: "English", options: ["English", "Tamil", "Hindi", "Telugu", "Kannada", "Malayalam"] },
-      ] },
+      {
+        title: "Identity", description: "How your institution appears to students and staff.", fields: [
+          { id: "name", label: "Display name", type: "text", value: "Anna Institute of Technology" },
+          { id: "subdomain", label: "Subdomain", type: "text", value: "ait.collossusiq.ai", help: "Custom domains (e.g. ai.college.edu) are verified via DNS." },
+          { id: "primary", label: "Primary colour", type: "color", value: "#1e2a5a" },
+          { id: "accent", label: "Accent colour", type: "color", value: "#c9962b" },
+        ]
+      },
+      {
+        title: "Language", description: "Default interface and AI explanation languages.", fields: [
+          { id: "ui-lang", label: "Default interface language", type: "select", value: "English", options: ["English", "தமிழ்", "हिन्दी"] },
+          { id: "ai-lang", label: "Default AI explanation language", type: "select", value: "English", options: ["English", "Tamil", "Hindi", "Telugu", "Kannada", "Malayalam"] },
+        ]
+      },
     ],
   }),
   "notifications-config": (): SettingsData => ({
     template: "settings",
     sections: [
-      { title: "Channels", description: "Channels approved by the institution.", fields: [
-        { id: "web", label: "In-app / web", type: "toggle", value: true },
-        { id: "email", label: "Email", type: "toggle", value: true },
-        { id: "push", label: "Mobile push", type: "toggle", value: true },
-        { id: "sms", label: "SMS", type: "toggle", value: false, help: "Charged per message by your SMS gateway." },
-      ] },
-      { title: "Rules", description: "Event + priority + audience + timing.", fields: [
-        { id: "exam", label: "Exam reminders", type: "select", value: "7 days and 1 day before", options: ["Off", "1 day before", "7 days and 1 day before"] },
-        { id: "quiet", label: "Quiet hours", type: "select", value: "22:00–07:00", options: ["None", "22:00–07:00", "21:00–08:00"] },
-        { id: "digest", label: "Weekly faculty digest", type: "toggle", value: true },
-      ] },
+      {
+        title: "Channels", description: "Channels approved by the institution.", fields: [
+          { id: "web", label: "In-app / web", type: "toggle", value: true },
+          { id: "email", label: "Email", type: "toggle", value: true },
+          { id: "push", label: "Mobile push", type: "toggle", value: true },
+          { id: "sms", label: "SMS", type: "toggle", value: false, help: "Charged per message by your SMS gateway." },
+        ]
+      },
+      {
+        title: "Rules", description: "Event + priority + audience + timing.", fields: [
+          { id: "exam", label: "Exam reminders", type: "select", value: "7 days and 1 day before", options: ["Off", "1 day before", "7 days and 1 day before"] },
+          { id: "quiet", label: "Quiet hours", type: "select", value: "22:00–07:00", options: ["None", "22:00–07:00", "21:00–08:00"] },
+          { id: "digest", label: "Weekly faculty digest", type: "toggle", value: true },
+        ]
+      },
     ],
   }),
   "feature-flags": (): SettingsData => ({
     template: "settings",
     sections: [
-      { title: "Phase 2 modules", description: "Roll out per tenant.", fields: [
-        { id: "handwritten", label: "Handwritten evaluation", type: "toggle", value: true },
-        { id: "voice", label: "Voice AI", type: "toggle", value: false },
-        { id: "gd", label: "GD simulation", type: "toggle", value: true },
-      ] },
-      { title: "Phase 3–4 modules", description: "Early access.", fields: [
-        { id: "command", label: "Institution command center", type: "toggle", value: true },
-        { id: "market", label: "Recruiter marketplace", type: "toggle", value: false },
-        { id: "store", label: "Agent store", type: "toggle", value: false },
-      ] },
+      {
+        title: "Phase 2 modules", description: "Roll out per tenant.", fields: [
+          { id: "handwritten", label: "Handwritten evaluation", type: "toggle", value: true },
+          { id: "voice", label: "Voice AI", type: "toggle", value: false },
+          { id: "gd", label: "GD simulation", type: "toggle", value: true },
+        ]
+      },
+      {
+        title: "Phase 3–4 modules", description: "Early access.", fields: [
+          { id: "command", label: "Institution command center", type: "toggle", value: true },
+          { id: "market", label: "Recruiter marketplace", type: "toggle", value: false },
+          { id: "store", label: "Agent store", type: "toggle", value: false },
+        ]
+      },
     ],
   }),
   "security-settings": (): SettingsData => ({
     template: "settings",
     sections: [
-      { title: "Authentication", description: "Applies to every user in the tenant.", fields: [
-        { id: "mfa", label: "Require MFA for staff", type: "toggle", value: true },
-        { id: "mfa-students", label: "Require MFA for students", type: "toggle", value: false },
-        { id: "sso", label: "Enterprise SSO (SAML / OIDC)", type: "toggle", value: true },
-        { id: "session", label: "Idle session timeout", type: "select", value: "30 minutes", options: ["15 minutes", "30 minutes", "60 minutes"] },
-        { id: "pwd", label: "Minimum password length", type: "select", value: "12", options: ["10", "12", "14", "16"] },
-      ] },
-      { title: "Data & AI", description: "Data protection and AI data isolation.", fields: [
-        { id: "retention", label: "AI conversation retention", type: "select", value: "180 days", options: ["30 days", "90 days", "180 days", "1 year"] },
-        { id: "masking", label: "Mask personal data before sending to models", type: "toggle", value: true },
-        { id: "training", label: "Allow tenant data for model training", type: "toggle", value: false, help: "Off by default. Student data is never used for training without explicit institutional consent." },
-        { id: "attendance", label: "Use attendance in early-warning signals", type: "toggle", value: false, help: "Enable only where legally and institutionally permitted." },
-      ] },
+      {
+        title: "Authentication", description: "Applies to every user in the tenant.", fields: [
+          { id: "mfa", label: "Require MFA for staff", type: "toggle", value: true },
+          { id: "mfa-students", label: "Require MFA for students", type: "toggle", value: false },
+          { id: "sso", label: "Enterprise SSO (SAML / OIDC)", type: "toggle", value: true },
+          { id: "session", label: "Idle session timeout", type: "select", value: "30 minutes", options: ["15 minutes", "30 minutes", "60 minutes"] },
+          { id: "pwd", label: "Minimum password length", type: "select", value: "12", options: ["10", "12", "14", "16"] },
+        ]
+      },
+      {
+        title: "Data & AI", description: "Data protection and AI data isolation.", fields: [
+          { id: "retention", label: "AI conversation retention", type: "select", value: "180 days", options: ["30 days", "90 days", "180 days", "1 year"] },
+          { id: "masking", label: "Mask personal data before sending to models", type: "toggle", value: true },
+          { id: "training", label: "Allow tenant data for model training", type: "toggle", value: false, help: "Off by default. Student data is never used for training without explicit institutional consent." },
+          { id: "attendance", label: "Use attendance in early-warning signals", type: "toggle", value: false, help: "Enable only where legally and institutionally permitted." },
+        ]
+      },
     ],
   }),
 };

@@ -482,7 +482,7 @@ export const pgReadiness: ReadinessStore = {
     const st = await studentOf(session.sub);
     if (st) {
       const rows = await db().$queryRaw<ReadinessRow[]>`
-        SELECT v.*, s.user_id FROM v_placement_readiness v JOIN students s ON s.id = v.student_id WHERE v.student_id = ${st.id}::uuid`;
+        SELECT v.*, s.user_id FROM v_placement_readiness v JOIN students s ON s.id = v.student_id WHERE v.student_id = ${st.id}::uuid AND s.status = 'Active'`;
       if (rows[0]) return toReadiness(rows[0]);
     }
     return { studentSub: session.sub, name: session.name, rollNo: "", department: "", collegeId: session.college, quizAverage: 0, certificates: 0, aptitude: 0, interview: 0, resume: 0 };
@@ -491,7 +491,7 @@ export const pgReadiness: ReadinessStore = {
     const c = await collegeByPublic(collegeId);
     if (!c) return [];
     const rows = await db().$queryRaw<ReadinessRow[]>`
-      SELECT v.*, s.user_id FROM v_placement_readiness v JOIN students s ON s.id = v.student_id WHERE v.college_id = ${c.id}::uuid`;
+      SELECT v.*, s.user_id FROM v_placement_readiness v JOIN students s ON s.id = v.student_id WHERE v.college_id = ${c.id}::uuid AND s.status = 'Active'`;
     return Promise.all(rows.map(toReadiness));
   },
 };
