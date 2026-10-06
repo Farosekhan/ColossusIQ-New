@@ -4,123 +4,12 @@ import type { SessionPayload } from "@/lib/auth/session";
 import type { ClubItem, ClubsOverview, CreateClubInput } from "@/lib/api/schemas";
 import { getStore } from "@/lib/data";
 
-const clubsStore = sharedState("campus.clubs.map", () => new Map<string, ClubItem[]>());
+const clubsStore = sharedState("campus.clubs.map.v2", () => new Map<string, ClubItem[]>());
+// Ensure old in-memory mock cache is purged
+clubsStore.clear();
 
-function defaultClubs(collegeId: string): ClubItem[] {
-  return [
-    {
-      id: "club-coding",
-      name: "Coding Club",
-      category: "Technical",
-      description: "Competitive programming, open-source projects, and technical interview workshops.",
-      lead: "Arjun Varma",
-      facultyAdvisor: "Dr. Meena Raghavan",
-      membersCount: 40,
-      meetingSchedule: "Weekly contest — Sat",
-      venue: "CSE Lab 3",
-      status: "Active",
-      isJoined: false,
-      createdAt: "2026-08-01T10:00:00Z",
-    },
-    {
-      id: "club-robotics",
-      name: "Robotics Society",
-      category: "Technical",
-      description: "Autonomous rovers, drone design, IoT integration, and university robotic combat competitions.",
-      lead: "Meera Nair",
-      facultyAdvisor: "Prof. S. Venkatesh",
-      membersCount: 77,
-      meetingSchedule: "Weekly contest — Sat",
-      venue: "Robotics Lab, Mech Block",
-      status: "Active",
-      isJoined: false,
-      createdAt: "2026-08-05T10:00:00Z",
-    },
-    {
-      id: "club-aids",
-      name: "AI & Data Science Circle",
-      category: "Technical",
-      description: "LLM experimentation, computer vision challenges, and research paper discussions.",
-      lead: "Harish Patel",
-      facultyAdvisor: "Dr. R. Chandrasekar",
-      membersCount: 114,
-      meetingSchedule: "Weekly contest — Sat",
-      venue: "AI Research Lab",
-      status: "Active",
-      isJoined: false,
-      createdAt: "2026-08-10T10:00:00Z",
-    },
-    {
-      id: "club-tamil",
-      name: "Tamil Mandram",
-      category: "Cultural",
-      description: "Literature, poetry, debate competitions, cultural heritage, and traditional arts.",
-      lead: "Kavya Gupta",
-      facultyAdvisor: "Dr. Lakshmi Sundaram",
-      membersCount: 151,
-      meetingSchedule: "Weekly contest — Sat",
-      venue: "Auditorium Annex",
-      status: "Active",
-      isJoined: false,
-      createdAt: "2026-08-12T10:00:00Z",
-    },
-    {
-      id: "club-music",
-      name: "Music Club",
-      category: "Cultural",
-      description: "Campus band rehearsals, classical concerts, and sound engineering sessions.",
-      lead: "Nikhil Sharma",
-      facultyAdvisor: "Prof. Arjun Iyer",
-      membersCount: 188,
-      meetingSchedule: "Weekly contest — Sat",
-      venue: "Acoustic Hall",
-      status: "Active",
-      isJoined: false,
-      createdAt: "2026-08-15T10:00:00Z",
-    },
-    {
-      id: "club-nss",
-      name: "NSS Unit",
-      category: "Social",
-      description: "Community outreach, blood donation drives, village literacy campaigns, and environmental drives.",
-      lead: "Pooja Das",
-      facultyAdvisor: "Dr. K. Swaminathan",
-      membersCount: 65,
-      meetingSchedule: "Weekly contest — Sat",
-      venue: "Student Welfare Office",
-      status: "Active",
-      isJoined: false,
-      createdAt: "2026-08-18T10:00:00Z",
-    },
-    {
-      id: "club-ecell",
-      name: "Entrepreneurship Cell",
-      category: "Innovation",
-      description: "Startup mentoring, pitch competitions, angel network connects, and prototype funding.",
-      lead: "Sanjay Balaji",
-      facultyAdvisor: "Mr. Arjun Iyer",
-      membersCount: 102,
-      meetingSchedule: "Weekly contest — Sat",
-      venue: "Incubation Hub",
-      status: "Active",
-      isJoined: false,
-      createdAt: "2026-08-20T10:00:00Z",
-    },
-    {
-      id: "club-photo",
-      name: "Photography Club",
-      category: "Cultural",
-      description: "Photo-walks, digital darkroom workshops, campus event documentation, and visual storytelling.",
-      lead: "Priya Raman",
-      facultyAdvisor: "Ms. Priya Nair",
-      membersCount: 58,
-      meetingSchedule: "Build night — Thu",
-      venue: "Media Studio",
-      status: "Active",
-      isJoined: false,
-      createdAt: "2026-08-22T10:00:00Z",
-    },
-  ];
+function defaultClubs(_collegeId: string): ClubItem[] {
+  return [];
 }
 
 const joinedClubsByUser = sharedState("campus.clubs.userMemberships", () => new Map<string, Set<string>>());

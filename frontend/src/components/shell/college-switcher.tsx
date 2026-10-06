@@ -55,9 +55,11 @@ export function CollegeSwitcher({ scope }: { scope: string }) {
           className="h-full max-w-[220px] cursor-pointer appearance-none truncate bg-transparent pl-2 pr-6 text-sm font-medium text-ink outline-none"
           title="Switch college"
         >
-          <option value={ALL_COLLEGES}>All colleges (university)</option>
+          <option value={ALL_COLLEGES} className="bg-surface text-ink">
+            All colleges (university)
+          </option>
           {data?.colleges.map((c) => (
-            <option key={c.id} value={c.id}>
+            <option key={c.id} value={c.id} className="bg-surface text-ink">
               {c.name}
               {c.status !== "Active" ? ` · ${c.status}` : ""}
             </option>

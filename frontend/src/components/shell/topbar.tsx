@@ -88,7 +88,7 @@ export function Topbar({
             className="hidden h-10 rounded-lg border-0 bg-transparent px-2 text-sm text-ink-2 hover:bg-surface-2 sm:block"
           >
             {LANGS.map((l) => (
-              <option key={l} value={l}>
+              <option key={l} value={l} className="bg-surface text-ink">
                 {LANG_LABEL[l]}
               </option>
             ))}
