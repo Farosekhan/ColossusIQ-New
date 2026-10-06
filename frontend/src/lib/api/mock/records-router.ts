@@ -25,7 +25,7 @@ const WriteBody = z
   .strict();
 
 /** A role may read a resource only if one of its modules exposes it — and, per college, that module area is enabled. */
-async function accessCheck(res: ResourceDef, session: SessionPayload): Promise<MockResult | null> {
+export async function accessCheck(res: ResourceDef, session: SessionPayload): Promise<MockResult | null> {
   const mods = MODULES.filter((m) => m.resource === res.key && m.roles.includes(session.role));
   if (mods.length === 0) return err(403, "forbidden", "You do not have access to this resource.");
   const groups = await enabledGroups(session.college);
