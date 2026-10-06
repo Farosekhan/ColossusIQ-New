@@ -366,10 +366,6 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
       [],
     );
   },
-  "bi-analytics": async (collegeScope) => {
-    const bi = await dynamicBiAnalytics({ college: collegeScope, role: "institution", sub: "institution", tenant: "ciq", name: "Principal", mfa: true, exp: 0 });
-    return dashboard(bi.kpis, bi.charts, bi.insights);
-  },
   "ai-governance": () =>
     dashboard(
       [k("Registered models", "0", undefined, "brand"), k("Prompt versions", "0", undefined, "sky"), k("Human reviews pending", "0", undefined, "amber"), k("Groundedness", "100%", undefined, "teal")],
