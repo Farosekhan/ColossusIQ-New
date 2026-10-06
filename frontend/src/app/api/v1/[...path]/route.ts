@@ -14,6 +14,8 @@ import {
 import { ROLES } from "@/lib/auth/roles";
 import { dispatch } from "@/lib/api/mock/router";
 import { prefetchCourseAi } from "@/lib/api/mock/course-builder";
+import { prefetchKnowledgeAi } from "@/lib/api/mock/knowledge-base";
+import { KB_MAX_BODY_BYTES } from "@/lib/api/knowledge-schemas";
 import { rateLimit } from "@/lib/api/mock/rate-limit";
 import { RESOURCES, recordSchema } from "@/config/resources";
 import { collegeName, createRecord, enabledGroups, getCollege, isCollegeActive, listColleges } from "@/lib/api/mock/records";
@@ -149,7 +151,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
     if (!csrfValid(req)) return error(403, "csrf", "Security token missing or invalid. Refresh the page and try again.");
   }
 
-  const parsedBody = method === "GET" ? { ok: true as const, body: undefined } : await readJson(req, route === "media" ? MAX_MEDIA_BODY_BYTES : MAX_BODY_BYTES);
+  const parsedBody = method === "GET" ? { ok: true as const, body: undefined } : await readJson(req, route === "media" ? MAX_MEDIA_BODY_BYTES : route === "knowledge/documents" ? KB_MAX_BODY_BYTES : MAX_BODY_BYTES);
   if (!parsedBody.ok) return parsedBody.res;
   const body = parsedBody.body;
 
@@ -239,6 +241,9 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
   // Slow AI drafting (AI Course Studio) runs here, before the request's database transaction opens and its 30 s clock starts.
   const early = await prefetchCourseAi(method, segs, body, session);
   if (early) return json(early.body, early.status);
+  // Same for the Knowledge Base: PDF reading, embedding and answering questions happen before the transaction opens.
+  const kbEarly = await prefetchKnowledgeAi(method, segs, body, session);
+  if (kbEarly) return json(kbEarly.body, kbEarly.status);
   try {
     return await withRequestContext({ scope: session.college, sub: session.sub }, () => handleSession(req, method, segs, route, body, session));
   } catch (e) {

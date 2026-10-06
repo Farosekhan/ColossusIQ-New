@@ -304,6 +304,8 @@ model College {
   admissions            Admission[]
   auditLog              AuditLog[]
   assignments           Assignment[]
+  knowledgeDocuments    KnowledgeDocument[]
+  knowledgeChunks       KnowledgeChunk[]
   certificates          Certificate[]
   classSummaries        ClassSummary[]
   clinicalRotations     ClinicalRotation[]
@@ -847,6 +849,55 @@ model Assignment {
   @@map("assignments")
 }
 
+
+model KnowledgeDocument {
+  id            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId      String           @unique @default(dbgenerated("('KB-'::text || nextval('seq_knowledge_public'::regclass))")) @map("public_id")
+  collegeId     String           @map("college_id") @db.Uuid
+  title         String
+  docType       String           @map("doc_type")
+  owner         String
+  scope         String
+  description   String           @default("")
+  fileName      String           @default("") @map("file_name")
+  mime          String           @default("")
+  sizeBytes     Int              @default(0) @map("size_bytes")
+  status        String           @default("Pending approval")
+  embedModel    String?          @map("embed_model")
+  chunkCount    Int              @default(0) @map("chunk_count")
+  embeddedCount Int              @default(0) @map("embedded_count")
+  uploadedById  String?          @map("uploaded_by_id") @db.Uuid
+  uploadedBy    String           @map("uploaded_by")
+  approvedBy    String?          @map("approved_by")
+  approvedAt    DateTime?        @map("approved_at") @db.Timestamptz(6)
+  version       Int              @default(1)
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime         @default(now()) @map("updated_at") @db.Timestamptz(6)
+  college       College          @relation(fields: [collegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  chunks        KnowledgeChunk[]
+
+  @@index([collegeId, status])
+  @@map("knowledge_documents")
+}
+
+model KnowledgeChunk {
+  id         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId String            @map("document_id") @db.Uuid
+  collegeId  String            @map("college_id") @db.Uuid
+  chunkIndex Int               @map("chunk_index")
+  section    String
+  content    String
+  tokens     Int
+  page       Int?
+  embedding  Float[]           @default([])
+  createdAt  DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  document   KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  college    College           @relation(fields: [collegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([documentId, chunkIndex])
+  @@index([collegeId])
+  @@map("knowledge_chunks")
+}
 
 model Staff {
   id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
