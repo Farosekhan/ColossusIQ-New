@@ -1,7 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { ChevronDown, ChevronUp, History } from "lucide-react";
 import { z } from "zod";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { EvaluationQueueItem } from "@/lib/api/schemas";
@@ -20,6 +21,29 @@ export function EvaluationReviewModule() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [override, setOverride] = useState({ score: "", reason: "" });
   const [formError, setFormError] = useState<string | null>(null);
+  const [filterMode, setFilterMode] = useState<"evaluations" | "all">("evaluations");
+  const [showAllAudit, setShowAllAudit] = useState(false);
+
+  const isEvalAction = (action: string) => {
+    const lower = action.toLowerCase();
+    return (
+      lower.includes("score") ||
+      lower.includes("evaluat") ||
+      lower.includes("override") ||
+      lower.includes("approve") ||
+      lower.includes("assessment") ||
+      lower.includes("handwritten") ||
+      lower.includes("rubric")
+    );
+  };
+
+  const filteredAudit = useMemo(() => {
+    if (!audit.data) return [];
+    if (filterMode === "all") return audit.data;
+    return audit.data.filter((a) => isEvalAction(a.action));
+  }, [audit.data, filterMode]);
+
+  const visibleAudit = showAllAudit ? filteredAudit : filteredAudit.slice(0, 5);
 
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ["eval-queue"] });
@@ -125,23 +149,91 @@ export function EvaluationReviewModule() {
             </CardBody>
           </Card>
           <Card>
-            <CardHeader title="Audit trail (this session)" />
+            <CardHeader
+              title="Audit trail"
+              subtitle="Recorded evaluation decisions and oversight actions"
+              action={
+                <div className="flex items-center gap-1 rounded-lg bg-surface-2 p-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterMode("evaluations");
+                      setShowAllAudit(false);
+                    }}
+                    className={cn(
+                      "rounded-md px-2.5 py-1 font-medium transition-colors",
+                      filterMode === "evaluations" ? "bg-surface text-brand shadow-xs" : "text-ink-2 hover:text-ink",
+                    )}
+                  >
+                    Evaluation only ({audit.data?.filter((a) => isEvalAction(a.action)).length ?? 0})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterMode("all");
+                      setShowAllAudit(false);
+                    }}
+                    className={cn(
+                      "rounded-md px-2.5 py-1 font-medium transition-colors",
+                      filterMode === "all" ? "bg-surface text-brand shadow-xs" : "text-ink-2 hover:text-ink",
+                    )}
+                  >
+                    All activity ({audit.data?.length ?? 0})
+                  </button>
+                </div>
+              }
+            />
             <CardBody>
-              {audit.data && audit.data.length > 0 ? (
-                <ul className="divide-y divide-line text-sm">
-                  {audit.data.map((a) => (
-                    <li key={a.at + a.target} className="flex flex-wrap justify-between gap-2 py-2">
-                      <span className="text-ink">
-                        {a.action} · <span className="text-ink-2">{a.target}</span>
-                      </span>
-                      <span className="text-xs text-ink-3">
-                        {a.actor} · {new Date(a.at).toLocaleTimeString("en-IN")}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+              {filteredAudit.length > 0 ? (
+                <div className="space-y-3">
+                  <ul className="max-h-64 overflow-y-auto divide-y divide-line pr-1 text-sm">
+                    {visibleAudit.map((a, idx) => {
+                      const isApproved = a.action.toLowerCase().includes("approved") || a.action.toLowerCase().includes("approve");
+                      const isOverride = a.action.toLowerCase().includes("override");
+                      const tone = isApproved ? "teal" : isOverride ? "amber" : "neutral";
+                      return (
+                        <li key={`${a.at}-${a.target}-${idx}`} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <Badge tone={tone}>{a.action}</Badge>
+                            <span className="text-ink-2 font-mono text-xs">{a.target}</span>
+                          </div>
+                          <span className="text-xs text-ink-3">
+                            {a.actor} · {new Date(a.at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+
+                  {filteredAudit.length > 5 ? (
+                    <div className="border-t border-line pt-2 text-center">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setShowAllAudit((prev) => !prev)}
+                        className="text-xs"
+                      >
+                        {showAllAudit ? (
+                          <>
+                            <ChevronUp className="mr-1 size-3.5" />
+                            Show recent 5
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="mr-1 size-3.5" />
+                            Show all ({filteredAudit.length})
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
               ) : (
-                <p className="text-sm text-ink-3">No decisions recorded yet.</p>
+                <div className="py-6 text-center text-sm text-ink-3">
+                  <History className="mx-auto mb-2 size-6 opacity-40" />
+                  <p>No {filterMode === "evaluations" ? "evaluation decisions" : "activity"} recorded yet in this session.</p>
+                </div>
               )}
             </CardBody>
           </Card>
