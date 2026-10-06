@@ -37,6 +37,7 @@ import { dispatchLearning } from "./learning";
 import { dispatchCourses } from "./course-builder";
 import { dispatchTeaching } from "./teaching";
 import { dispatchAssignments } from "./assignments";
+import { dispatchKnowledge } from "./knowledge-base";
 import { audit, recentAudit } from "./audit";
 import { createStudent, deleteStudent, getStudentsList, importStudents, updateStudent } from "./students-store";
 import { createFaculty, deleteFaculty, getFacultyList, updateFaculty } from "./faculty-store";
@@ -219,6 +220,7 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
   if (segs[0] === "learning-courses") return dispatchCourses(method, segs, rawBody, session, query);
   if (segs[0] === "teaching") return dispatchTeaching(method, segs, rawBody, session);
   if (segs[0] === "assignments") return dispatchAssignments(method, segs, rawBody, session);
+  if (segs[0] === "knowledge") return dispatchKnowledge(method, segs, rawBody, session);
   if (LEARNING_AREAS.has(segs[0] ?? "")) return dispatchLearning(method, segs, rawBody, session, query);
   if (segs[0] === "students" && segs[1] !== "me") return dispatchStudents(method, segs, rawBody, session, query);
   if (segs[0] === "faculty") return dispatchFaculty(method, segs, rawBody, session, query);

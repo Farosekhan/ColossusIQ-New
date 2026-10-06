@@ -123,7 +123,6 @@ export const ROLE_HOMES: Record<Exclude<Role, "student">, RoleHome> = {
     ],
     queue: [
       { title: "Early-warning: 37 support reviews open", meta: "Across 9 departments", href: "/institution/early-warning", tone: "rose" },
-      { title: "Approve knowledge-base update", meta: "Circular 42/2026", href: "/institution/knowledge-base", tone: "brand" },
       { title: "Semester report", meta: "Ready to generate", href: "/institution/reports", tone: "teal" },
     ],
   },
