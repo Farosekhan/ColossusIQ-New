@@ -1,5 +1,8 @@
 import "server-only";
+import { z } from "zod";
 import type { ChatReply, EvaluationResult, GenerateReply, InterviewTurn, ResumeAnalysis } from "@/lib/api/schemas";
+import { geminiEnabled, geminiJson } from "@/lib/ai/gemini";
+import { generateDocumentAi } from "./document-ai";
 
 /*
  * Deterministic stand-ins for the AI Orchestrator. They exist so every screen is fully
@@ -79,7 +82,7 @@ function gen(agent: string, message: string, confidence: number): ChatReply {
 }
 
 /* ── generators ─────────────────────────────────── */
-export function generate(module: string, inputs: Record<string, string>): GenerateReply {
+export async function generate(module: string, inputs: Record<string, string>): Promise<GenerateReply> {
   const v = (key: string, d = "") => (inputs[key] ?? d).slice(0, 200);
   switch (module) {
     case "study-planner": {
@@ -160,10 +163,7 @@ export function generate(module: string, inputs: Record<string, string>): Genera
       };
     }
     case "document-ai":
-      return {
-        agent: "document",
-        markdown: `### ${v("task", "Summary")}\n\n${v("text") ? `Based on the ${Math.min(v("text").length, 200)} characters you provided:\n\n` : ""}- **Key idea 1:** Normal forms reduce redundancy and update anomalies.\n- **Key idea 2:** 3NF removes transitive dependencies; BCNF requires every determinant to be a key.\n- **Key idea 3:** Decompositions should be lossless-join and ideally dependency preserving.\n\n**Flashcards:** 3NF ↔ no transitive dependency · BCNF ↔ determinant is a superkey\n\n_AI-generated — check against your course material._`,
-      };
+      return generateDocumentAi(inputs["task"] || "Create flashcards", inputs["text"] || "");
     default:
       return { agent: module, markdown: "Generated output will appear here." };
   }

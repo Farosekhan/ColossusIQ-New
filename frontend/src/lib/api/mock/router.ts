@@ -678,7 +678,7 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
       const mod = findModule(parsed.data.module);
       if (!mod || !mod.roles.includes(session.role) || !(await moduleEnabled(mod, session))) return forbidden();
       const inputs = Object.fromEntries(Object.entries(parsed.data.inputs).map(([key, v]) => [key, cleanText(v, 4000)]));
-      return ok(generate(parsed.data.module, inputs));
+      return ok(await generate(parsed.data.module, inputs));
     }
     case "POST ai/interview/start": {
       if (session.role !== "student") return forbidden();
