@@ -15,6 +15,7 @@ import { ROLES } from "@/lib/auth/roles";
 import { dispatch } from "@/lib/api/mock/router";
 import { prefetchCourseAi } from "@/lib/api/mock/course-builder";
 import { prefetchKnowledgeAi } from "@/lib/api/mock/knowledge-base";
+import { prefetchQuestionAi } from "@/lib/api/mock/question-ai";
 import { KB_MAX_BODY_BYTES } from "@/lib/api/knowledge-schemas";
 import { rateLimit } from "@/lib/api/mock/rate-limit";
 import { RESOURCES, recordSchema } from "@/config/resources";
@@ -244,6 +245,9 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
   // Same for the Knowledge Base: PDF reading, embedding and answering questions happen before the transaction opens.
   const kbEarly = await prefetchKnowledgeAi(method, segs, body, session);
   if (kbEarly) return json(kbEarly.body, kbEarly.status);
+  // AI question generation (Question Bank) likewise runs before the transaction.
+  const qEarly = await prefetchQuestionAi(method, segs, body, session);
+  if (qEarly) return json(qEarly.body, qEarly.status);
   try {
     return await withRequestContext({ scope: session.college, sub: session.sub }, () => handleSession(req, method, segs, route, body, session));
   } catch (e) {

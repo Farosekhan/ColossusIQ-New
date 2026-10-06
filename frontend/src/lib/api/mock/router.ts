@@ -38,6 +38,7 @@ import { dispatchCourses } from "./course-builder";
 import { dispatchTeaching } from "./teaching";
 import { dispatchAssignments } from "./assignments";
 import { dispatchKnowledge } from "./knowledge-base";
+import { dispatchQuestionAi } from "./question-ai";
 import { audit, recentAudit } from "./audit";
 import { createStudent, deleteStudent, getStudentsList, importStudents, updateStudent } from "./students-store";
 import { createFaculty, deleteFaculty, getFacultyList, updateFaculty } from "./faculty-store";
@@ -216,6 +217,7 @@ const LEARNING_AREAS = new Set(["learning", "quizzes", "certificates", "placemen
 
 export async function dispatch(method: string, segs: string[], rawBody: unknown, session: SessionPayload, query: URLSearchParams): Promise<MockResult> {
   if (segs[0] === "records") return dispatchRecords(method, segs, rawBody, session, query);
+  if (segs[0] === "question-bank" && segs[1] === "generate") return dispatchQuestionAi(method, segs, rawBody, session);
   if (segs[0] === "questions" || segs[0] === "question-bank") return dispatchRecords(method, ["records", "questions", ...segs.slice(1)], rawBody, session, query);
   if (segs[0] === "learning-courses") return dispatchCourses(method, segs, rawBody, session, query);
   if (segs[0] === "teaching") return dispatchTeaching(method, segs, rawBody, session);
