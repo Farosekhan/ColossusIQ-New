@@ -20,6 +20,7 @@ import { prefetchMentorAi } from "@/lib/api/mock/mentor";
 import { prefetchStudyPlanAi } from "@/lib/api/mock/study-planner";
 import { prefetchLanguageAi } from "@/lib/api/mock/languages";
 import { prefetchMissionAi } from "@/lib/api/mock/mission-planner";
+import { prefetchResearchAi } from "@/lib/api/mock/research";
 import { KB_MAX_BODY_BYTES } from "@/lib/api/knowledge-schemas";
 import { rateLimit } from "@/lib/api/mock/rate-limit";
 import { RESOURCES, recordSchema } from "@/config/resources";
@@ -264,6 +265,9 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
   // The Mission Planner roadmap is written before the transaction too.
   const mpEarly = await prefetchMissionAi(method, segs, body, session);
   if (mpEarly) return json(mpEarly.body, mpEarly.status);
+  // Research Assistant tools and chat are written before the transaction too.
+  const rEarly = await prefetchResearchAi(method, segs, body, session);
+  if (rEarly) return json(rEarly.body, rEarly.status);
   try {
     return await withRequestContext({ scope: session.college, sub: session.sub }, () => handleSession(req, method, segs, route, body, session));
   } catch (e) {
