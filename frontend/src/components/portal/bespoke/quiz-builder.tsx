@@ -1,15 +1,15 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
 import { apiFetch, ApiError } from "@/lib/api/client";
-import { GeneratedQuiz, LearningContext, StaffQuizDetail, StaffQuizRow, type BankQuestion } from "@/lib/api/learning-schemas";
+import { GeneratedQuiz, LearningContext, QUIZ_DIFFICULTY, QuizResults, StaffQuizDetail, StaffQuizRow, type BankQuestion } from "@/lib/api/learning-schemas";
 import { TemplateSkeleton } from "@/components/modules/shared";
 import { LoadError } from "@/components/ui/load-error";
 import { AiLabel } from "@/components/ui/notices";
 import { Fi } from "@/components/ui/icon";
-import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Field, Spinner, inputClass, toneForScore, toneForStatus } from "@/components/ui/primitives";
+import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Field, Progress, Spinner, inputClass, toneForScore, toneForStatus } from "@/components/ui/primitives";
 import { ConfirmDelete } from "@/components/crud/confirm-delete";
 import { cn } from "@/lib/utils";
 
@@ -20,10 +20,13 @@ export function QuizBuilderModule() {
   const ctx = useQuery({ queryKey: ["learning-context"], queryFn: () => apiFetch("/api/v1/learning/context", LearningContext) });
   const [editingQuizId, setEditingQuizId] = useState<string | null>(null);
   const [building, setBuilding] = useState(false);
+  const [resultsId, setResultsId] = useState<string | null>(null);
 
   if (ctx.isLoading) return <TemplateSkeleton />;
   if (ctx.isError) return <LoadError error={ctx.error} onRetry={() => void ctx.refetch()} />;
   if (!ctx.data?.stream) return <EmptyState title="Choose a college first" body="Quizzes belong to one college. Switch into a college from the top bar." />;
+
+  if (resultsId) return <ResultsView quizId={resultsId} onBack={() => setResultsId(null)} />;
 
   return building ? (
     <Builder
@@ -44,11 +47,12 @@ export function QuizBuilderModule() {
         setEditingQuizId(id);
         setBuilding(true);
       }}
+      onResults={setResultsId}
     />
   );
 }
 
-function QuizList({ onNew, onEdit }: { onNew: () => void; onEdit: (id: string) => void }) {
+function QuizList({ onNew, onEdit, onResults }: { onNew: () => void; onEdit: (id: string) => void; onResults: (id: string) => void }) {
   const qc = useQueryClient();
   const list = useQuery({ queryKey: ["quizzes"], queryFn: () => apiFetch("/api/v1/quizzes", z.array(StaffQuizRow)) });
   const [error, setError] = useState<string | null>(null);
@@ -143,6 +147,9 @@ function QuizList({ onNew, onEdit }: { onNew: () => void; onEdit: (id: string) =
                   </td>
                   <td className="py-3 text-right">
                     <div className="flex items-center justify-end gap-1.5">
+                      <Button size="sm" variant="secondary" onClick={() => onResults(r.id)}>
+                        <Fi name="chart-histogram" /> Results
+                      </Button>
                       <Button size="sm" variant="secondary" onClick={() => onEdit(r.id)}>
                         <Fi name="pencil" /> Edit
                       </Button>
@@ -187,7 +194,7 @@ function QuizList({ onNew, onEdit }: { onNew: () => void; onEdit: (id: string) =
 function Builder({ ctx, quizId, onDone }: { ctx: LearningContext; quizId?: string | null; onDone: () => void }) {
   const qc = useQueryClient();
   const departments = [...ctx.departments, PLACEMENT_DEPT];
-  const [meta, setMeta] = useState({ title: "", department: departments[0] ?? "", course: "", topic: "", count: 8, passMark: 50, durationMin: 20, certificateEnabled: true });
+  const [meta, setMeta] = useState({ title: "", department: departments[0] ?? "", course: "", topic: "", notes: "", difficulty: "Mixed" as (typeof QUIZ_DIFFICULTY)[number], count: 8, passMark: 50, durationMin: 20, certificateEnabled: true });
   const [questions, setQuestions] = useState<Array<BankQuestion & { review?: boolean }>>([]);
   const [info, setInfo] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -200,29 +207,38 @@ function Builder({ ctx, quizId, onDone }: { ctx: LearningContext; quizId?: strin
     enabled: Boolean(quizId),
   });
 
-  useEffect(() => {
-    if (detail.data) {
-      const d = detail.data;
-      setMeta({
-        title: d.title,
-        department: d.department,
-        course: d.course,
-        topic: "",
-        count: d.questions.length,
-        passMark: d.passMark,
-        durationMin: d.durationMin,
-        certificateEnabled: d.certificateEnabled,
-      });
-      setExistingStatus(d.status);
-      setQuestions(d.questions.map((q) => ({ ...q, review: q.review ?? false })));
-    }
-  }, [detail.data]);
+  // Fill the form once when the saved quiz arrives (adjusting state while rendering, not in an effect).
+  const [loadedFrom, setLoadedFrom] = useState<typeof detail.data>(undefined);
+  if (detail.data && loadedFrom !== detail.data) {
+    const d = detail.data;
+    setLoadedFrom(d);
+    setMeta({
+      title: d.title,
+      department: d.department,
+      course: d.course,
+      topic: "",
+      notes: "",
+      difficulty: "Mixed",
+      count: d.questions.length,
+      passMark: d.passMark,
+      durationMin: d.durationMin,
+      certificateEnabled: d.certificateEnabled,
+    });
+    setExistingStatus(d.status);
+    setQuestions(d.questions.map((q) => ({ ...q, review: q.review ?? false })));
+  }
 
   const gen = useMutation({
-    mutationFn: () => apiFetch("/api/v1/quizzes/generate", GeneratedQuiz, { method: "POST", body: { department: meta.department, topic: meta.topic.trim() || undefined, count: meta.count } }),
+    mutationFn: () => apiFetch("/api/v1/quizzes/generate", GeneratedQuiz, { method: "POST", body: { department: meta.department, topic: meta.topic.trim() || undefined, count: meta.count, difficulty: meta.difficulty, notes: meta.notes.trim() || undefined } }),
     onSuccess: (r) => {
       setQuestions(r.questions.map((q, i) => ({ ...q, review: i >= r.fromBank })));
-      setInfo(`${r.fromBank} question(s) from the curated ${meta.department} bank${r.templated ? ` · ${r.templated} template question(s) marked “review” — edit them before publishing` : ""}.`);
+      const parts = [
+        r.aiCount ? `${r.aiCount} question(s) written by AI — read each one and check the answer key` : "",
+        r.fromBank ? `${r.fromBank} from the curated ${meta.department} bank` : "",
+        r.templated ? `${r.templated} template question(s) — edit them before publishing` : "",
+      ].filter(Boolean);
+      setInfo(`${parts.join(" · ")}.${r.aiFailed ? " The AI could not write questions this time, so the built-in bank was used. Try again." : ""}`);
+      setError(null);
       if (!meta.title) setMeta((m) => ({ ...m, title: `${m.department}${m.topic ? ` — ${m.topic}` : ""} quiz` }));
       if (!meta.course) setMeta((m) => ({ ...m, course: m.topic || m.department }));
     },
@@ -276,11 +292,21 @@ function Builder({ ctx, quizId, onDone }: { ctx: LearningContext; quizId?: strin
               ))}
             </select>
           </Field>
-          <Field label="Topic (optional)" htmlFor="q-topic" hint="Narrows template questions, e.g. Normalization, Cardiac cycle">
+          <Field label="Topic (optional)" htmlFor="q-topic" hint="e.g. Normalization, Cardiac cycle">
             <input id="q-topic" className={inputClass} maxLength={100} value={meta.topic} onChange={(e) => setM("topic", e.target.value)} />
           </Field>
           <Field label="Number of questions" htmlFor="q-count">
             <input id="q-count" type="number" min={3} max={20} className={inputClass} value={meta.count} onChange={(e) => setM("count", Math.max(3, Math.min(20, Number(e.target.value) || 3)))} />
+          </Field>
+          <Field label="Difficulty" htmlFor="q-diff">
+            <select id="q-diff" className={inputClass} value={meta.difficulty} onChange={(e) => setM("difficulty", e.target.value as (typeof QUIZ_DIFFICULTY)[number])}>
+              {QUIZ_DIFFICULTY.map((d) => (
+                <option key={d}>{d}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Your notes (optional)" htmlFor="q-notes" hint="Paste a syllabus or lecture notes and the questions stay within them.">
+            <textarea id="q-notes" rows={4} maxLength={4000} className={inputClass} value={meta.notes} onChange={(e) => setM("notes", e.target.value)} />
           </Field>
           <Button className="w-full" disabled={gen.isPending} onClick={() => gen.mutate()}>
             {gen.isPending ? <Spinner /> : <Fi name="sparkles" />} {questions.length ? "Regenerate questions" : "Generate questions"}
@@ -385,13 +411,154 @@ function Builder({ ctx, quizId, onDone }: { ctx: LearningContext; quizId?: strin
               <Button variant="secondary" disabled={save.isPending || questions.length < 3} onClick={() => save.mutate("Draft")}>
                 {quizId && existingStatus === "Draft" ? "Save draft" : quizId ? "Save as draft" : "Save draft"}
               </Button>
-              <Button variant="gold" disabled={save.isPending || questions.length < 3 || unreviewed > 0} title={unreviewed ? "Review every templated question first" : undefined} onClick={() => save.mutate("Published")}>
+              <Button variant="gold" disabled={save.isPending || questions.length < 3 || unreviewed > 0} title={unreviewed ? "Review every flagged question first" : undefined} onClick={() => save.mutate("Published")}>
                 {save.isPending ? <Spinner /> : <Fi name="paper-plane" />} {quizId ? "Save & publish" : "Publish quiz"}
               </Button>
             </div>
           </Card>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+function ResultsView({ quizId, onBack }: { quizId: string; onBack: () => void }) {
+  const res = useQuery({ queryKey: ["quiz-results", quizId], queryFn: () => apiFetch(`/api/v1/quizzes/${encodeURIComponent(quizId)}/results`, QuizResults) });
+  if (res.isError) return <LoadError error={res.error} onRetry={() => void res.refetch()} />;
+  if (res.isLoading || !res.data) return <TemplateSkeleton />;
+  const r = res.data;
+  const top = Math.max(1, ...r.distribution.map((d) => d.count));
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-ink">{r.quiz.title}</h2>
+          <p className="text-sm text-ink-3">
+            {r.quiz.questions} questions · pass mark {r.quiz.passMark}% · <Badge tone={toneForStatus(r.quiz.status)}>{r.quiz.status}</Badge>
+          </p>
+        </div>
+        <Button variant="secondary" onClick={onBack}>
+          <Fi name="arrow-left" /> Back to quizzes
+        </Button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-4">
+        {[
+          { label: "Students", value: r.summary.students },
+          { label: "Attempts", value: r.summary.attempts },
+          { label: "Pass rate", value: r.summary.students ? `${r.summary.passRate}%` : "—" },
+          { label: "Average score", value: r.summary.attempts ? `${r.summary.average}%` : "—" },
+        ].map((k) => (
+          <Card key={k.label} className="p-5">
+            <p className="text-sm text-ink-3">{k.label}</p>
+            <p className="mt-1 text-2xl font-semibold text-ink">{k.value}</p>
+          </Card>
+        ))}
+      </div>
+
+      {!r.summary.attempts ? (
+        <EmptyState title="No attempts yet" body={r.quiz.status === "Published" ? "Results appear here as soon as students submit the quiz." : "Publish the quiz so students can attempt it."} />
+      ) : (
+        <>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader title="Best score per student" subtitle={`Highest ${r.summary.highest}% · lowest ${r.summary.lowest}%`} />
+              <CardBody className="space-y-3">
+                {r.distribution.map((d) => (
+                  <div key={d.label} className="flex items-center gap-3 text-sm">
+                    <span className="w-16 shrink-0 text-ink-3">{d.label}</span>
+                    <div className="h-3 flex-1 overflow-hidden rounded-full bg-line/60" aria-hidden="true">
+                      <div className="h-full rounded-full bg-brand" style={{ width: `${(d.count / top) * 100}%` }} />
+                    </div>
+                    <span className="w-8 text-right font-medium text-ink">{d.count}</span>
+                  </div>
+                ))}
+              </CardBody>
+            </Card>
+            <Card>
+              <CardHeader title="Hardest questions" subtitle="Lowest share of correct answers first" />
+              <CardBody className="space-y-3">
+                {[...r.questions]
+                  .filter((q) => q.correctPct !== null)
+                  .sort((a, b) => (a.correctPct ?? 0) - (b.correctPct ?? 0))
+                  .slice(0, 4)
+                  .map((q) => (
+                    <div key={q.number} className="text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="truncate text-ink">
+                          Q{q.number}. {q.prompt}
+                        </span>
+                        <span className="shrink-0 font-medium text-ink">{q.correctPct}%</span>
+                      </div>
+                      <Progress value={q.correctPct ?? 0} />
+                    </div>
+                  ))}
+                {!r.questions.some((q) => q.correctPct !== null) ? <p className="text-sm text-ink-3">Question-level results appear once students submit answers to the current version of the quiz.</p> : null}
+              </CardBody>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader title="Students" subtitle="Best attempt counts for the pass mark and the certificate" />
+            <CardBody className="overflow-x-auto">
+              <table className="w-full min-w-[560px] text-sm">
+                <thead>
+                  <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-3">
+                    <th className="py-2 pr-3 font-medium">Student</th>
+                    <th className="py-2 pr-3 font-medium">Attempts</th>
+                    <th className="py-2 pr-3 font-medium">Best</th>
+                    <th className="py-2 pr-3 font-medium">Latest</th>
+                    <th className="py-2 pr-3 font-medium">Result</th>
+                    <th className="py-2 font-medium">Certificate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {r.students.map((s, i) => (
+                    <tr key={`${s.name}-${i}`} className="border-b border-line/60 last:border-0">
+                      <td className="py-2.5 pr-3 font-medium text-ink">{s.name}</td>
+                      <td className="py-2.5 pr-3">{s.attempts}</td>
+                      <td className="py-2.5 pr-3">
+                        <Badge tone={toneForScore(s.best)}>{s.best}%</Badge>
+                      </td>
+                      <td className="py-2.5 pr-3">{s.latest}%</td>
+                      <td className="py-2.5 pr-3">
+                        <Badge tone={s.passed ? "teal" : "rose"}>{s.passed ? "Passed" : "Not yet"}</Badge>
+                      </td>
+                      <td className="py-2.5">{s.certificate ? "Issued" : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader title="Every question" subtitle="How the class answered. The correct option is marked." />
+            <CardBody className="space-y-5">
+              {r.questions.map((q) => (
+                <div key={q.number}>
+                  <p className="text-sm font-medium text-ink">
+                    Q{q.number}. {q.prompt}
+                  </p>
+                  <p className="mb-2 text-xs text-ink-3">{q.correctPct === null ? "No answers recorded" : `${q.correctPct}% correct · ${q.answered} answered`}</p>
+                  <ul className="space-y-1">
+                    {q.options.map((o, k) => (
+                      <li key={k} className={cn("flex items-center justify-between gap-3 rounded-lg border px-3 py-1.5 text-sm", k === q.answer ? "border-teal bg-teal-soft" : "border-line")}>
+                        <span className="min-w-0 truncate">
+                          <span className="mr-2 font-semibold text-ink-3">{LETTERS[k]}</span>
+                          {o}
+                          {k === q.answer ? <span className="ml-2 text-xs font-medium text-teal">correct</span> : null}
+                        </span>
+                        <span className="shrink-0 text-xs text-ink-3">{q.optionCounts[k] ?? 0}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </CardBody>
+          </Card>
+        </>
+      )}
     </div>
   );
 }

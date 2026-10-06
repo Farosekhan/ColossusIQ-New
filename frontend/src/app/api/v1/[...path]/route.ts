@@ -16,10 +16,12 @@ import { dispatch } from "@/lib/api/mock/router";
 import { prefetchCourseAi } from "@/lib/api/mock/course-builder";
 import { prefetchKnowledgeAi } from "@/lib/api/mock/knowledge-base";
 import { prefetchQuestionAi } from "@/lib/api/mock/question-ai";
+import { prefetchQuizAi } from "@/lib/api/mock/quiz-ai";
 import { prefetchMentorAi } from "@/lib/api/mock/mentor";
 import { prefetchStudyPlanAi } from "@/lib/api/mock/study-planner";
 import { prefetchLanguageAi } from "@/lib/api/mock/languages";
 import { prefetchMissionAi } from "@/lib/api/mock/mission-planner";
+import { prefetchResearchAi } from "@/lib/api/mock/research";
 import { KB_MAX_BODY_BYTES } from "@/lib/api/knowledge-schemas";
 import { rateLimit } from "@/lib/api/mock/rate-limit";
 import { RESOURCES, recordSchema } from "@/config/resources";
@@ -264,6 +266,12 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
   // The Mission Planner roadmap is written before the transaction too.
   const mpEarly = await prefetchMissionAi(method, segs, body, session);
   if (mpEarly) return json(mpEarly.body, mpEarly.status);
+  // Research Assistant tools and chat are written before the transaction too.
+  const rEarly = await prefetchResearchAi(method, segs, body, session);
+  if (rEarly) return json(rEarly.body, rEarly.status);
+  // Quiz Builder questions are written before the transaction too.
+  const qzEarly = await prefetchQuizAi(method, segs, body, session);
+  if (qzEarly) return json(qzEarly.body, qzEarly.status);
   try {
     return await withRequestContext({ scope: session.college, sub: session.sub }, () => handleSession(req, method, segs, route, body, session));
   } catch (e) {

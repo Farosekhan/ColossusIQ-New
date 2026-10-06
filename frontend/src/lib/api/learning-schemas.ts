@@ -19,13 +19,42 @@ export const BankQuestion = z.object({
 });
 export type BankQuestion = z.infer<typeof BankQuestion>;
 
+export const QUIZ_DIFFICULTY = ["Easy", "Medium", "Hard", "Mixed"] as const;
+/** What the Quiz Builder sends to draft questions. Shared so the browser and the server agree. */
+export const GenerateQuizBody = z
+  .object({
+    department: z.string().min(2).max(80),
+    topic: z.string().trim().max(100).optional(),
+    count: z.number().int().min(3).max(20),
+    difficulty: z.enum(QUIZ_DIFFICULTY).default("Mixed"),
+    /** Optional notes the questions must stay within (pasted syllabus, lecture notes). */
+    notes: z.string().trim().max(4000).optional(),
+  })
+  .strict();
+export type GenerateQuizBody = z.infer<typeof GenerateQuizBody>;
+
 export const GeneratedQuiz = z.object({
   questions: z.array(BankQuestion),
+  /** Leading questions taken from the curated bank (already vetted). Everything after them needs a review. */
   fromBank: z.number(),
   templated: z.number(),
+  /** Questions written by the AI model (0 when the model is off or failed). */
+  aiCount: z.number().default(0),
   aiGenerated: z.boolean(),
+  /** True when the model was asked but its reply could not be used. */
+  aiFailed: z.boolean().default(false),
   reviewRequired: z.boolean(),
 });
+export type GeneratedQuiz = z.infer<typeof GeneratedQuiz>;
+
+export const QuizResults = z.object({
+  quiz: z.object({ id: z.string(), title: z.string(), status: z.enum(["Draft", "Published", "Closed"]), passMark: z.number(), questions: z.number() }),
+  summary: z.object({ students: z.number(), attempts: z.number(), passed: z.number(), passRate: z.number(), average: z.number(), highest: z.number(), lowest: z.number() }),
+  distribution: z.array(z.object({ label: z.string(), count: z.number() })),
+  students: z.array(z.object({ name: z.string(), attempts: z.number(), best: z.number(), latest: z.number(), passed: z.boolean(), certificate: z.boolean(), lastAt: z.string() })),
+  questions: z.array(z.object({ number: z.number(), prompt: z.string(), answer: z.number(), answered: z.number(), correctPct: z.number().nullable(), optionCounts: z.array(z.number()), options: z.array(z.string()) })),
+});
+export type QuizResults = z.infer<typeof QuizResults>;
 
 export const StaffQuizRow = z.object({
   id: z.string(),
