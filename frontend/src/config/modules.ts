@@ -127,7 +127,7 @@ export const MODULES: ModuleDef[] = [
   // ───────────── Communication & Skills ─────────────
   { slug: "communication", title: "Communication Lab", description: "Presentation, public speaking, email and workplace conversation practice.", group: "Communication & Skills", roles: ["student"], template: "scorecard", icon: "chat", phase: "Phase 2" },
   { slug: "group-discussion", title: "GD & Debate Simulator", description: "Simulated multi-person discussions with AI participants and feedback.", group: "Communication & Skills", roles: ["student"], template: "chat", icon: "users", phase: "Phase 2", agent: "gd" },
-  { slug: "languages", title: "Language Learning", description: "English, Tamil, Hindi, Telugu, Kannada, Malayalam, French, German, Japanese and more.", group: "Communication & Skills", roles: ["student", "faculty"], template: "chat", icon: "languages", phase: "Phase 2", agent: "language" },
+  { slug: "languages", title: "Language Learning", description: "English, Tamil, Hindi, Telugu, Kannada, Malayalam, French, German, Japanese and more.", group: "Communication & Skills", roles: ["student", "faculty"], template: "bespoke", icon: "languages", phase: "Phase 2", agent: "language" },
   { slug: "certifications", title: "Certification Roadmap", description: "Recommended certifications sequenced against your career target.", group: "Communication & Skills", roles: ["student"], template: "workflow", icon: "award", phase: "Phase 2" },
 
   // ───────────── Project & Innovation ─────────────

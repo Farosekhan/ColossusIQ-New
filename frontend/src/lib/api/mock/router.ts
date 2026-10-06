@@ -41,6 +41,7 @@ import { dispatchKnowledge } from "./knowledge-base";
 import { dispatchQuestionAi } from "./question-ai";
 import { dispatchMentor, mentorChat } from "./mentor";
 import { dispatchStudyPlanner } from "./study-planner";
+import { dispatchLanguages, languageChat } from "./languages";
 import { ChatBodySchema } from "@/lib/api/mentor-schemas";
 import { audit, recentAudit } from "./audit";
 import { createStudent, deleteStudent, getStudentsList, importStudents, updateStudent } from "./students-store";
@@ -228,6 +229,7 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
   if (segs[0] === "knowledge") return dispatchKnowledge(method, segs, rawBody, session);
   if (segs[0] === "mentor") return dispatchMentor(method, segs, session);
   if (segs[0] === "study-planner") return dispatchStudyPlanner(method, segs, rawBody, session);
+  if (segs[0] === "languages") return dispatchLanguages(method, segs, rawBody, session);
   if (LEARNING_AREAS.has(segs[0] ?? "")) return dispatchLearning(method, segs, rawBody, session, query);
   if (segs[0] === "students" && segs[1] !== "me") return dispatchStudents(method, segs, rawBody, session, query);
   if (segs[0] === "faculty") return dispatchFaculty(method, segs, rawBody, session, query);
@@ -664,6 +666,7 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
       const parsed = ChatBody.safeParse(rawBody);
       if (!parsed.success) return err(400, "invalid_body", "Message must be 1–2000 characters.");
       if (parsed.data.agent === "mentor") return mentorChat(session, parsed.data);
+      if (parsed.data.agent === "language") return languageChat(session, parsed.data);
       return ok(chatReply(parsed.data.agent, cleanText(parsed.data.message, 2000)));
     }
     case "POST ai/generate": {

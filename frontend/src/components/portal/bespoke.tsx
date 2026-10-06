@@ -36,6 +36,7 @@ import { DepartmentSkillsModule } from "./bespoke/department-skills";
 import { EarlyWarningModule } from "./bespoke/early-warning";
 import { AssignmentsModule } from "./bespoke/assignments";
 import { AicteComplianceModule } from "./bespoke/aicte-compliance";
+import { LanguagesModule } from "./bespoke/languages";
 
 const BESPOKE: Record<string, (props: { role: Role }) => React.ReactNode> = {
   "aicte-compliance": ({ role }) => <AicteComplianceModule role={role} />,
@@ -73,6 +74,7 @@ const BESPOKE: Record<string, (props: { role: Role }) => React.ReactNode> = {
   "skill-booster": ({ role }) => <SkillBoosterModule role={role} />,
   "class-notes": () => <ClassNotesModule />,
   assignments: ({ role }) => <AssignmentsModule role={role} />,
+  languages: () => <LanguagesModule />,
 };
 
 

@@ -32,6 +32,7 @@ export function ChatPanel({
   context = [],
   className,
   compact = false,
+  onReply,
 }: {
   agent: string;
   agentName: string;
@@ -40,6 +41,8 @@ export function ChatPanel({
   context?: string[];
   className?: string;
   compact?: boolean;
+  /** Called after each answer, e.g. so a page can refresh progress the chat just changed. */
+  onReply?: () => void;
 }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -54,7 +57,10 @@ export function ChatPanel({
   const mutation = useMutation({
     mutationFn: ({ message, history }: { message: string; history: Array<{ from: "user" | "ai"; text: string }> }) =>
       apiFetch("/api/v1/ai/chat", ChatReply, { method: "POST", body: { agent, message, history } }),
-    onSuccess: (reply) => setMessages((m) => [...m, { id: ++idRef.current, from: "ai", text: reply.message, reply, at: timeNow() }]),
+    onSuccess: (reply) => {
+      setMessages((m) => [...m, { id: ++idRef.current, from: "ai", text: reply.message, reply, at: timeNow() }]);
+      onReply?.();
+    },
     onError: (e) => setNotice(e instanceof ApiError ? e.message : "Could not reach the AI service."),
   });
 

@@ -333,6 +333,7 @@ model College {
   userSessions          UserSession[]
   questionBank          QuestionBank[]
   studyPlans            StudyPlan[]
+  studentStates         StudentState[]
 
   @@unique([universityId, code])
   @@unique([universityId, name])
@@ -1551,4 +1552,19 @@ model StudyPlan {
 
   @@index([collegeId])
   @@map("study_plans")
+}
+
+model StudentState {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  collegeId String   @map("college_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  key       String
+  data      Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  college   College  @relation(fields: [collegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([userId, key])
+  @@index([collegeId])
+  @@map("student_state")
 }
