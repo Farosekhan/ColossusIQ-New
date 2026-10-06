@@ -393,7 +393,7 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
       if (!mod) return notFound();
       if (!mod.roles.includes(session.role)) return forbidden();
       if (!(await moduleEnabled(mod, session))) return err(403, "module_disabled", "This module is not enabled for your college.");
-      const data = await moduleData(mod.slug, session.college);
+      const data = await moduleData(mod.slug, session.college, session);
       return data ? ok(data) : notFound();
     }
     case "PUT modules/:id": {
