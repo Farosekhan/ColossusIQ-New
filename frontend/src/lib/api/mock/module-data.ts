@@ -28,11 +28,34 @@ import { getCollegeClubs } from "./clubs";
 import { getCollegeSports } from "./sports";
 import { getCollegeCalendar } from "./academic-calendar";
 import { getStudentsList } from "./students-store";
+import type { SessionPayload } from "@/lib/auth/session";
+import {
+  generateDynamicAcademicTracker,
+  generateDynamicAchievements,
+  generateDynamicAlumni,
+  generateDynamicCareer,
+  generateDynamicCertifications,
+  generateDynamicCommunication,
+  generateDynamicDailyPlan,
+  generateDynamicExamPrep,
+  generateDynamicExperience,
+  generateDynamicHackathons,
+  generateDynamicJobs,
+  generateDynamicMissionPlanner,
+  generateDynamicPassport,
+  generateDynamicReadiness,
+  generateDynamicRefreshZone,
+  generateDynamicSkillGraph,
+  generateDynamicStartupHub,
+  generateDynamicStudyTwin,
+  generateDynamicTeamFinder,
+} from "./student-profile";
 
 /** Live data a builder may need, fetched once per request. */
 interface ScopeData {
   stream: Stream | null;
   admissions: ResourceRecord[];
+  session?: SessionPayload;
 }
 import {
   aicteCompliance,
@@ -145,24 +168,8 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
   "naac-readiness": naacReadiness,
   "aicte-compliance": aicteCompliance,
   "cbcs-electives": (_scope, live) => cbcsElectives(live.stream),
-  "academic-tracker": () =>
-    dashboard(
-      [k("CGPA", "0.0", undefined, "teal"), k("Attendance", "0%", undefined, "teal"), k("Internal avg.", "0%", undefined, "amber"), k("Credits earned", "0 / 160", undefined, "brand")],
-      [
-        chart("bar", "Subject-wise internal marks (%)", [{ category: "Core", IA1: 0 }], ["IA1"]),
-        chart("line", "Semester progress", [{ category: "Current", Progress: 0 }], ["Progress"]),
-      ],
-      [],
-    ),
-  "exam-prep": () =>
-    dashboard(
-      [k("Next exam", "None scheduled", undefined, "amber"), k("Syllabus covered", "0%", undefined, "brand"), k("Mock tests taken", "0", undefined, "teal"), k("Predicted band", "—", undefined, "sky")],
-      [
-        chart("bar", "Topic mastery (%)", [{ category: "Core", Mastery: 0 }], ["Mastery"]),
-        chart("area", "Daily study minutes", [{ category: "Today", Minutes: 0 }], ["Minutes"]),
-      ],
-      [],
-    ),
+  "academic-tracker": (scope, live) => generateDynamicAcademicTracker(live.session ?? { college: scope, sub: "demo-student" }),
+  "exam-prep": (scope, live) => generateDynamicExamPrep(scope, live.session),
   "class-analytics": () =>
     dashboard(
       [k("Class average", "0%", undefined, "teal"), k("At-risk students", "0", undefined, "amber"), k("Assignments pending", "0", undefined, "brand"), k("AI-assisted lessons", "0", undefined, "sky")],
@@ -403,20 +410,8 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
       "status",
       "New assignment",
     ),
-  "team-finder": () =>
-    list(
-      [col("name", "Student"), col("dept", "Department"), col("skills", "Skills"), col("looking", "Interested in"), col("match", "Match", "progress")],
-      [],
-      "dept",
-      "Post a team request",
-    ),
-  hackathons: () =>
-    list(
-      [col("name", "Hackathon"), col("host", "Host"), col("date", "Date"), col("teams", "Teams", "number"), col("status", "Status", "badge")],
-      [],
-      "status",
-      "Create hackathon",
-    ),
+  "team-finder": (scope, live) => generateDynamicTeamFinder(live.session ?? { college: scope, sub: "demo-student" }),
+  hackathons: (scope, live) => generateDynamicHackathons(live.session ?? { college: scope, sub: "demo-student" }),
   events: async (collegeScope) => {
     if (dataBackend() === "postgres") {
       const t = db();
@@ -477,20 +472,8 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
       "Register",
     );
   },
-  experience: () =>
-    list(
-      [col("activity", "Activity"), col("type", "Type", "badge"), col("role", "Role"), col("date", "Date"), col("verified", "Verification", "badge")],
-      [],
-      "type",
-      "Add activity"
-    ),
-  alumni: () =>
-    list(
-      [col("name", "Alumnus"), col("batch", "Batch"), col("role", "Current role"), col("company", "Company"), col("offers", "Can help with", "badge"), col("match", "Match", "progress")],
-      [],
-      "offers",
-      "Request mentorship"
-    ),
+  experience: (scope, live) => generateDynamicExperience(live.session ?? { college: scope, sub: "demo-student" }),
+  alumni: (scope, live) => generateDynamicAlumni(live.session ?? { college: scope, sub: "demo-student" }),
   "my-classes": () =>
     list(
       [col("section", "Section"), col("course", "Course"), col("students", "Students", "number"), col("attendance", "Attendance", "progress"), col("avg", "Avg. score", "progress"), col("next", "Next class")],
@@ -652,12 +635,7 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
       "status",
       "Schedule drive",
     ),
-  jobs: () =>
-    list(
-      [col("role", "Role"), col("company", "Company"), col("location", "Location"), col("type", "Type", "badge"), col("match", "Profile match", "progress")],
-      [],
-      "type",
-    ),
+  jobs: (scope, live) => generateDynamicJobs(live.session ?? { college: scope, sub: "demo-student" }),
   employers: () =>
     list(
       [col("company", "Employer"), col("sector", "Sector", "badge"), col("hires", "Hires (3 yrs)", "number"), col("contact", "Contact"), col("status", "Relationship", "badge")],
@@ -759,43 +737,9 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
       "status", "Create API key"),
 
   /* ── workflows ── */
-  "mission-planner": () =>
-    stagesOf("Mission: Data Scientist at a product company", [
-      ["Vision", "Where do I want to be after graduation?", ["Data Scientist, product analytics"]],
-      ["Career goal", "Target role and company type", ["Product companies · Bengaluru/Chennai"]],
-      ["Required skills", "Derived from 146 real job descriptions", ["Python", "Statistics", "SQL", "ML", "Data viz", "Storytelling"]],
-      ["Semester plan", "Sem 5–8 milestones", ["Sem 5: SQL + statistics", "Sem 6: ML + Kaggle", "Sem 7: internship", "Sem 8: capstone"]],
-      ["Monthly plan", "October", ["Finish SQL track", "2 Kaggle notebooks", "1 mock interview"]],
-      ["Weekly plan", "This week", ["3 SQL sets", "Statistics ch. 4", "Portfolio README"]],
-      ["Daily plan", "Today", ["25 min normalization", "Python practice", "Project work"]],
-      ["Projects", "Portfolio-grade projects", ["Smart Campus AI", "Retail demand forecasting"]],
-      ["Internship", "Target: summer 2027"],
-      ["Interview", "Readiness 48% → target 75%"],
-      ["Employment / Higher studies", "Outcome"],
-    ], 5),
-  certifications: () =>
-    stagesOf("Certification roadmap — Data Scientist", [
-      ["SQL fundamentals", "Free · 12 hours", ["Completed Aug 2026"]],
-      ["Python for Data Science", "Free · 20 hours", ["Completed Sep 2026"]],
-      ["Statistics essentials", "In progress · 60%"],
-      ["Cloud fundamentals (any major provider)", "Recommended for Sem 6"],
-      ["Machine Learning specialisation", "Recommended for Sem 6"],
-      ["Data visualisation", "Recommended for Sem 7"],
-    ], 2),
-  "startup-hub": () =>
-    stagesOf("AgriSoil Sense", [
-      ["Idea", "Low-cost soil health kit for small farmers"],
-      ["Problem validation", "32 farmer interviews in 4 villages", ["78% test soil less than once a year"]],
-      ["Market analysis", "TAM / SAM / SOM and competitors"],
-      ["Customer persona", "Small-holder farmer, 2–5 acres"],
-      ["Business model", "Kit + subscription via FPOs"],
-      ["MVP", "Sensor prototype + Tamil voice app"],
-      ["Mentor", "Assigned: agri-tech alumnus"],
-      ["Prototype", "Field test with 10 farmers"],
-      ["Pitch deck", "AI-drafted, mentor-reviewed"],
-      ["Incubation review", "Panel on Nov 12"],
-      ["Startup readiness", "Funding readiness assessment"],
-    ], 4),
+  "mission-planner": (scope, live) => generateDynamicMissionPlanner(live.session ?? { college: scope, sub: "demo-student" }),
+  certifications: (scope, live) => generateDynamicCertifications(live.session ?? { college: scope, sub: "demo-student" }),
+  "startup-hub": (scope, live) => generateDynamicStartupHub(live.session ?? { college: scope, sub: "demo-student" }),
   "incubation-pipeline": () =>
     stagesOf("Incubation pipeline — 2026 cohort", [
       ["Idea", "41 submissions", ["Screened by Incubation Agent + panel"]],
@@ -827,46 +771,18 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
     ], 5),
 
   /* ── scorecards ── */
-  "skill-graph": () =>
-    score("Target: Data Scientist", [["Python", 78, 85], ["Statistics", 54, 80], ["SQL", 66, 85], ["Machine Learning", 41, 75], ["Data visualisation", 60, 75], ["Communication", 59, 75]], ["Python fundamentals are job-ready", "Consistent practice streak (12 days)"], ["Statistics: hypothesis testing", "ML: model evaluation", "SQL: window functions"], ["Statistics ch. 4–5 this week", "Kaggle beginner notebook", "SQL window-functions set"]),
-  "study-twin": () =>
-    score("How you learn best", [["Learning pace", 72, 75], ["Retention (7-day)", 58, 75], ["Practice consistency", 81, 80], ["Revision discipline", 49, 70], ["Focus duration", 64, 70]], ["Visual explanations work best for you", "Most productive 7–9 AM"], ["Revision is often skipped on weekends", "Accuracy drops after 45 minutes"], ["Use 25-minute focus blocks", "Schedule spaced revision on Sat mornings", "Prefer diagrams in Tutor answers"]),
-  career: () =>
-    score("You vs. Data Scientist (entry level)", [["Skills", 62, 80], ["Experience", 35, 60], ["Portfolio", 55, 75], ["Communication", 59, 75], ["Certifications", 50, 60], ["Interview", 48, 75]], ["Strong Python and a real AI project", "Good academic record (8.21)"], ["No internship yet", "Interview readiness below target", "Portfolio lacks a deployed project"], ["Apply to 5 matched internships", "Deploy Smart Campus AI demo", "Two mock interviews per week for 4 weeks"]),
-  readiness: () =>
-    score("Career readiness by dimension", [["Academic", 78, 75], ["Technical skills", 71, 80], ["Communication", 59, 75], ["Projects", 74, 70], ["Certifications", 50, 60], ["Resume", 82, 80], ["Interview", 48, 75], ["Industry exposure", 30, 60]], ["Academic and project dimensions meet target"], ["Interview and industry exposure are the largest gaps"], ["Mock interviews: technical + HR", "Attend 2 alumni sessions", "Apply for one internship this month"]),
-  communication: () =>
-    score("Communication profile", [["Grammar", 72, 80], ["Vocabulary", 64, 75], ["Fluency", 55, 75], ["Structure", 61, 75], ["Speaking pace", 58, 70], ["Filler words", 47, 70]], ["Clear written English", "Good use of examples"], ["Frequent fillers (\"basically\", \"like\")", "Answers lack a clear structure"], ["Practise STAR-format answers", "2-minute daily speaking drill", "Weekly presentation practice"]),
+  "skill-graph": (scope, live) => generateDynamicSkillGraph(live.session ?? { college: scope, sub: "demo-student" }),
+  "study-twin": (scope, live) => generateDynamicStudyTwin(live.session ?? { college: scope, sub: "demo-student" }),
+  career: (scope, live) => generateDynamicCareer(live.session ?? { college: scope, sub: "demo-student" }),
+  readiness: (scope, live) => generateDynamicReadiness(live.session ?? { college: scope, sub: "demo-student" }),
+  communication: (scope, live) => generateDynamicCommunication(live.session ?? { college: scope, sub: "demo-student" }),
   "project-review": () =>
     score("Smart Campus AI — review report", [["Architecture", 82, 75], ["Documentation", 64, 75], ["Code quality", 76, 75], ["Test coverage", 58, 70], ["Innovation", 88, 70], ["Presentation", 70, 75]], ["Clear modular architecture", "Strong novelty for campus context"], ["README lacks setup steps", "Unit tests cover only 41% of services"], ["Add architecture decision records", "Raise coverage on attendance service", "Rehearse demo with viva questions"]),
   "funding-readiness": () =>
     score("AgriSoil Sense", [["Team", 72, 75], ["Problem validation", 81, 75], ["Product", 55, 70], ["Traction", 30, 60], ["Business model", 60, 70], ["Pitch", 66, 75]], ["Well-validated problem", "Complementary founding team"], ["No paying pilots yet", "Unit economics unproven"], ["Run paid pilot with one FPO", "Refine cost model", "Mentor pitch rehearsal"]),
 
   /* ── calendars ── */
-  "daily-plan": () => ({
-    template: "calendar",
-    days: [
-      {
-        day: "Today", items: [
-          { time: "06:30", title: "Walk / exercise", tag: "Wellness", tone: "teal" },
-          { time: "09:00", title: "DBMS class", tag: "Class", tone: "brand" },
-          { time: "11:00", title: "Python practice", tag: "Study", tone: "sky" },
-          { time: "13:00", title: "Lunch + break", tag: "Break", tone: "neutral" },
-          { time: "15:00", title: "Project: Smart Campus AI", tag: "Project", tone: "gold" },
-          { time: "18:00", title: "Interview practice", tag: "Career", tone: "amber" },
-          { time: "21:00", title: "Revision: normalization (25 min)", tag: "Revision", tone: "sky" },
-        ]
-      },
-      {
-        day: "Tomorrow", items: [
-          { time: "09:00", title: "OS class", tag: "Class", tone: "brand" },
-          { time: "16:00", title: "Coding Club contest", tag: "Club", tone: "teal" },
-          { time: "20:00", title: "Mock test: deadlocks", tag: "Assessment", tone: "rose" },
-        ]
-      },
-    ],
-    tips: ["Planner balances study with rest — you have 2 free blocks today.", "Class timings sync from the academic calendar."],
-  }),
+  "daily-plan": (scope, live) => generateDynamicDailyPlan(live.session ?? { college: scope, sub: "demo-student" }),
   "academic-calendar": (collegeScope = "all") => {
     const raw = getCollegeCalendar(collegeScope);
     const thisWeek = raw.filter((it) => it.date >= "2026-09-28" && it.date <= "2026-10-05");
@@ -941,17 +857,7 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
   }),
 
   /* ── galleries ── */
-  passport: () =>
-    gallery([
-      ["Academic", "CGPA 8.21 · 96 credits", "Verified by Exam Cell", "Updated Sep 2026", "brand", 82],
-      ["Skills", "Python (job-ready), SQL, React", "Skill Graph", "6 skills tracked", "teal", 66],
-      ["Projects", "Smart Campus AI · AgriSoil Sense", "Faculty-reviewed", "2 projects", "gold", 74],
-      ["Certifications", "SQL fundamentals · Python for DS", "Issuer-verified", "2 earned", "sky", 50],
-      ["Activities", "NSS · Coding Club secretary", "Verified", "5 activities", "teal", 70],
-      ["Competitions", "SIH 2025 finalist", "Verified", "1 award", "amber", 60],
-      ["Communication", "Level: Intermediate", "Communication Lab", "Improving", "brand", 59],
-      ["Career readiness", "63% overall", "Dimension-level", "See Career Readiness", "gold", 63],
-    ]),
+  passport: (scope, live) => generateDynamicPassport(live.session ?? { college: scope, sub: "demo-student" }),
   "competitive-exams": () =>
     gallery([
       ["GATE CSE", "Topic-wise plan, PYQs and full-length mocks", "Engineering", "Next exam: Feb 2027", "brand", 34],
@@ -974,24 +880,8 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
       ["Cloud fundamentals certification", "Recommended by your skill graph", "Certification", "Sponsored seats: 20", "amber"],
       ["Research assistant — IoT lab", "Faculty project, 6 months", "Project", "Stipend", "teal"],
     ]),
-  "refresh-zone": () =>
-    gallery([
-      ["Memory Match", "Short-term memory card game", "Memory", "3 min", "teal"],
-      ["Logic Grid", "Deduction puzzles", "Logical reasoning", "5 min", "brand"],
-      ["Word Ladder", "Vocabulary builder", "Word", "3 min", "gold"],
-      ["SQL Sprint", "Race to write correct queries", "Coding challenge", "10 min", "sky"],
-      ["Quiz Battle", "Challenge a classmate on DBMS", "Quiz", "Live", "rose"],
-      ["Campus Challenge", "Department vs department trivia", "Team", "This Friday", "amber"],
-    ]),
-  achievements: () =>
-    gallery([
-      ["7-Day Learning Streak", "Studied every day for a week", "Badge", "Earned", "gold", 100],
-      ["First Project Completed", "Shipped your first project", "Badge", "Earned", "teal", 100],
-      ["100 Questions Solved", "Across all subjects", "Badge", "84 / 100", "brand", 84],
-      ["First Mock Interview", "Completed an AI interview", "Badge", "Earned", "sky", 100],
-      ["Communication Level Up", "Reach Intermediate+", "Badge", "59 / 65", "amber", 90],
-      ["Hackathon Participant", "Joined a hackathon", "Badge", "Earned", "rose", 100],
-    ]),
+  "refresh-zone": (scope, live) => generateDynamicRefreshZone(live.session ?? { college: scope, sub: "demo-student" }),
+  achievements: (scope, live) => generateDynamicAchievements(live.session ?? { college: scope, sub: "demo-student" }),
   "department-labs": async (collegeScope, live) => {
     if (dataBackend() === "postgres" && collegeScope && collegeScope !== "all") {
       try {
@@ -1211,7 +1101,7 @@ function fallback(mod: ModuleDef): ModuleData {
 
 const STREAM_RELABEL = new Set(["academic-tracker", "exam-prep", "class-analytics", "department-academics"]);
 
-export async function moduleData(slug: string, collegeScope = "all"): Promise<ModuleData | null> {
+export async function moduleData(slug: string, collegeScope = "all", session?: SessionPayload): Promise<ModuleData | null> {
   const mod = findModule(slug);
   if (!mod) return null;
   const builder = DATA[slug];
@@ -1219,6 +1109,7 @@ export async function moduleData(slug: string, collegeScope = "all"): Promise<Mo
     const live: ScopeData = {
       stream: await collegeStream(collegeScope),
       admissions: slug === "admission-insights" ? await getStore().records.all(RESOURCES.admissions!, collegeScope) : [],
+      session,
     };
     const data = await builder(collegeScope, live);
     if (data.template === "settings") {

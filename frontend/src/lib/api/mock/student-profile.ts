@@ -1,7 +1,7 @@
 import "server-only";
 import type { Stream } from "@/config/streams";
 import type { SessionPayload } from "@/lib/auth/session";
-import type { ScorecardData, DashboardData } from "@/lib/api/schemas";
+import type { ScorecardData, DashboardData, CalendarData, GalleryData, ListData, WorkflowData } from "@/lib/api/schemas";
 import { collegeStream } from "./records";
 
 export interface EnrolledSubject {
@@ -651,13 +651,122 @@ export async function generateDynamicStudentDashboard(
   };
 }
 
+export async function generateDynamicAcademicTracker(
+  session: SessionPayload | { sub: string; name?: string; college: string }
+): Promise<DashboardData> {
+  const profile = await getStudentAcademicProfile(session);
+  const subjects = profile.enrolledSubjects;
+
+  const avgAttendance = Math.round(
+    subjects.reduce((sum, s) => sum + s.attendancePercent, 0) / (subjects.length || 1)
+  );
+  const avgIa = Math.round(
+    subjects.reduce((sum, s) => sum + (s.ia1Marks + s.ia2Marks) / 2, 0) / (subjects.length || 1)
+  );
+
+  const subjectChartData = subjects.map((s) => ({
+    name: s.shortName,
+    IA1: s.ia1Marks,
+    IA2: s.ia2Marks,
+    Attendance: s.attendancePercent,
+  }));
+
+  return {
+    template: "dashboard",
+    kpis: [
+      { label: "CGPA", value: profile.cgpa.toFixed(2), delta: `Rank #4 in ${profile.section}`, tone: "teal" },
+      { label: "Attendance", value: `${avgAttendance}%`, delta: avgAttendance >= 75 ? "Exam eligible" : "Low attendance", tone: avgAttendance >= 75 ? "teal" : "rose" },
+      { label: "Internal avg.", value: `${avgIa}%`, delta: "+4% from IA-1", tone: "brand" },
+      { label: "Credits earned", value: `${profile.creditsEarned} / ${profile.totalCredits}`, delta: "On track", tone: "sky" },
+    ],
+    charts: [
+      {
+        type: "bar",
+        title: "Subject-wise Internal Marks & Attendance (%)",
+        xKey: "name",
+        series: ["IA1", "IA2", "Attendance"],
+        data: subjectChartData,
+      },
+      {
+        type: "line",
+        title: "Semester Performance Trend",
+        xKey: "name",
+        series: ["Progress", "Mastery"],
+        data: [
+          { name: "Sem 1", Progress: 100, Mastery: 78 },
+          { name: "Sem 2", Progress: 100, Mastery: 82 },
+          { name: "Sem 3", Progress: 100, Mastery: 80 },
+          { name: "Sem 4", Progress: 100, Mastery: 85 },
+          { name: "Sem 5 (Current)", Progress: 68, Mastery: avgIa },
+        ],
+      },
+    ],
+    insights: [
+      {
+        title: "Academic Standing",
+        body: `You are maintaining a strong ${profile.cgpa} CGPA in ${profile.degree}. Your highest performance is in ${subjects[0]?.shortName || "Major subjects"}.`,
+        evidence: `Verified by College Exam Cell · ${profile.creditsEarned} credits recorded`,
+        tone: "teal",
+      },
+      {
+        title: "Attendance Notice",
+        body: `Overall attendance is ${avgAttendance}%, safely above the mandatory 75% threshold for university end-semester examinations.`,
+        evidence: `Biometric & smart classroom log · ${profile.department}`,
+        tone: "brand",
+      },
+    ],
+  };
+}
+
+export async function generateDynamicDailyPlan(
+  session: SessionPayload | { sub: string; name?: string; college: string }
+): Promise<CalendarData> {
+  const profile = await getStudentAcademicProfile(session);
+  const subjects = profile.enrolledSubjects;
+  const s1 = subjects[0] || { shortName: "Major 1" };
+  const s2 = subjects[1] || { shortName: "Major 2" };
+  const s3 = subjects[2] || { shortName: "Practical Lab" };
+
+  return {
+    template: "calendar",
+    days: [
+      {
+        day: "Today",
+        items: [
+          { time: "06:30", title: "Morning fitness / wellness walk", tag: "Wellness", tone: "teal" },
+          { time: "09:00", title: `${s1.shortName} — Theory & Concept Map`, tag: "Class", tone: "brand" },
+          { time: "11:00", title: `${s2.shortName} — Problem Solving & Worked Examples`, tag: "Class", tone: "brand" },
+          { time: "13:00", title: "Lunch & campus break", tag: "Break", tone: "neutral" },
+          { time: "14:00", title: `${s3.shortName} — Laboratory & Hands-on Implementation`, tag: "Lab", tone: "sky" },
+          { time: "17:00", title: "Coding Club & Innovation Project Hub", tag: "Club", tone: "gold" },
+          { time: "19:00", title: "Placement Aptitude & AI Mock Interview Drill", tag: "Career", tone: "amber" },
+          { time: "21:00", title: `Focused Revision: ${s1.shortName} core units (25 min)`, tag: "Revision", tone: "sky" },
+        ],
+      },
+      {
+        day: "Tomorrow",
+        items: [
+          { time: "09:00", title: `${s2.shortName} — Case Studies & Analysis`, tag: "Class", tone: "brand" },
+          { time: "11:00", title: `${s1.shortName} — Assessment & Tutorial Discussion`, tag: "Class", tone: "brand" },
+          { time: "14:30", title: "Department Seminar & Research Paper Review", tag: "Academics", tone: "sky" },
+          { time: "16:30", title: "Sports Practice & Inter-College Trial", tag: "Sports", tone: "teal" },
+          { time: "20:00", title: `Adaptive Mock Test: ${s2.shortName}`, tag: "Assessment", tone: "rose" },
+        ],
+      },
+    ],
+    tips: [
+      "Planner automatically syncs with your department timetable and upcoming examination calendar.",
+      "Spaced revision blocks are scheduled when memory retention is highest (morning & evening).",
+    ],
+  };
+}
+
 export async function generateDynamicSkillGraph(
   session: SessionPayload | { sub: string; name?: string; college: string }
 ): Promise<ScorecardData> {
   const profile = await getStudentAcademicProfile(session);
   const subjects = profile.enrolledSubjects;
 
-  // Compute dimension scores from subjects
   const dimensions = subjects.map((s) => {
     const avgUnitMastery = Math.round(
       s.units.reduce((sum, u) => sum + u.mastery, 0) / (s.units.length || 1)
@@ -666,13 +775,11 @@ export async function generateDynamicSkillGraph(
     return {
       name: s.shortName,
       score,
-      target: 80,
+      target: 85,
     };
   });
 
   const overall = Math.round(dimensions.reduce((a, d) => a + d.score, 0) / (dimensions.length || 1));
-
-  // Determine strengths (> 70) and gaps (< 65)
   const strengths: string[] = [];
   const gaps: string[] = [];
   const plan: string[] = [];
@@ -681,7 +788,7 @@ export async function generateDynamicSkillGraph(
     const lowUnits = s.units.filter((u) => u.mastery < 55);
     const highUnits = s.units.filter((u) => u.mastery >= 75);
     if (highUnits.length > 0) {
-      strengths.push(`${s.shortName}: Strong fundamentals in ${highUnits[0]?.title}`);
+      strengths.push(`${s.shortName}: Strong mastery in ${highUnits[0]?.title}`);
     }
     if (lowUnits.length > 0) {
       gaps.push(`${s.shortName}: ${lowUnits[0]?.title} (${lowUnits[0]?.mastery}%)`);
@@ -704,10 +811,454 @@ export async function generateDynamicSkillGraph(
   };
 }
 
+export async function generateDynamicStudyTwin(
+  session: SessionPayload | { sub: string; name?: string; college: string }
+): Promise<ScorecardData> {
+  const profile = await getStudentAcademicProfile(session);
+  return {
+    template: "scorecard",
+    headline: `AI Study Twin — ${profile.name}'s Learning Dynamics`,
+    overall: 74,
+    dimensions: [
+      { name: "Learning pace", score: 76, target: 80 },
+      { name: "Retention rate (7-day)", score: 68, target: 75 },
+      { name: "Practice consistency", score: 85, target: 80 },
+      { name: "Revision discipline", score: 62, target: 75 },
+      { name: "Focus duration", score: 78, target: 80 },
+    ],
+    strengths: [
+      "Visual worked examples & concept diagrams increase retention by 2.4x",
+      "Peak cognitive focus observed between 08:30 AM – 11:30 AM",
+      `High consistency with a ${profile.streakDays}-day active learning streak`,
+    ],
+    gaps: [
+      "Revision frequency slows down on weekends",
+      "Complex theoretical proofs show faster decay without practice recaps",
+    ],
+    plan: [
+      "Utilize 25-minute Pomodoro focus blocks with formula flashcards",
+      "Schedule Sunday morning 30-minute spaced revision for lowest-mastery units",
+      "Practice 5 adaptive quiz questions immediately after each class",
+    ],
+  };
+}
+
+export async function generateDynamicPassport(
+  session: SessionPayload | { sub: string; name?: string; college: string }
+): Promise<GalleryData> {
+  const profile = await getStudentAcademicProfile(session);
+  return {
+    template: "gallery",
+    items: [
+      {
+        title: "Academic Transcript",
+        description: `CGPA ${profile.cgpa.toFixed(2)} · ${profile.creditsEarned} of ${profile.totalCredits} credits earned across ${profile.semester} semesters`,
+        tag: "Exam Cell Verified",
+        meta: `Roll: ${profile.rollNo}`,
+        tone: "teal",
+        progress: Math.round((profile.creditsEarned / profile.totalCredits) * 100),
+      },
+      {
+        title: "Verified Skill Profile",
+        description: `${profile.enrolledSubjects.map((s) => s.shortName).join(", ")} & practical laboratory competencies`,
+        tag: "Skill Graph",
+        meta: "12 skills tracked",
+        tone: "brand",
+        progress: 78,
+      },
+      {
+        title: "Department Project",
+        description: "Smart Campus AI & Autonomous Attendance · Faculty reviewed",
+        tag: "Project Hub",
+        meta: "Milestone 4/5",
+        tone: "gold",
+        progress: 80,
+      },
+      {
+        title: "Verified Certifications",
+        description: "HMAC Cryptographically signed certifications in core subjects",
+        tag: "Certificates",
+        meta: "2 verified certs",
+        tone: "sky",
+        progress: 67,
+      },
+      {
+        title: "Campus Leadership & Clubs",
+        description: "Coding Club Lead & NSS Campus Volunteer",
+        tag: "Campus Life",
+        meta: "Active member",
+        tone: "teal",
+        progress: 85,
+      },
+      {
+        title: "Placement Readiness",
+        description: "Quiz performance, certifications, aptitude, and AI mock interview",
+        tag: "Career",
+        meta: "Readiness: 68/100",
+        tone: "amber",
+        progress: 68,
+      },
+    ],
+  };
+}
+
+export async function generateDynamicCareer(
+  session: SessionPayload | { sub: string; name?: string; college: string }
+): Promise<ScorecardData> {
+  const profile = await getStudentAcademicProfile(session);
+  return {
+    template: "scorecard",
+    headline: `${profile.name} vs. Industry Role Benchmark (${profile.degree})`,
+    overall: 66,
+    dimensions: [
+      { name: "Technical Core Skills", score: 74, target: 85 },
+      { name: "Hands-on Projects", score: 68, target: 80 },
+      { name: "Aptitude & Problem Solving", score: 70, target: 75 },
+      { name: "Communication & Soft Skills", score: 62, target: 75 },
+      { name: "Mock Interview Readiness", score: 58, target: 75 },
+    ],
+    strengths: [
+      `Strong core foundations in ${profile.enrolledSubjects[0]?.shortName || "major subjects"}`,
+      `Good academic standing with CGPA ${profile.cgpa}`,
+      "Active participation in campus innovation and projects",
+    ],
+    gaps: [
+      "Technical mock interview score is below target (58% vs 75%)",
+      "Portfolio lacks deployment to public cloud / live demonstration",
+    ],
+    plan: [
+      "Take 2 mock technical interviews weekly on AI Mock Interview",
+      "Deploy capstone project on GitHub with live architecture diagram",
+      "Complete 30-minute daily aptitude practice questions",
+    ],
+  };
+}
+
+export async function generateDynamicReadiness(
+  session: SessionPayload | { sub: string; name?: string; college: string }
+): Promise<ScorecardData> {
+  const profile = await getStudentAcademicProfile(session);
+  return {
+    template: "scorecard",
+    headline: "Career Readiness by Dimension",
+    overall: 68,
+    dimensions: [
+      { name: "Academic GPA", score: Math.round(profile.cgpa * 10), target: 80 },
+      { name: "Department Skills", score: 72, target: 80 },
+      { name: "Mock Interview", score: 58, target: 75 },
+      { name: "Aptitude & Coding", score: 70, target: 75 },
+      { name: "Resume & ATS Score", score: 82, target: 80 },
+      { name: "Verified Certifications", score: 60, target: 75 },
+    ],
+    strengths: [
+      "Academic CGPA and Resume ATS optimization exceed hiring thresholds",
+      "Consistent continuous assessment marks across semesters",
+    ],
+    gaps: [
+      "Live verbal communication in technical interviews requires STAR practice",
+      "Advanced domain certifications pending completion",
+    ],
+    plan: [
+      "Practice STAR framework answers with Viva Simulator",
+      "Earn second department course certificate in AI Course Studio",
+      "Attend campus recruitment preparation drive sessions",
+    ],
+  };
+}
+
+export async function generateDynamicCommunication(
+  session: SessionPayload | { sub: string; name?: string; college: string }
+): Promise<ScorecardData> {
+  const profile = await getStudentAcademicProfile(session);
+  return {
+    template: "scorecard",
+    headline: `Communication Lab — ${profile.name}'s Profile`,
+    overall: 65,
+    dimensions: [
+      { name: "Grammar & Syntax", score: 74, target: 80 },
+      { name: "Vocabulary & Terminology", score: 68, target: 75 },
+      { name: "Fluency & Pacing", score: 60, target: 75 },
+      { name: "Structure (STAR format)", score: 62, target: 75 },
+      { name: "Filler Word Control", score: 54, target: 70 },
+    ],
+    strengths: [
+      "Clear technical explanations when using standard terminology",
+      "Good comprehension during multi-turn conversational drills",
+    ],
+    gaps: [
+      "Frequent filler words ('like', 'basically') under timed pressure",
+      "Long pauses when transitioning between points in GD sessions",
+    ],
+    plan: [
+      "Participate in the GD Simulator on current tech debate topics",
+      "Record a 2-minute self-introduction on the Communication Lab daily",
+      "Follow structured bullet points before answering viva questions",
+    ],
+  };
+}
+
+export async function generateDynamicCertifications(
+  session: SessionPayload | { sub: string; name?: string; college: string }
+): Promise<WorkflowData> {
+  const profile = await getStudentAcademicProfile(session);
+  return {
+    template: "workflow",
+    title: `Certification Roadmap — ${profile.degree}`,
+    stages: [
+      {
+        title: "Foundation Level",
+        description: "Core concepts & fundamentals in major department subjects",
+        status: "done",
+        items: ["Completed: Department Internal Certification", "Score: 84% (Grade A)"],
+      },
+      {
+        title: "Intermediate Mastery",
+        description: "Applied problem solving, laboratory assessments, and project work",
+        status: "active",
+        items: ["In Progress: 30-Question Final Assessment", "Passing mark: 60%"],
+      },
+      {
+        title: "Industry Professional",
+        description: "Recognized national/international external certifications",
+        status: "todo",
+        items: ["Recommended: NPTEL / SWAYAM / Industry Council certification"],
+      },
+      {
+        title: "Capstone & Placement Verified",
+        description: "Comprehensive verification for campus hiring drives",
+        status: "todo",
+        items: ["Placement Readiness Board Verification"],
+      },
+    ],
+  };
+}
+
+export async function generateDynamicMissionPlanner(
+  session: SessionPayload | { sub: string; name?: string; college: string }
+): Promise<WorkflowData> {
+  const profile = await getStudentAcademicProfile(session);
+  return {
+    template: "workflow",
+    title: `Mission Plan — Career Roadmap for ${profile.name}`,
+    stages: [
+      {
+        title: "Vision & Target Role",
+        description: `Aiming for Lead Technical Role / Industry Placement (${profile.department})`,
+        status: "done",
+        items: ["Target companies identified", "Core skill competencies benchmarked"],
+      },
+      {
+        title: "Semester 5 Milestones",
+        description: "Core theory mastery, laboratory proficiency, and 2 certificates",
+        status: "active",
+        items: ["Course progress: 68%", "AI Quiz average: > 75%"],
+      },
+      {
+        title: "Semester 6 Project Capstone",
+        description: "Build, test and deploy a portfolio-grade project with AI Review",
+        status: "todo",
+        items: ["Architecture review", "GitHub deployment"],
+      },
+      {
+        title: "Placement Drives & Internship",
+        description: "Campus recruitment drives and interview rounds",
+        status: "todo",
+        items: ["Placement Readiness Score >= 75", "Mock Interview Score >= 70"],
+      },
+    ],
+  };
+}
+
+export async function generateDynamicStartupHub(
+  session: SessionPayload | { sub: string; name?: string; college: string }
+): Promise<WorkflowData> {
+  const profile = await getStudentAcademicProfile(session);
+  return {
+    template: "workflow",
+    title: `Innovation & Startup Hub — ${profile.department}`,
+    stages: [
+      {
+        title: "Problem Discovery",
+        description: "Identify campus or societal challenges and validate user pain points",
+        status: "done",
+        items: ["30+ student & faculty interviews completed", "Problem statement documented"],
+      },
+      {
+        title: "Solution & MVP Architecture",
+        description: "System design, technology stack, and prototyping",
+        status: "active",
+        items: ["Prototype v0.2 built", "AI Mentor review requested"],
+      },
+      {
+        title: "Incubation Review & Mentorship",
+        description: "Pitch deck presentation before the College Incubation Cell",
+        status: "todo",
+        items: ["Pitch presentation scheduled with Incubation Head"],
+      },
+      {
+        title: "Funding & Grant Readiness",
+        description: "Application for MSME / DST / Student Startup Innovation Grants",
+        status: "todo",
+        items: ["Grant application review"],
+      },
+    ],
+  };
+}
+
+export async function generateDynamicTeamFinder(
+  session: SessionPayload | { sub: string; name?: string; college: string }
+): Promise<ListData> {
+  const profile = await getStudentAcademicProfile(session);
+  return {
+    template: "list",
+    columns: [
+      { key: "name", label: "Student", kind: "text" },
+      { key: "dept", label: "Department", kind: "text" },
+      { key: "skills", label: "Skills & Expertise", kind: "text" },
+      { key: "looking", label: "Interested In", kind: "text" },
+      { key: "match", label: "Profile Match", kind: "progress" },
+    ],
+    rows: [
+      { name: "Rahul S.", dept: profile.department, skills: "React, Next.js, Tailwind", looking: "Hackathon frontend lead", match: 92 },
+      { name: "Priya V.", dept: profile.department, skills: "Python, FastAPI, PyTorch", looking: "AI/ML project partner", match: 88 },
+      { name: "Karthik R.", dept: "Electronics & Communication", skills: "Embedded C, IoT, Arduino", looking: "Hardware & sensor integration", match: 82 },
+      { name: "Divya M.", dept: "Management Studies", skills: "Product Design, UI/UX, Figma", looking: "Startup UI/UX & Pitch Deck", match: 78 },
+    ],
+    filterKey: "dept",
+    primaryAction: "Post a team request",
+  };
+}
+
+export async function generateDynamicHackathons(
+  session: SessionPayload | { sub: string; name?: string; college: string }
+): Promise<ListData> {
+  const profile = await getStudentAcademicProfile(session);
+  return {
+    template: "list",
+    columns: [
+      { key: "name", label: "Hackathon", kind: "text" },
+      { key: "host", label: "Organizing Body", kind: "text" },
+      { key: "date", label: "Date", kind: "text" },
+      { key: "teams", label: "Registered Teams", kind: "number" },
+      { key: "status", label: "Status", kind: "badge" },
+    ],
+    rows: [
+      { name: "Smart India Hackathon 2026", host: "AICTE & MoE", date: "Nov 15–16", teams: 24, status: "Open" },
+      { name: "Campus AI Buildathon", host: `${profile.department} & Incubation Cell`, date: "Oct 28", teams: 18, status: "Active" },
+      { name: "Tamil Nadu State Student Innovation Challenge", host: "TANSIM", date: "Dec 05", teams: 42, status: "Upcoming" },
+    ],
+    filterKey: "status",
+    primaryAction: "Register team",
+  };
+}
+
+export async function generateDynamicExperience(
+  session: SessionPayload | { sub: string; name?: string; college: string }
+): Promise<ListData> {
+  const profile = await getStudentAcademicProfile(session);
+  return {
+    template: "list",
+    columns: [
+      { key: "activity", label: "Activity / Role", kind: "text" },
+      { key: "type", label: "Category", kind: "badge" },
+      { key: "role", label: "Designation", kind: "text" },
+      { key: "date", label: "Period", kind: "text" },
+      { key: "verified", label: "Verification", kind: "badge" },
+    ],
+    rows: [
+      { activity: "Campus Coding Club", type: "Technical Club", role: "Student Coordinator", date: "2025–2026", verified: "Verified by Faculty" },
+      { activity: "National Service Scheme (NSS)", type: "Social Service", role: "Volunteer", date: "2024–2026", verified: "Verified by NSS Officer" },
+      { activity: "Smart India Hackathon Internal Round", type: "Competition", role: "Team Lead", date: "Sep 2026", verified: "Verified by HOD" },
+    ],
+    filterKey: "type",
+    primaryAction: "Add activity",
+  };
+}
+
+export async function generateDynamicRefreshZone(
+  session: SessionPayload | { sub: string; name?: string; college: string }
+): Promise<GalleryData> {
+  const profile = await getStudentAcademicProfile(session);
+  const mainSub = profile.enrolledSubjects[0]?.shortName || "Subject";
+  return {
+    template: "gallery",
+    items: [
+      { title: "Memory Matrix", description: "Visual and spatial memory training challenge", tag: "Brain Fitness", meta: "3 min drill", tone: "teal" },
+      { title: `${mainSub} Quiz Battle`, description: `Challenge your classmates to a rapid-fire quiz on ${mainSub}`, tag: "Live Battle", meta: "10 MCQs", tone: "rose" },
+      { title: "Logic Grid Deductions", description: "Analytical reasoning puzzles to boost placement test speed", tag: "Logic & Aptitude", meta: "5 min", tone: "brand" },
+      { title: "Code & Syntax Sprint", description: "Spot the bug and fix algorithmic errors against the clock", tag: "Coding Challenge", meta: "8 min", tone: "sky" },
+      { title: "Vocabulary Power", description: "GRE / CAT level verbal reasoning flashcard battle", tag: "Language", meta: "4 min", tone: "gold" },
+    ],
+  };
+}
+
+export async function generateDynamicAchievements(
+  session: SessionPayload | { sub: string; name?: string; college: string }
+): Promise<GalleryData> {
+  const profile = await getStudentAcademicProfile(session);
+  return {
+    template: "gallery",
+    items: [
+      { title: `${profile.streakDays}-Day Learning Streak`, description: `Logged in and completed practice sessions for ${profile.streakDays} consecutive days`, tag: "Streak Badge", meta: "Earned", tone: "gold", progress: 100 },
+      { title: "First Course Certificate", description: "Successfully passed 30-question final assessment with Distinction", tag: "Certified", meta: "Earned", tone: "teal", progress: 100 },
+      { title: "100+ Quiz Questions Solved", description: "Answered practice questions across department subjects", tag: "Practice Star", meta: "Earned", tone: "brand", progress: 100 },
+      { title: "AI Mock Interview Master", description: "Completed technical and HR interview rounds with score > 65%", tag: "Interview Ready", meta: "In Progress", tone: "sky", progress: 75 },
+      { title: "Hackathon Finalist", description: "Participated in campus innovation challenge", tag: "Innovation", meta: "Earned", tone: "amber", progress: 100 },
+    ],
+  };
+}
+
+export async function generateDynamicJobs(
+  session: SessionPayload | { sub: string; name?: string; college: string }
+): Promise<ListData> {
+  const profile = await getStudentAcademicProfile(session);
+  return {
+    template: "list",
+    columns: [
+      { key: "role", label: "Role", kind: "text" },
+      { key: "company", label: "Company", kind: "text" },
+      { key: "location", label: "Location", kind: "text" },
+      { key: "type", label: "Type", kind: "badge" },
+      { key: "match", label: "Profile Match", kind: "progress" },
+    ],
+    rows: [
+      { role: "Software Development Engineer (Graduate)", company: "TechCorp India", location: "Chennai / Bengaluru", type: "Full Time", match: 92 },
+      { role: "Data Analyst Trainee", company: "Analytics Insights Hub", location: "Coimbatore / Remote", type: "Full Time", match: 86 },
+      { role: "Cloud & DevOps Intern", company: "CloudSphere Solutions", location: "Hyderabad", type: "Internship", match: 80 },
+    ],
+    filterKey: "type",
+  };
+}
+
+export async function generateDynamicAlumni(
+  session: SessionPayload | { sub: string; name?: string; college: string }
+): Promise<ListData> {
+  const profile = await getStudentAcademicProfile(session);
+  return {
+    template: "list",
+    columns: [
+      { key: "name", label: "Alumnus / Mentor", kind: "text" },
+      { key: "batch", label: "Batch", kind: "text" },
+      { key: "role", label: "Current Position", kind: "text" },
+      { key: "company", label: "Company", kind: "text" },
+      { key: "offers", label: "Can Mentor In", kind: "badge" },
+      { key: "match", label: "Match Score", kind: "progress" },
+    ],
+    rows: [
+      { name: "Priya Sundaram", batch: "Batch 2021", role: "Senior Software Engineer", company: "Microsoft", offers: "Mock Interviews & System Design", match: 94 },
+      { name: "Karthik Narayanan", batch: "Batch 2020", role: "Data Scientist", company: "Amazon", offers: "ML & Analytics Career Guidance", match: 89 },
+      { name: "Arun Prakash", batch: "Batch 2019", role: "Product Manager", company: "Freshworks", offers: "Resume Review & Startups", match: 84 },
+    ],
+    filterKey: "offers",
+    primaryAction: "Request mentorship",
+  };
+}
+
 export async function generateDynamicExamPrep(
-  collegeScope: string
+  collegeScope: string,
+  session?: SessionPayload | { sub: string; name?: string; college: string }
 ): Promise<DashboardData> {
-  const profile = await getStudentAcademicProfile({ college: collegeScope, sub: "demo-student" });
+  const profile = await getStudentAcademicProfile(session ?? { college: collegeScope, sub: "demo-student" });
   const subjects = profile.enrolledSubjects;
   const primarySubject = subjects[0] || { shortName: "Major", units: [], semesterProgress: 60 };
 
@@ -715,7 +1266,6 @@ export async function generateDynamicExamPrep(
     subjects.reduce((sum, s) => sum + s.semesterProgress, 0) / (subjects.length || 1)
   );
 
-  // Extract all units for the primary exam subject
   const topicData = primarySubject.units.map((u) => ({
     name: u.title.length > 20 ? u.title.slice(0, 18) + "…" : u.title,
     Mastery: u.mastery,
