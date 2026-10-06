@@ -552,13 +552,15 @@ export async function getStudentAcademicProfile(
         orderBy: { title: "asc" },
       });
 
+      const hasActivity = (studentRecord?.quizAttempts?.length || 0) > 0 || (studentRecord?.evaluationItems?.length || 0) > 0 || (studentRecord?.certificates?.length || 0) > 0;
+
       if (colCourses.length > 0) {
         // Map database courses to EnrolledSubject format
         subjects = colCourses.map((c, idx) => {
-          const matchingAttempts = studentRecord?.quizAttempts.filter((q) => q.quiz?.title?.includes(c.title)) || [];
+          const matchingAttempts = studentRecord?.quizAttempts?.filter((q) => q.quiz?.title?.includes(c.title)) || [];
           const avgScore = matchingAttempts.length > 0
-            ? Math.round(matchingAttempts.reduce((sum, a) => sum + (a.score !== null ? a.score : 70), 0) / matchingAttempts.length)
-            : 68 + ((idx * 7) % 24);
+            ? Math.round(matchingAttempts.reduce((sum, a) => sum + (a.score !== null ? a.score : 0), 0) / matchingAttempts.length)
+            : hasActivity ? 68 + ((idx * 7) % 24) : 0;
 
           return {
             code: c.code,
@@ -568,28 +570,31 @@ export async function getStudentAcademicProfile(
             facultyName: c.facultyName || `Prof. ${idx % 2 === 0 ? "Dr. Meena Raghavan" : "Prof. R. Balaji"}`,
             facultyDesignation: "Faculty",
             semester: semester,
-            attendancePercent: Math.min(100, 82 + ((idx * 5) % 15)),
+            attendancePercent: hasActivity ? Math.min(100, 82 + ((idx * 5) % 15)) : 0,
             ia1Marks: avgScore,
-            ia2Marks: Math.min(100, avgScore + 4),
-            semesterProgress: Math.min(100, 60 + ((idx * 8) % 35)),
+            ia2Marks: avgScore > 0 ? Math.min(100, avgScore + 4) : 0,
+            semesterProgress: hasActivity ? Math.min(100, 60 + ((idx * 8) % 35)) : 0,
             units: [
-              { id: `${c.code.toLowerCase()}-u1`, unit: "Unit 1", title: "Core Principles & Architecture", mastery: Math.min(100, avgScore + 8) },
+              { id: `${c.code.toLowerCase()}-u1`, unit: "Unit 1", title: "Core Principles & Architecture", mastery: avgScore > 0 ? Math.min(100, avgScore + 8) : 0 },
               { id: `${c.code.toLowerCase()}-u2`, unit: "Unit 2", title: "Design & Analysis Methodology", mastery: avgScore },
-              { id: `${c.code.toLowerCase()}-u3`, unit: "Unit 3", title: "Applications & Optimization", mastery: Math.max(35, avgScore - 15) },
-              { id: `${c.code.toLowerCase()}-u4`, unit: "Unit 4", title: "Advanced Implementations", mastery: Math.max(40, avgScore - 8) },
-              { id: `${c.code.toLowerCase()}-u5`, unit: "Unit 5", title: "Case Studies & Modern Trends", mastery: Math.max(30, avgScore - 20) },
+              { id: `${c.code.toLowerCase()}-u3`, unit: "Unit 3", title: "Applications & Optimization", mastery: Math.max(0, avgScore - 15) },
+              { id: `${c.code.toLowerCase()}-u4`, unit: "Unit 4", title: "Advanced Implementations", mastery: Math.max(0, avgScore - 8) },
+              { id: `${c.code.toLowerCase()}-u5`, unit: "Unit 5", title: "Case Studies & Modern Trends", mastery: Math.max(0, avgScore - 20) },
             ],
           };
         });
       }
 
       // Calculate live CGPA and credits earned from database
-      const avgMarks = subjects.reduce((sum, s) => sum + (s.ia1Marks + s.ia2Marks) / 2, 0) / (subjects.length || 1);
-      cgpa = Math.round((avgMarks / 10 + 1.2) * 100) / 100;
+      const avgMarks = subjects.length > 0
+        ? subjects.reduce((sum, s) => sum + (s.ia1Marks + s.ia2Marks) / 2, 0) / subjects.length
+        : 0;
+      cgpa = avgMarks > 0 ? Math.round((avgMarks / 10 + 1.2) * 100) / 100 : 0.00;
       totalCredits = subjects.reduce((sum, s) => sum + s.credits, 0) + 76;
       const certCount = studentRecord?.certificates?.length || 0;
-      creditsEarned = Math.round(totalCredits * 0.55) + certCount * 3;
-      xp = 4200 + (studentRecord?.quizAttempts?.length || 0) * 150 + certCount * 500;
+      creditsEarned = certCount > 0 ? Math.round(totalCredits * 0.55) + certCount * 3 : 0;
+      streakDays = hasActivity ? 12 : 1;
+      xp = hasActivity ? 4200 + (studentRecord?.quizAttempts?.length || 0) * 150 + certCount * 500 : 100;
     } catch {
       // Fallback to stream curriculum if query context fails
     }
@@ -787,10 +792,30 @@ export async function generateDynamicAcademicTracker(
   return {
     template: "dashboard",
     kpis: [
-      { label: "CGPA", value: profile.cgpa.toFixed(2), delta: `Rank #4 in ${profile.section}`, tone: "teal" },
-      { label: "Attendance", value: `${avgAttendance}%`, delta: avgAttendance >= 75 ? "Exam eligible" : "Low attendance", tone: avgAttendance >= 75 ? "teal" : "rose" },
-      { label: "Internal avg.", value: `${avgIa}%`, delta: "+4% from IA-1", tone: "brand" },
-      { label: "Credits earned", value: `${profile.creditsEarned} / ${profile.totalCredits}`, delta: "On track", tone: "sky" },
+      {
+        label: "CGPA",
+        value: profile.cgpa > 0 ? profile.cgpa.toFixed(2) : "0.00",
+        delta: profile.cgpa > 0 ? `Rank in ${profile.section}` : `Enrolled in ${profile.section}`,
+        tone: profile.cgpa > 0 ? "teal" : "brand",
+      },
+      {
+        label: "Attendance",
+        value: `${avgAttendance}%`,
+        delta: avgAttendance >= 75 ? "Exam eligible" : avgAttendance === 0 ? "New semester" : "Low attendance",
+        tone: avgAttendance >= 75 ? "teal" : avgAttendance === 0 ? "sky" : "rose",
+      },
+      {
+        label: "Internal avg.",
+        value: `${avgIa}%`,
+        delta: avgIa > 0 ? "+4% from IA-1" : "Awaiting assessments",
+        tone: avgIa > 0 ? "brand" : "neutral",
+      },
+      {
+        label: "Credits earned",
+        value: `${profile.creditsEarned} / ${profile.totalCredits}`,
+        delta: profile.creditsEarned > 0 ? "On track" : "First term",
+        tone: "sky",
+      },
     ],
     charts: [
       {
@@ -810,20 +835,24 @@ export async function generateDynamicAcademicTracker(
           { name: "Sem 2", Progress: 100, Mastery: 82 },
           { name: "Sem 3", Progress: 100, Mastery: 80 },
           { name: "Sem 4", Progress: 100, Mastery: 85 },
-          { name: "Sem 5 (Current)", Progress: 68, Mastery: avgIa },
+          { name: "Sem 5 (Current)", Progress: avgIa > 0 ? 68 : 10, Mastery: avgIa },
         ],
       },
     ],
     insights: [
       {
         title: "Academic Standing",
-        body: `You are maintaining a strong ${profile.cgpa} CGPA in ${profile.degree}. Your highest performance is in ${subjects[0]?.shortName || "Major subjects"}.`,
+        body: profile.cgpa > 0
+          ? `You are maintaining a strong ${profile.cgpa} CGPA in ${profile.degree}. Your highest performance is in ${subjects[0]?.shortName || "Major subjects"}.`
+          : `Welcome to ${profile.degree}! Your enrolled subjects are active for the current term. Complete quizzes and assignments to build your academic scorecard.`,
         evidence: `Verified by College Exam Cell · ${profile.creditsEarned} credits recorded`,
         tone: "teal",
       },
       {
         title: "Attendance Notice",
-        body: `Overall attendance is ${avgAttendance}%, safely above the mandatory 75% threshold for university end-semester examinations.`,
+        body: avgAttendance > 0
+          ? `Overall attendance is ${avgAttendance}%, safely above the mandatory 75% threshold for university end-semester examinations.`
+          : `Attendance recording is initialized for ${profile.department}. Regular classroom and lab sessions will update this tracker daily.`,
         evidence: `Biometric & smart classroom log · ${profile.department}`,
         tone: "brand",
       },

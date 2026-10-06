@@ -1,9 +1,10 @@
 import "server-only";
-import type { KnowledgeDocument } from "@prisma/client";
 import type { KbDocType, KbStatus } from "@/lib/api/knowledge-schemas";
 import type { DocPatch, KbChunkRow, KbDocRow, KbStore, NewChunk, NewDoc, SearchChunk } from "@/lib/api/mock/knowledge-store";
 import { db, requestUser } from "./db";
 import { collegePublic, collegeUuid } from "./lookups";
+
+const pdb = () => db() as any;
 
 /*
  * Knowledge Base on PostgreSQL. Row-level security (db/migrations/0005_knowledge_base.sql) already limits every
@@ -12,7 +13,7 @@ import { collegePublic, collegeUuid } from "./lookups";
 
 const MAX_SEARCH_CHUNKS = 4000;
 
-async function toRow(r: KnowledgeDocument): Promise<KbDocRow> {
+async function toRow(r: any): Promise<KbDocRow> {
   return {
     id: r.publicId,
     collegeId: await collegePublic(r.collegeId),
@@ -38,20 +39,20 @@ async function toRow(r: KnowledgeDocument): Promise<KbDocRow> {
 
 export const postgresKnowledge: KbStore = {
   async list() {
-    const rows = await db().knowledgeDocument.findMany({ orderBy: { createdAt: "desc" }, take: 500 });
+    const rows = await pdb().knowledgeDocument.findMany({ orderBy: { createdAt: "desc" }, take: 500 });
     return Promise.all(rows.map(toRow));
   },
   async get(_scope, id) {
-    const r = await db().knowledgeDocument.findUnique({ where: { publicId: id } });
+    const r = await pdb().knowledgeDocument.findUnique({ where: { publicId: id } });
     return r ? toRow(r) : undefined;
   },
   async findByTitle(_scope, title) {
-    const r = await db().knowledgeDocument.findFirst({ where: { title: { equals: title.trim(), mode: "insensitive" }, status: { not: "Archived" } } });
+    const r = await pdb().knowledgeDocument.findFirst({ where: { title: { equals: title.trim(), mode: "insensitive" }, status: { not: "Archived" } } });
     return r ? toRow(r) : undefined;
   },
   async create(collegeId: string, doc: NewDoc, chunks: NewChunk[]) {
     const college = await collegeUuid(collegeId);
-    const row = await db().knowledgeDocument.create({
+    const row = await pdb().knowledgeDocument.create({
       data: {
         collegeId: college,
         title: doc.title,
@@ -65,7 +66,7 @@ export const postgresKnowledge: KbStore = {
         status: doc.status,
         embedModel: doc.embedModel,
         chunkCount: chunks.length,
-        embeddedCount: chunks.filter((c) => c.embedding).length,
+        embeddedCount: chunks.filter((c: any) => c.embedding).length,
         uploadedById: requestUser(),
         uploadedBy: doc.uploadedBy,
         approvedBy: doc.approvedBy,
@@ -73,8 +74,8 @@ export const postgresKnowledge: KbStore = {
       },
     });
     for (let i = 0; i < chunks.length; i += 200) {
-      await db().knowledgeChunk.createMany({
-        data: chunks.slice(i, i + 200).map((c, j) => ({
+      await pdb().knowledgeChunk.createMany({
+        data: chunks.slice(i, i + 200).map((c: any, j: number) => ({
           documentId: row.id,
           collegeId: college,
           chunkIndex: i + j,
@@ -89,10 +90,10 @@ export const postgresKnowledge: KbStore = {
     return toRow(row);
   },
   async update(_scope, id, patch: DocPatch) {
-    const current = await db().knowledgeDocument.findUnique({ where: { publicId: id } });
+    const current = await pdb().knowledgeDocument.findUnique({ where: { publicId: id } });
     if (!current) return undefined;
     const approving = patch.status === "Approved" && current.status !== "Approved";
-    const r = await db().knowledgeDocument.update({
+    const r = await pdb().knowledgeDocument.update({
       where: { id: current.id },
       data: {
         ...(patch.title !== undefined ? { title: patch.title } : {}),
@@ -110,40 +111,40 @@ export const postgresKnowledge: KbStore = {
     return toRow(r);
   },
   async remove(_scope, id) {
-    const r = await db().knowledgeDocument.deleteMany({ where: { publicId: id } });
+    const r = await pdb().knowledgeDocument.deleteMany({ where: { publicId: id } });
     return r.count > 0;
   },
   async chunks(_scope, id, limit): Promise<KbChunkRow[]> {
-    const rows = await db().knowledgeChunk.findMany({
+    const rows = await pdb().knowledgeChunk.findMany({
       where: { document: { publicId: id } },
       orderBy: { chunkIndex: "asc" },
       take: limit,
       select: { id: true, chunkIndex: true, section: true, content: true, tokens: true, page: true, embedding: true },
     });
-    return rows.map((c) => ({ id: c.id, index: c.chunkIndex + 1, section: c.section, content: c.content, tokens: c.tokens, page: c.page, embedded: c.embedding.length > 0 }));
+    return rows.map((c: any) => ({ id: c.id, index: c.chunkIndex + 1, section: c.section, content: c.content, tokens: c.tokens, page: c.page, embedded: c.embedding.length > 0 }));
   },
   async chunkTexts(_scope, id) {
-    const d = await db().knowledgeDocument.findUnique({ where: { publicId: id }, select: { id: true, title: true } });
+    const d = await pdb().knowledgeDocument.findUnique({ where: { publicId: id }, select: { id: true, title: true } });
     if (!d) return undefined;
-    const rows = await db().knowledgeChunk.findMany({ where: { documentId: d.id }, orderBy: { chunkIndex: "asc" }, select: { section: true, content: true } });
+    const rows = await pdb().knowledgeChunk.findMany({ where: { documentId: d.id }, orderBy: { chunkIndex: "asc" }, select: { section: true, content: true } });
     return { title: d.title, items: rows };
   },
   async setEmbeddings(_scope, id, vectors, model) {
-    const d = await db().knowledgeDocument.findUnique({ where: { publicId: id } });
+    const d = await pdb().knowledgeDocument.findUnique({ where: { publicId: id } });
     if (!d || d.chunkCount !== vectors.length) return undefined;
     for (let i = 0; i < vectors.length; i += 25) {
-      await Promise.all(vectors.slice(i, i + 25).map((v, j) => db().knowledgeChunk.updateMany({ where: { documentId: d.id, chunkIndex: i + j }, data: { embedding: v } })));
+      await Promise.all(vectors.slice(i, i + 25).map((v, j) => pdb().knowledgeChunk.updateMany({ where: { documentId: d.id, chunkIndex: i + j }, data: { embedding: v } })));
     }
-    const r = await db().knowledgeDocument.update({ where: { id: d.id }, data: { embedModel: model, embeddedCount: vectors.length, version: { increment: 1 }, updatedAt: new Date() } });
+    const r = await pdb().knowledgeDocument.update({ where: { id: d.id }, data: { embedModel: model, embeddedCount: vectors.length, version: { increment: 1 }, updatedAt: new Date() } });
     return toRow(r);
   },
   async searchable(): Promise<SearchChunk[]> {
-    const rows = await db().knowledgeChunk.findMany({
+    const rows = await pdb().knowledgeChunk.findMany({
       where: { document: { status: "Approved" } },
       orderBy: [{ createdAt: "desc" }, { chunkIndex: "asc" }],
       take: MAX_SEARCH_CHUNKS,
       select: { section: true, content: true, page: true, embedding: true, document: { select: { publicId: true, title: true } } },
     });
-    return rows.map((c) => ({ docId: c.document.publicId, docTitle: c.document.title, section: c.section, content: c.content, page: c.page, embedding: c.embedding.length > 0 ? c.embedding : null }));
+    return rows.map((c: any) => ({ docId: c.document.publicId, docTitle: c.document.title, section: c.section, content: c.content, page: c.page, embedding: c.embedding.length > 0 ? c.embedding : null }));
   },
 };
