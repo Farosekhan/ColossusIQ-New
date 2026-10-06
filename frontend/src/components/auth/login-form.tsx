@@ -149,11 +149,7 @@ export function LoginForm({ fixedCollege }: { fixedCollege?: { id: string; name:
       <form className="mt-8 space-y-5" onSubmit={onSubmit} noValidate>
         <fieldset>
           <legend className="mb-2 flex items-center gap-2 text-sm font-medium text-ink">
-            Portal {demo ? (
-              <span className="rounded bg-gold-soft px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber">Demo</span>
-            ) : (
-              <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-emerald-600 dark:text-emerald-400">PostgreSQL</span>
-            )}
+            Portal {demo ? <span className="rounded bg-gold-soft px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber">Demo</span> : null}
           </legend>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {(fixedCollege ? COLLEGE_ROLES : ROLES).map((r) => (
@@ -171,13 +167,7 @@ export function LoginForm({ fixedCollege }: { fixedCollege?: { id: string; name:
               </button>
             ))}
           </div>
-          {demo ? (
-            <p className="mt-2 text-xs text-ink-3">{ROLE_META[role].persona}</p>
-          ) : (
-            <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">
-              ✓ Connected to PostgreSQL Database · Live CRUD enabled
-            </p>
-          )}
+          {demo ? <p className="mt-2 text-xs text-ink-3">{ROLE_META[role].persona}</p> : null}
         </fieldset>
 
         {fixedCollege ? (
