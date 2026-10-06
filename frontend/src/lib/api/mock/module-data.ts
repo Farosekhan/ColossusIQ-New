@@ -168,6 +168,16 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
   "naac-readiness": naacReadiness,
   "aicte-compliance": aicteCompliance,
   "cbcs-electives": (_scope, live) => cbcsElectives(live.stream),
+  "bi-analytics": async (scope, live) => {
+    const session = live.session ?? { college: scope, sub: "demo-institution", role: "institution" as const, name: "Principal", tenant: "TNTU", mfa: true, exp: 0 };
+    const res = await dynamicBiAnalytics(session, scope !== "all" ? scope : undefined);
+    return {
+      template: "dashboard",
+      kpis: res.kpis,
+      charts: res.charts,
+      insights: res.insights,
+    };
+  },
   "academic-tracker": (scope, live) => generateDynamicAcademicTracker(live.session ?? { college: scope, sub: "demo-student" }),
   "exam-prep": (scope, live) => generateDynamicExamPrep(scope, live.session),
   "class-analytics": () =>
