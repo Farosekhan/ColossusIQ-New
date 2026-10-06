@@ -421,6 +421,10 @@ export const EvaluationQueueItem = z.object({
   result: EvaluationResult,
   status: z.enum(["pending", "approved", "overridden"]),
   finalScore: z.number().nullable(),
+  sheetUrl: z.string().optional().nullable(),
+  sheetName: z.string().optional().nullable(),
+  facultyRemarks: z.string().optional().nullable(),
+  evaluatedAt: z.string().optional().nullable(),
 });
 export type EvaluationQueueItem = z.infer<typeof EvaluationQueueItem>;
 

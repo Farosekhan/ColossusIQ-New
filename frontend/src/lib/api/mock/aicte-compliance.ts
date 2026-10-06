@@ -406,25 +406,25 @@ export async function getAicteComplianceOverview(session: SessionPayload): Promi
     {
       label: "AICTE Compliance Index",
       value: `${overallScore}%`,
-      change: overallScore >= 85 ? "Fully Compliant" : "Review Needed",
+      delta: overallScore >= 85 ? "Fully Compliant" : "Review Needed",
       tone: overallScore >= 85 ? "teal" : "amber",
     },
     {
       label: "Faculty-Student Ratio",
       value: fsrRatioDisplay,
-      change: `Norm: 1:20 (${fsrCompliant ? "Exceeds standard" : "Shortfall"})`,
+      delta: `Norm: 1:20 (${fsrCompliant ? "Exceeds standard" : "Shortfall"})`,
       tone: fsrCompliant ? "teal" : "rose",
     },
     {
       label: "Teaching Faculty",
       value: String(totalFaculty),
-      change: `${professorsCount} Prof · ${assocProfessorsCount} Assoc · ${asstProfessorsCount} Asst`,
+      delta: `${professorsCount} Prof · ${assocProfessorsCount} Assoc · ${asstProfessorsCount} Asst`,
       tone: "neutral",
     },
     {
       label: "Statutory Committees",
       value: `${committees.length} / ${committees.length} Active`,
-      change: "100% AICTE Mandate Met",
+      delta: "100% AICTE Mandate Met",
       tone: "teal",
     },
   ];
@@ -433,6 +433,7 @@ export async function getAicteComplianceOverview(session: SessionPayload): Promi
   const complianceDistribution: ChartSpec = {
     type: "bar",
     title: "AICTE Norms Compliance Score (%)",
+    xKey: "name",
     series: ["Score"],
     data: norms.map((n) => ({
       name: n.name.length > 20 ? n.name.slice(0, 18) + "…" : n.name,
@@ -443,6 +444,7 @@ export async function getAicteComplianceOverview(session: SessionPayload): Promi
   const departmentComparison: ChartSpec = {
     type: "bar",
     title: "Department Faculty vs Students Allocation",
+    xKey: "name",
     series: ["Students", "Faculty"],
     data: departmentsCompliance.slice(0, 6).map((d) => ({
       name: d.department.length > 15 ? d.department.slice(0, 12) + "…" : d.department,

@@ -21,7 +21,6 @@ import {
   Button,
   Card,
   CardBody,
-  CardHeader,
   EmptyState,
   Progress,
   Spinner,
@@ -299,7 +298,7 @@ export function EarlyWarningModule({ role }: { role: Role }) {
           </div>
 
           {/* Search Box */}
-          <div className="relative min-w-[190px] sm:min-w-[220px]">
+          <div className="relative min-w-47.5 sm:min-w-55">
             <input
               type="text"
               placeholder="Search student or roll no..."
@@ -315,7 +314,7 @@ export function EarlyWarningModule({ role }: { role: Role }) {
         <div className="flex items-center gap-2 self-end sm:self-auto">
           <Button
             size="sm"
-            variant="outline"
+            variant="secondary"
             onClick={() => void handleRefresh()}
             disabled={isRefreshing}
             className="h-9 gap-1.5 text-xs"
@@ -324,14 +323,14 @@ export function EarlyWarningModule({ role }: { role: Role }) {
             Refresh
           </Button>
 
-          <Button size="sm" variant="outline" onClick={handleExportCsv} className="h-9 gap-1.5 text-xs">
+          <Button size="sm" variant="secondary" onClick={handleExportCsv} className="h-9 gap-1.5 text-xs">
             <Fi name="download" className="size-3.5" />
             Audit CSV
           </Button>
 
           <Button
             size="sm"
-            variant="solid"
+            variant="primary"
             onClick={() => handleOpenActionModal()}
             className="h-9 gap-1.5 text-xs"
           >
@@ -408,7 +407,7 @@ export function EarlyWarningModule({ role }: { role: Role }) {
       {/* Tab 1: Students Roster */}
       {activeTab === "roster" && (
         <Card className="overflow-hidden border-edge">
-          <CardHeader className="flex flex-col gap-1 border-b border-edge bg-surface-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-1 border-b border-edge bg-surface-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-base font-semibold text-ink">Flagged Students Requiring Advisory Attention</h2>
               <p className="text-xs text-ink-2">
@@ -416,7 +415,7 @@ export function EarlyWarningModule({ role }: { role: Role }) {
               </p>
             </div>
             <div className="text-xs text-ink-3">Showing {displayStudents.length} student(s)</div>
-          </CardHeader>
+          </div>
           <CardBody className="p-0">
             {displayStudents.length === 0 ? (
               <div className="p-8 text-center">
@@ -535,7 +534,7 @@ export function EarlyWarningModule({ role }: { role: Role }) {
                           </Badge>
                         </td>
 
-                        <td className="px-4 py-3 max-w-[260px]">
+                        <td className="px-4 py-3 max-w-65">
                           <div className="flex flex-wrap gap-1">
                             {st.signals.map((sig) => (
                               <span
@@ -589,7 +588,7 @@ export function EarlyWarningModule({ role }: { role: Role }) {
                           <div className="flex items-center justify-end gap-1.5">
                             <Button
                               size="sm"
-                              variant="outline"
+                              variant="secondary"
                               onClick={() => setInspectStudent(st)}
                               className="h-7 px-2 text-[11px]"
                               title="View Signals Breakdown"
@@ -599,7 +598,7 @@ export function EarlyWarningModule({ role }: { role: Role }) {
 
                             <Button
                               size="sm"
-                              variant="solid"
+                              variant="primary"
                               onClick={() => handleOpenActionModal(st)}
                               className="h-7 px-2 text-[11px] gap-1"
                             >
@@ -631,9 +630,9 @@ export function EarlyWarningModule({ role }: { role: Role }) {
 
             {/* AI Insights & Advisory Summary */}
             <Card className="border-edge">
-              <CardHeader className="border-b border-edge px-4 py-3">
+              <div className="border-b border-edge px-4 py-3">
                 <h3 className="text-sm font-semibold text-ink">Institutional Observations & Guidance</h3>
-              </CardHeader>
+              </div>
               <CardBody className="p-4 space-y-3.5">
                 {insights.map((ins, i) => (
                   <div
@@ -678,7 +677,7 @@ export function EarlyWarningModule({ role }: { role: Role }) {
       {/* Tab 3: Case Interventions Log */}
       {activeTab === "interventions" && (
         <Card className="overflow-hidden border-edge">
-          <CardHeader className="flex flex-col gap-1 border-b border-edge bg-surface-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-1 border-b border-edge bg-surface-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-base font-semibold text-ink">Support Action Plans & Mentorship Log</h2>
               <p className="text-xs text-ink-2">
@@ -687,14 +686,14 @@ export function EarlyWarningModule({ role }: { role: Role }) {
             </div>
             <Button
               size="sm"
-              variant="solid"
+              variant="primary"
               onClick={() => handleOpenActionModal()}
               className="h-8 gap-1.5 text-xs"
             >
               <Fi name="plus" className="size-3.5" />
               Schedule Support Action
             </Button>
-          </CardHeader>
+          </div>
           <CardBody className="p-0">
             {interventions.length === 0 ? (
               <div className="p-8 text-center">
@@ -746,7 +745,7 @@ export function EarlyWarningModule({ role }: { role: Role }) {
                             {item.status}
                           </Badge>
                         </td>
-                        <td className="px-4 py-3 text-ink-2 max-w-[240px] truncate" title={item.notes}>
+                        <td className="px-4 py-3 text-ink-2 max-w-60 truncate" title={item.notes}>
                           {item.notes || "—"}
                         </td>
                       </tr>
@@ -896,7 +895,7 @@ export function EarlyWarningModule({ role }: { role: Role }) {
               <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-edge">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={() => setShowActionModal(false)}
                 >
@@ -904,7 +903,7 @@ export function EarlyWarningModule({ role }: { role: Role }) {
                 </Button>
                 <Button
                   type="submit"
-                  variant="solid"
+                  variant="primary"
                   size="sm"
                   disabled={createActionMut.isPending}
                   className="gap-1.5"
@@ -1029,14 +1028,14 @@ export function EarlyWarningModule({ role }: { role: Role }) {
             <div className="flex items-center justify-end gap-2.5 border-t border-edge px-5 py-3 bg-surface-1">
               <Button
                 size="sm"
-                variant="outline"
+                variant="secondary"
                 onClick={() => setInspectStudent(null)}
               >
                 Close
               </Button>
               <Button
                 size="sm"
-                variant="solid"
+                variant="primary"
                 onClick={() => {
                   const target = inspectStudent;
                   setInspectStudent(null);

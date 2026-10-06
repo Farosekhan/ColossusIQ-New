@@ -157,11 +157,17 @@ const EVAL_INCLUDE = { student: { select: { rollNo: true, user: { select: { full
 type EvalRow = Prisma.EvaluationItemGetPayload<{ include: typeof EVAL_INCLUDE }>;
 
 function toItem(r: EvalRow): EvaluationQueueItem {
-  const ai = json<Partial<EvaluationQueueItem["result"]>>(r.aiResult);
+  const ai = json<Partial<EvaluationQueueItem["result"]> & {
+    student?: string;
+    rollNo?: string;
+    sheetName?: string;
+    facultyRemarks?: string;
+    evaluatedAt?: string;
+  }>(r.aiResult);
   return {
     id: r.id,
-    student: r.student.user.fullName,
-    rollNo: r.student.rollNo,
+    student: ai.student || r.student.user.fullName,
+    rollNo: ai.rollNo || r.student.rollNo,
     assessment: r.assessment,
     question: r.question,
     answer: r.answer,
@@ -173,17 +179,24 @@ function toItem(r: EvalRow): EvaluationQueueItem {
       evidence: ai.evidence ?? [],
       missing: ai.missing ?? [],
       feedback: ai.feedback ?? "",
-      reviewRequired: true,
+      reviewRequired: r.status === "pending",
     },
     status: label("EvaluationStatus", r.status) as EvaluationQueueItem["status"],
     finalScore: r.finalScore === null ? null : Number(r.finalScore),
+    sheetName: ai.sheetName ?? null,
+    facultyRemarks: ai.facultyRemarks ?? null,
+    evaluatedAt: ai.evaluatedAt ?? r.createdAt.toISOString(),
   };
 }
 
 export const pgEvaluations: EvaluationStore = {
   async queue(session) {
     if (!isUuid(session.sub)) return [];
-    const rows = await db().evaluationItem.findMany({ where: { assignedTo: session.sub }, include: EVAL_INCLUDE, orderBy: { createdAt: "asc" } });
+    const rows = await db().evaluationItem.findMany({
+      where: { assignedTo: session.sub },
+      include: EVAL_INCLUDE,
+      orderBy: { createdAt: "desc" },
+    });
     return rows.map(toItem);
   },
   async decide(session, id, decision) {
@@ -202,6 +215,76 @@ export const pgEvaluations: EvaluationStore = {
     }
     const updated = await t.evaluationItem.findUniqueOrThrow({ where: { id }, include: EVAL_INCLUDE });
     return toItem(updated);
+  },
+  async add(session, item) {
+    const t = db();
+    const sub = isUuid(session.sub) ? session.sub : null;
+    const collegeId =
+      (await collegeByPublic(session.college))?.id ??
+      (await t.college.findFirstOrThrow({ select: { id: true } })).id;
+
+    // Find student by rollNo, or fallback to any student in the college
+    let student = await t.student.findFirst({
+      where: { rollNo: item.rollNo, collegeId },
+      select: { id: true },
+    });
+    if (!student) {
+      student = await t.student.findFirst({
+        where: { collegeId },
+        select: { id: true },
+      });
+    }
+    if (!student) {
+      student = await t.student.findFirst({
+        select: { id: true },
+      });
+    }
+    if (!student) throw new Error("No student record found in database.");
+
+    const isOverridden = item.status === "overridden" || (item.finalScore !== null && item.finalScore !== item.result.score);
+    const statusVal = enumValue("EvaluationStatus", item.status || (isOverridden ? "overridden" : "approved"));
+
+    const created = await t.evaluationItem.create({
+      data: {
+        collegeId,
+        studentId: student.id,
+        assignedTo: sub,
+        assessment: clip(item.assessment, 120),
+        question: clip(item.question, 500),
+        answer: clip(item.answer, 8000),
+        aiResult: {
+          student: item.student,
+          rollNo: item.rollNo,
+          sheetName: item.sheetName ?? null,
+          facultyRemarks: item.facultyRemarks ?? null,
+          evaluatedAt: item.evaluatedAt ?? new Date().toISOString(),
+          rubric: item.result.rubric,
+          evidence: item.result.evidence,
+          missing: item.result.missing,
+          feedback: item.result.feedback,
+        } as unknown as Prisma.InputJsonValue,
+        aiScore: item.result.score,
+        maxScore: item.result.max,
+        confidence: item.result.confidence,
+        status: statusVal as never,
+        finalScore: item.finalScore,
+        reviewedBy: isOverridden || item.status === "approved" ? sub : null,
+        reviewedAt: isOverridden || item.status === "approved" ? new Date() : null,
+      },
+      include: EVAL_INCLUDE,
+    });
+
+    return toItem(created);
+  },
+  async forStudent(session) {
+    const st = await studentOf(session.sub);
+    const where = st ? { studentId: st.id } : {};
+    const rows = await db().evaluationItem.findMany({
+      where,
+      include: EVAL_INCLUDE,
+      orderBy: { createdAt: "desc" },
+    });
+    return rows.map(toItem);
   },
 };
 

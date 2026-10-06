@@ -55,7 +55,7 @@ const BESPOKE: Record<string, (props: { role: Role }) => React.ReactNode> = {
   "study-planner": () => <StudyPlannerModule />,
   courses: () => <CoursesModule />,
   "mock-tests": () => <MockTestsModule />,
-  handwritten: () => <HandwrittenModule />,
+  handwritten: ({ role }) => <HandwrittenModule role={role} />,
   evaluation: () => <EvaluationReviewModule />,
   resume: () => <ResumeModule />,
   interview: () => <InterviewModule />,
