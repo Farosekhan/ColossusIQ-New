@@ -738,29 +738,39 @@ export async function generateDynamicStudentDashboard(
     },
   ];
 
-  // 6. AI Mentor recommendation
-  const recommendation = `Revise **${weakest.topic} (${weakest.subject})** for 25 minutes and attempt the adaptive 10-question practice set — it is currently your lowest mastery topic (**${weakest.mastery}%**) and the **${examName}** is in 9 days.`;
+  // 6. Dynamic AI Mentor recommendation and skills
+  const isNewStudent = avgIa === 0 && profile.cgpa === 0;
+
+  const recommendation = isNewStudent
+    ? `Welcome to **${profile.degree}**! Explore your enrolled courses and attempt your first practice quiz in **My Quizzes** to begin calculating your academic scorecard and mastery metrics.`
+    : `Revise **${weakest.topic} (${weakest.subject})** for 25 minutes and attempt the adaptive 10-question practice set — it is currently your lowest mastery topic (**${weakest.mastery}%**) and the **${examName}** is in 9 days.`;
 
   return {
     name: profile.name,
-    priorities: weakTopics.length,
+    priorities: isNewStudent ? 0 : weakTopics.length,
     academic: {
       semesterProgress,
-      examReadiness,
+      examReadiness: isNewStudent ? 0 : examReadiness,
     },
-    skills: {
-      technical: Math.min(95, Math.round(avgIa * 0.9 + 8)),
-      communication: 68,
-      interview: 64,
-    },
-    careerReadiness: 63,
+    skills: isNewStudent
+      ? {
+          technical: 0,
+          communication: 0,
+          interview: 0,
+        }
+      : {
+          technical: Math.min(95, Math.round(avgIa * 0.9 + 8)),
+          communication: Math.min(90, Math.round(avgIa * 0.8 + 10)),
+          interview: Math.min(85, Math.round(avgIa * 0.75 + 10)),
+        },
+    careerReadiness: isNewStudent ? 0 : Math.min(90, Math.round(avgIa * 0.8)),
     today,
     recommendation,
     project: projectMap[profile.stream] || projectMap.engineering,
     upcoming: upcomingMap[profile.stream] || upcomingMap.engineering,
     streak: profile.streakDays,
     xp: profile.xp,
-    weakTopics,
+    weakTopics: isNewStudent ? [] : weakTopics,
     examCountdown: {
       exam: examName,
       days: 9,

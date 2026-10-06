@@ -28,6 +28,7 @@ import { getCollegeClubs } from "./clubs";
 import { getCollegeSports } from "./sports";
 import { getCollegeCalendar } from "./academic-calendar";
 import { getStudentsList } from "./students-store";
+import { kbStore } from "./knowledge-store";
 import type { SessionPayload } from "@/lib/auth/session";
 import {
   generateDynamicAcademicTracker,
@@ -663,10 +664,34 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
       "type",
       "Invite mentor",
     ),
-  "knowledge-base": () =>
-    list([col("doc", "Document"), col("type", "Type", "badge"), col("owner", "Owner"), col("updated", "Updated"), col("chunks", "Indexed chunks", "number"), col("status", "Status", "badge")],
-      [["Regulations 2021 — B.E./B.Tech", "Regulation"], ["Academic Calendar 2026–27 (Odd sem)", "Calendar"], ["CSE Department Handbook", "Handbook"], ["Internal Assessment Rules", "Policy"], ["Placement Policy 2026", "Policy"], ["Student Code of Conduct", "Guideline"], ["DBMS Lab Manual", "Lab manual"], ["Circular 42/2026 — Exam fee", "Circular"]].map(([doc, type], i) => ({ doc: doc!, type: type!, owner: pick(["Registrar", "Exam Cell", "CSE Dept", "Placement Cell"], seeded(i + 7)), updated: `${1 + i * 3} Sep 2026`, chunks: 40 + ((i * 61) % 500), status: i === 7 ? "Pending approval" : "Approved" })),
-      "type", "Upload document"),
+  "knowledge-base": async (collegeScope) => {
+    const store = kbStore();
+    const docs = await store.list(collegeScope);
+    return list(
+      [
+        col("doc", "Document"),
+        col("type", "Type", "badge"),
+        col("owner", "Owner"),
+        col("updated", "Updated"),
+        col("chunks", "Indexed chunks", "number"),
+        col("status", "Status", "badge"),
+      ],
+      docs.map((d) => ({
+        doc: d.title,
+        type: d.type,
+        owner: d.owner || "Administration",
+        updated: new Date(d.updatedAt).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        }),
+        chunks: d.chunkCount ?? 0,
+        status: d.status,
+      })),
+      "type",
+      "Upload document"
+    );
+  },
   reports: () =>
     list(
       [

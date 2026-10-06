@@ -145,22 +145,22 @@ export function AssignmentsModule({ role }: { role: Role }) {
     return matchesSearch && matchesStatus;
   });
 
-  // Progress Bar color chooser matching screenshots
+  // Progress Bar color chooser matching design system
   const getProgressBarColor = (pct: number, status: string) => {
-    if (status === "Draft") return "bg-[#1E293B]"; // Dark navy for drafts
-    if (pct >= 80) return "bg-[#0D9488]"; // Teal
-    if (pct >= 50) return "bg-[#1E293B]"; // Deep navy/blue
-    return "bg-[#B45309]"; // Warm amber/brown for lower percentages
+    if (status === "Draft") return "bg-ink-4";
+    if (pct >= 80) return "bg-emerald-500";
+    if (pct >= 50) return "bg-brand";
+    return "bg-amber-500";
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "Open":
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Open</span>;
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">Open</span>;
       case "Closed":
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">Closed</span>;
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">Closed</span>;
       case "Draft":
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200">Draft</span>;
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">Draft</span>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -178,13 +178,13 @@ export function AssignmentsModule({ role }: { role: Role }) {
               placeholder="Search assignments.."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className={`${inputClass} pl-9 bg-white`}
+              className={`${inputClass} pl-9`}
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+            className="rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink font-medium focus:outline-none focus:ring-2 focus:ring-brand"
           >
             <option value="All">All</option>
             <option value="Open">Open</option>
@@ -194,14 +194,14 @@ export function AssignmentsModule({ role }: { role: Role }) {
         </div>
 
         {isFaculty && (
-          <Button onClick={handleOpenCreate} className="bg-[#1D2B6B] hover:bg-[#152052] text-white font-medium px-4 py-2 rounded-xl">
+          <Button onClick={handleOpenCreate} className="font-medium px-4 py-2 rounded-xl">
             <Fi name="plus" className="mr-1.5 size-4" /> New assignment
           </Button>
         )}
       </div>
 
       {/* Table Card */}
-      <Card className="overflow-hidden bg-white border border-line shadow-sm rounded-xl">
+      <Card className="overflow-hidden border border-line shadow-sm rounded-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm border-collapse">
             <thead>
@@ -255,7 +255,7 @@ export function AssignmentsModule({ role }: { role: Role }) {
                         <button
                           type="button"
                           onClick={() => setDeletingId(item.id)}
-                          className="inline-flex items-center justify-center p-1.5 rounded-md text-rose-600 hover:text-rose-700 hover:bg-rose-50 transition-colors"
+                          className="inline-flex items-center justify-center p-1.5 rounded-md text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
                           title="Delete assignment"
                         >
                           <Fi name="trash" className="size-4" />
@@ -275,8 +275,8 @@ export function AssignmentsModule({ role }: { role: Role }) {
 
       {/* CREATE MODAL */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-xl border border-line max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-surface rounded-xl shadow-xl border border-line max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-line pb-3">
               <h3 className="text-lg font-bold text-ink">New Assignment</h3>
               <button type="button" onClick={() => setIsCreateOpen(false)} className="text-ink-3 hover:text-ink">
@@ -327,7 +327,7 @@ export function AssignmentsModule({ role }: { role: Role }) {
                   <select
                     value={formStatus}
                     onChange={(e) => setFormStatus(e.target.value as "Open" | "Closed" | "Draft")}
-                    className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
+                    className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
                   >
                     <option value="Open">Open</option>
                     <option value="Closed">Closed</option>
@@ -351,7 +351,7 @@ export function AssignmentsModule({ role }: { role: Role }) {
                 <Button type="button" variant="secondary" onClick={() => setIsCreateOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createMutation.isPending} className="bg-[#1D2B6B] hover:bg-[#152052] text-white">
+                <Button type="submit" disabled={createMutation.isPending}>
                   {createMutation.isPending ? "Creating..." : "Create Assignment"}
                 </Button>
               </div>
@@ -362,8 +362,8 @@ export function AssignmentsModule({ role }: { role: Role }) {
 
       {/* EDIT MODAL */}
       {editingItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-xl border border-line max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-surface rounded-xl shadow-xl border border-line max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-line pb-3">
               <h3 className="text-lg font-bold text-ink">Edit Assignment</h3>
               <button type="button" onClick={() => setEditingItem(null)} className="text-ink-3 hover:text-ink">
@@ -411,7 +411,7 @@ export function AssignmentsModule({ role }: { role: Role }) {
                   <select
                     value={formStatus}
                     onChange={(e) => setFormStatus(e.target.value as "Open" | "Closed" | "Draft")}
-                    className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
+                    className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
                   >
                     <option value="Open">Open</option>
                     <option value="Closed">Closed</option>
@@ -435,7 +435,7 @@ export function AssignmentsModule({ role }: { role: Role }) {
                 <Button type="button" variant="secondary" onClick={() => setEditingItem(null)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={updateMutation.isPending} className="bg-[#1D2B6B] hover:bg-[#152052] text-white">
+                <Button type="submit" disabled={updateMutation.isPending}>
                   {updateMutation.isPending ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
@@ -446,9 +446,9 @@ export function AssignmentsModule({ role }: { role: Role }) {
 
       {/* DELETE CONFIRMATION MODAL */}
       {deletingId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-xl border border-line max-w-sm w-full p-6 space-y-4 text-center animate-in fade-in zoom-in-95">
-            <div className="mx-auto size-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-surface rounded-xl shadow-xl border border-line max-w-sm w-full p-6 space-y-4 text-center animate-in fade-in zoom-in-95">
+            <div className="mx-auto size-12 rounded-full bg-rose-500/15 text-rose flex items-center justify-center">
               <Fi name="trash" className="size-6" />
             </div>
             <h3 className="text-lg font-bold text-ink">Delete Assignment?</h3>
