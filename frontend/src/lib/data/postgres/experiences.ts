@@ -1,9 +1,31 @@
 import "server-only";
-import type { StudentExperience } from "@prisma/client";
 import type { ExperienceCategory, ExperienceStatus } from "@/lib/api/experience-schemas";
 import type { ExperienceRow, ExperienceStore } from "@/lib/api/mock/experience-store";
 import { db, isUuid, requestUser } from "./db";
 import { collegeUuid } from "./lookups";
+
+interface StudentExperience {
+  id: string;
+  collegeId: string;
+  userId: string;
+  studentName: string;
+  rollNo: string;
+  title: string;
+  category: string;
+  organisation: string;
+  roleTitle: string;
+  startMonth: string;
+  endMonth: string;
+  description: string;
+  link: string;
+  status: string;
+  reviewNote: string;
+  reviewerName: string;
+  reviewerRole: string;
+  reviewedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 /*
  * Experience Passport on PostgreSQL: `student_experiences` (db/migrations/0009_student_experiences.sql). Row-level
@@ -41,21 +63,24 @@ function toRow(r: StudentExperience): ExperienceRow {
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const expDb = () => (db() as any).studentExperience;
+
 export const postgresExperiences: ExperienceStore = {
   async list(_s, scope) {
-    const rows = await db().studentExperience.findMany({
+    const rows = await expDb().findMany({
       where: scope === "mine" ? { userId: me() } : {},
       orderBy: [{ startMonth: "desc" }, { createdAt: "desc" }],
     });
-    return rows.map(toRow);
+    return rows.map((r: StudentExperience) => toRow(r));
   },
   async get(_s, id) {
     if (!isUuid(id)) return undefined;
-    const r = await db().studentExperience.findUnique({ where: { id } });
+    const r = await expDb().findUnique({ where: { id } });
     return r ? toRow(r) : undefined;
   },
   async create(s, n) {
-    const r = await db().studentExperience.create({
+    const r = await expDb().create({
       data: {
         collegeId: await collegeUuid(s.college),
         userId: me(),
@@ -75,9 +100,9 @@ export const postgresExperiences: ExperienceStore = {
   },
   async update(_s, id, patch, resetReview) {
     if (!isUuid(id)) return undefined;
-    const old = await db().studentExperience.findUnique({ where: { id } });
+    const old = await expDb().findUnique({ where: { id } });
     if (!old) return undefined;
-    const r = await db().studentExperience.update({
+    const r = await expDb().update({
       where: { id },
       data: {
         ...(patch.title !== undefined ? { title: patch.title } : {}),
@@ -96,14 +121,14 @@ export const postgresExperiences: ExperienceStore = {
   },
   async remove(_s, id) {
     if (!isUuid(id)) return false;
-    const r = await db().studentExperience.deleteMany({ where: { id } });
+    const r = await expDb().deleteMany({ where: { id } });
     return r.count > 0;
   },
   async review(_s, id, r) {
     if (!isUuid(id)) return undefined;
-    const old = await db().studentExperience.findUnique({ where: { id } });
+    const old = await expDb().findUnique({ where: { id } });
     if (!old) return undefined;
-    const x = await db().studentExperience.update({
+    const x = await expDb().update({
       where: { id },
       data: { status: r.status, reviewNote: r.note, reviewerName: r.reviewerName, reviewerRole: r.reviewerRole, reviewedAt: new Date(), updatedAt: new Date() },
     });
