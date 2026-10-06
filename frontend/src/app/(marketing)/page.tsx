@@ -53,7 +53,7 @@ export default function LandingPage() {
               Tamil Nadu Technical University
             </p>
             <h1 className="display mt-6 text-[clamp(2.9rem,6.6vw,5.6rem)] text-ink">
-              From first lecture .
+              From first lecture
               <br />
               to{" "}
               <span className="relative inline-block whitespace-nowrap">
