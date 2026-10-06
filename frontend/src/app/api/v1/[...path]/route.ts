@@ -17,6 +17,7 @@ import { prefetchCourseAi } from "@/lib/api/mock/course-builder";
 import { prefetchKnowledgeAi } from "@/lib/api/mock/knowledge-base";
 import { prefetchQuestionAi } from "@/lib/api/mock/question-ai";
 import { prefetchMentorAi } from "@/lib/api/mock/mentor";
+import { prefetchStudyPlanAi } from "@/lib/api/mock/study-planner";
 import { KB_MAX_BODY_BYTES } from "@/lib/api/knowledge-schemas";
 import { rateLimit } from "@/lib/api/mock/rate-limit";
 import { RESOURCES, recordSchema } from "@/config/resources";
@@ -252,6 +253,9 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
   // The AI Mentor's answer is written before the transaction too.
   const mEarly = await prefetchMentorAi(method, segs, body, session);
   if (mEarly) return json(mEarly.body, mEarly.status);
+  // The Study Planner's AI note is written before the transaction too.
+  const pEarly = await prefetchStudyPlanAi(method, segs, body, session);
+  if (pEarly) return json(pEarly.body, pEarly.status);
   try {
     return await withRequestContext({ scope: session.college, sub: session.sub }, () => handleSession(req, method, segs, route, body, session));
   } catch (e) {

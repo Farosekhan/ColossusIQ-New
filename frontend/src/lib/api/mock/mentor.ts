@@ -106,7 +106,7 @@ const SYSTEM = [
 
 const Out = z.object({ message: z.string().trim().min(1).max(5000), confidence: z.number().min(0).max(1).optional() });
 
-function recordText({ profile, dash }: MentorContext): string {
+export function recordText({ profile, dash }: MentorContext): string {
   const lines = [
     `Student: ${profile.name}, ${profile.degree}, ${profile.department}, semester ${profile.semester}, section ${profile.section}. CGPA ${profile.cgpa}. Streak ${profile.streakDays} days. XP ${profile.xp}.`,
     "Subjects (attendance %, IA-1, IA-2, syllabus progress %, topic mastery %):",
