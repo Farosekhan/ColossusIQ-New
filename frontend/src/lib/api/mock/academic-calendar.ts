@@ -7,7 +7,7 @@ import type {
   CreateCalendarItemInput,
 } from "@/lib/api/schemas";
 import { getStore, dataBackend } from "@/lib/data";
-import { RESOURCES } from "@/config/resources";
+import { RESOURCES, type RecordValue } from "@/config/resources";
 
 const calendarStore = sharedState("campus.academic-calendar.map", () => new Map<string, AcademicCalendarItem[]>());
 
@@ -251,14 +251,30 @@ export async function updateCalendarItem(
   if (dataBackend() === "postgres") {
     const existing = await getStore().records.get(RESOURCES.events!, id);
     if (existing) {
-      const patchObj: Record<string, any> = {};
-      if (patch.title) patchObj.title = patch.title.trim();
-      if (patch.date) patchObj.date = patch.date;
-      if (patch.time && patch.time.includes(":")) patchObj.startTime = patch.time.trim().slice(0, 5);
-      if (patch.venue !== undefined) patchObj.venue = patch.venue.trim();
-      if (patch.description !== undefined) patchObj.description = patch.description.trim();
+      const eventType = patch.tag
+        ? patch.tag === "Milestone"
+          ? "Seminar"
+          : patch.tag === "Assessment"
+          ? "Workshop"
+          : patch.tag === "Holiday"
+          ? "Other"
+          : "Workshop"
+        : existing.type || "Workshop";
 
-      const updatedRec = await getStore().records.update(RESOURCES.events!, id, patchObj, existing.version);
+      const fullData: Record<string, RecordValue> = {
+        title: patch.title ? patch.title.trim() : (existing.title ?? ""),
+        type: eventType,
+        date: patch.date ? patch.date : (existing.date ?? ""),
+        startTime: patch.time && patch.time.includes(":") ? patch.time.trim().slice(0, 5) : (existing.startTime ?? "10:00"),
+        venue: patch.venue !== undefined ? (patch.venue.trim() || "Main Auditorium") : (existing.venue ?? "Main Auditorium"),
+        description: patch.description !== undefined ? patch.description.trim() : (existing.description ?? ""),
+        organiser: existing.organiser ?? "Academic Affairs",
+        capacity: existing.capacity ?? 250,
+        registrationOpen: existing.registrationOpen !== false,
+        status: existing.status ?? "Published",
+      };
+
+      const updatedRec = await getStore().records.update(RESOURCES.events!, id, fullData, existing.version);
       if (!updatedRec || updatedRec === "stale") return undefined;
       const nextTag = patch.tag || "Event";
       return {

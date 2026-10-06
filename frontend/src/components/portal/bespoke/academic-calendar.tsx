@@ -694,24 +694,26 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
 
                             {/* Actions for Manager */}
                             {canManage && (
-                              <div className="flex items-center gap-1 self-end sm:self-center opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
                                 <Button
-                                  variant="ghost"
+                                  variant="secondary"
                                   size="sm"
                                   onClick={() => openEditModal(item)}
-                                  className="h-8 w-8 p-0 text-ink-2 hover:text-brand"
+                                  className="h-8 px-2.5 text-xs text-ink hover:border-brand/40 hover:bg-brand-soft hover:text-brand flex items-center gap-1.5 font-medium transition-colors"
                                   title="Edit event"
                                 >
                                   <Edit3 className="size-3.5" />
+                                  <span>Edit</span>
                                 </Button>
                                 <Button
-                                  variant="ghost"
+                                  variant="secondary"
                                   size="sm"
                                   onClick={() => setDeletingId(item.id)}
-                                  className="h-8 w-8 p-0 text-ink-2 hover:text-rose"
+                                  className="h-8 px-2.5 text-xs text-ink hover:border-rose/40 hover:bg-rose-soft hover:text-rose flex items-center gap-1.5 font-medium transition-colors"
                                   title="Delete event"
                                 >
                                   <Trash2 className="size-3.5" />
+                                  <span>Delete</span>
                                 </Button>
                               </div>
                             )}
@@ -868,6 +870,28 @@ export function AcademicCalendarModule({ role }: { role: Role }) {
                           <MapPin className="size-3" />
                           {ev.venue}
                         </p>
+                      )}
+                      {canManage && (
+                        <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-line/60">
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(ev)}
+                            className="flex items-center gap-1 rounded border border-line bg-surface px-2 py-0.5 text-[11px] font-medium text-ink-2 hover:border-brand/40 hover:bg-brand-soft hover:text-brand transition-colors"
+                            title="Edit event"
+                          >
+                            <Edit3 className="size-3" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeletingId(ev.id)}
+                            className="flex items-center gap-1 rounded border border-line bg-surface px-2 py-0.5 text-[11px] font-medium text-ink-2 hover:border-rose/40 hover:bg-rose-soft hover:text-rose transition-colors"
+                            title="Delete event"
+                          >
+                            <Trash2 className="size-3" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
                       )}
                     </div>
                   ))
