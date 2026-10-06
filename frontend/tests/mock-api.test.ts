@@ -169,7 +169,7 @@ describe("Dynamic module settings and notifications config", () => {
 });
 
 describe("Campus clubs API and live management", () => {
-  it("fetches clubs overview with KPIs and seeded clubs", async () => {
+  it("fetches clubs overview with clean slate KPIs initially", async () => {
     const instSession = session("institution");
     const res = await dispatch("GET", ["clubs"], undefined, instSession, new URLSearchParams());
     expect(res.status).toBe(200);
@@ -178,10 +178,9 @@ describe("Campus clubs API and live management", () => {
       kpis: { totalClubs: number; totalMembers: number; activeCategories: number; upcomingActivities: number };
       clubs: Array<{ id: string; name: string; category: string }>;
     };
-    expect(body.kpis.totalClubs).toBeGreaterThanOrEqual(8);
-    expect(body.kpis.totalMembers).toBeGreaterThan(0);
-    expect(body.clubs.some((c) => c.name === "Coding Club")).toBe(true);
-    expect(body.clubs.some((c) => c.name === "Robotics Society")).toBe(true);
+    expect(body.kpis.totalClubs).toBe(0);
+    expect(body.kpis.totalMembers).toBe(0);
+    expect(body.clubs).toEqual([]);
   });
 
   it("allows institution to create a new club", async () => {
@@ -209,15 +208,25 @@ describe("Campus clubs API and live management", () => {
   });
 
   it("allows student to toggle join / leave a club", async () => {
+    const instSession = session("institution");
+    const createRes = await dispatch(
+      "POST",
+      ["clubs"],
+      { name: "Coding Club", category: "Technical", lead: "Arjun", meetingSchedule: "Sat 10 AM", membersCount: 40 },
+      instSession,
+      new URLSearchParams(),
+    );
+    const club = createRes.body as { id: string };
+
     const studentSession = session("student");
-    const joinRes = await dispatch("POST", ["clubs", "club-coding", "join"], undefined, studentSession, new URLSearchParams());
+    const joinRes = await dispatch("POST", ["clubs", club.id, "join"], undefined, studentSession, new URLSearchParams());
     expect(joinRes.status).toBe(200);
     const joinBody = joinRes.body as { isJoined: boolean; membersCount: number };
     expect(joinBody.isJoined).toBe(true);
     expect(joinBody.membersCount).toBe(41); // was 40, now 41
 
     // Toggle again (leave)
-    const leaveRes = await dispatch("POST", ["clubs", "club-coding", "join"], undefined, studentSession, new URLSearchParams());
+    const leaveRes = await dispatch("POST", ["clubs", club.id, "join"], undefined, studentSession, new URLSearchParams());
     expect(leaveRes.status).toBe(200);
     const leaveBody = leaveRes.body as { isJoined: boolean; membersCount: number };
     expect(leaveBody.isJoined).toBe(false);
@@ -235,7 +244,7 @@ describe("Campus clubs API and live management", () => {
     );
     expect(createRes.status).toBe(403);
 
-    const deleteRes = await dispatch("DELETE", ["clubs", "club-coding"], undefined, studentSession, new URLSearchParams());
+    const deleteRes = await dispatch("DELETE", ["clubs", "some-club-id"], undefined, studentSession, new URLSearchParams());
     expect(deleteRes.status).toBe(403);
   });
 
