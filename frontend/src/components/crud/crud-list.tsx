@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { ConfirmDelete } from "./confirm-delete";
 import { formatDate, ValueView } from "./fields";
 import { clearFlash, setFlash, useFlash } from "./flash";
+import { QuestionAiDialog } from "./question-ai-dialog";
 
 const PAGE_SIZE = 10;
 
@@ -47,6 +48,7 @@ export function CrudList({
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
   const [toDelete, setToDelete] = useState<ResourceRecord | null>(null);
+  const [aiOpen, setAiOpen] = useState(false);
   const flash = useFlash();
 
   useEffect(() => {
@@ -92,9 +94,16 @@ export function CrudList({
         role={role}
         actions={
           canManage ? (
-            <LinkButton href={`${base}/new`} variant="gold" size="lg">
-              <Fi name="plus" /> Add {resource.singular.toLowerCase()}
-            </LinkButton>
+            <div className="flex flex-wrap items-center gap-2">
+              {resource.key === "questions" ? (
+                <Button variant="secondary" size="lg" onClick={() => setAiOpen(true)}>
+                  <Fi name="sparkles" /> Generate with AI
+                </Button>
+              ) : null}
+              <LinkButton href={`${base}/new`} variant="gold" size="lg">
+                <Fi name="plus" /> Add {resource.singular.toLowerCase()}
+              </LinkButton>
+            </div>
           ) : (
             <span className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 text-sm text-white/85">
               <Fi name="lock" /> View only
@@ -285,6 +294,7 @@ export function CrudList({
         ) : null}
       </Card>
 
+      {aiOpen ? <QuestionAiDialog onClose={() => setAiOpen(false)} /> : null}
       <ConfirmDelete
         open={Boolean(toDelete)}
         recordId={toDelete?.id ?? ""}

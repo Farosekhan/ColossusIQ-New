@@ -2,13 +2,16 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const url = process.env.TEST_DATABASE_URL || "postgresql://postgres:kkrr11%21%21RRKK@192.168.1.16:5432/ColossusIQ";
-process.env.DATA_BACKEND = "postgres";
-process.env.DATABASE_URL = url;
+// Only runs against a database you name explicitly. It creates, edits and suspends real rows, so never point it at a shared or live database.
+const url = process.env.TEST_DATABASE_URL ?? "";
+if (url) {
+  process.env.DATA_BACKEND = "postgres";
+  process.env.DATABASE_URL = url;
+}
 process.env.DEV_PASSWORD = process.env.DEV_PASSWORD || "Dev-6WQsYmZ2";
 process.env.MFA_ENCRYPTION_KEY = process.env.MFA_ENCRYPTION_KEY || "0123456789abcdef0123456789abcdef";
 
-describe("PostgreSQL Comprehensive CRUD & Zero-Dummy Data Integration", { timeout: 30_000 }, () => {
+describe.skipIf(!url)("PostgreSQL Comprehensive CRUD & Zero-Dummy Data Integration", { timeout: 30_000 }, () => {
   let dispatch: typeof import("@/lib/api/mock/router").dispatch;
   let withRequestContext: typeof import("@/lib/data").withRequestContext;
   let prisma: typeof import("@/lib/data/postgres/db").prisma;

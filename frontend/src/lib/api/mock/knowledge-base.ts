@@ -3,7 +3,6 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { ALL_COLLEGES } from "@/config/tenancy";
 import { geminiEmbed, geminiEmbedModel, geminiEnabled, geminiJson, geminiModel, geminiPdfText, EMBED_DIMS } from "@/lib/ai/gemini";
-import { accountActive } from "@/lib/auth/accounts";
 import { can } from "@/lib/auth/roles";
 import type { SessionPayload } from "@/lib/auth/session";
 import { withRequestContext } from "@/lib/data";
@@ -20,11 +19,11 @@ import {
   type KbOverview,
   type KbUploadInput,
 } from "@/lib/api/knowledge-schemas";
+import { stillActive } from "./ai-guard";
 import { audit } from "./audit";
 import { chunkText, extractAnswer, looksBinary, normalizeText, rank, type RawChunk } from "./knowledge-text";
 import { kbStore, type KbDocRow, type NewChunk } from "./knowledge-store";
 import { rateLimit } from "./rate-limit";
-import { isCollegeActive } from "./records";
 import type { MockResult } from "./router";
 
 const ok = (body: unknown, status = 200): MockResult => ({ status, body });
@@ -168,10 +167,6 @@ function take(key: string): Parked | undefined {
 }
 const uploadKey = (who: string, input: KbUploadInput) => `up:${who}:${createHash("sha256").update(JSON.stringify(input)).digest("hex")}`;
 const reindexKey = (who: string, id: string) => `re:${who}:${id}`;
-
-async function stillActive(session: SessionPayload): Promise<boolean> {
-  return withRequestContext({ scope: session.college, sub: session.sub, readOnly: true }, async () => (session.college === ALL_COLLEGES || (await isCollegeActive(session.college))) && (await accountActive(session.sub)));
-}
 
 export async function prefetchKnowledgeAi(method: string, segs: string[], rawBody: unknown, session: SessionPayload): Promise<MockResult | null> {
   if (method !== "POST" || segs[0] !== "knowledge" || !geminiEnabled() || !session.mfa || !can(session.role, "knowledge:manage")) return null;
