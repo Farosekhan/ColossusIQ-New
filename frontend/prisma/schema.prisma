@@ -332,6 +332,9 @@ model College {
   students              Student[]
   userSessions          UserSession[]
   questionBank          QuestionBank[]
+  studyPlans            StudyPlan[]
+  studentStates         StudentState[]
+  assignmentSubmissions AssignmentSubmission[]
 
   @@unique([universityId, code])
   @@unique([universityId, name])
@@ -840,13 +843,42 @@ model Assignment {
   submitted  Int              @default(0)
   status     AssignmentStatus @default(Open)
   version    Int              @default(1)
+  description String          @default("")
+  maxMarks   Int              @default(10) @map("max_marks")
+  dueAt      DateTime?        @map("due_at") @db.Timestamptz(6)
   createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime         @default(now()) @map("updated_at") @db.Timestamptz(6)
   author     User?            @relation(fields: [authorId], references: [id], onUpdate: NoAction)
   college    College          @relation(fields: [collegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  submissions AssignmentSubmission[]
 
   @@index([collegeId, status])
   @@map("assignments")
+}
+
+model AssignmentSubmission {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  collegeId    String     @map("college_id") @db.Uuid
+  assignmentId String     @map("assignment_id") @db.Uuid
+  userId       String     @map("user_id") @db.Uuid
+  studentName  String     @map("student_name")
+  rollNo       String     @default("") @map("roll_no")
+  text         String     @default("")
+  link         String     @default("")
+  submittedAt  DateTime   @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  late         Boolean    @default(false)
+  marks        Int?
+  feedback     String     @default("")
+  gradedAt     DateTime?  @map("graded_at") @db.Timestamptz(6)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime   @default(now()) @map("updated_at") @db.Timestamptz(6)
+  college      College    @relation(fields: [collegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([assignmentId, userId])
+  @@index([collegeId])
+  @@index([userId])
+  @@map("assignment_submissions")
 }
 
 
@@ -1537,4 +1569,32 @@ enum AssignmentStatus {
   Draft
 
   @@map("assignment_status")
+}
+
+model StudyPlan {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  collegeId String   @map("college_id") @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  plan      Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  college   College  @relation(fields: [collegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([collegeId])
+  @@map("study_plans")
+}
+
+model StudentState {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  collegeId String   @map("college_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  key       String
+  data      Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  college   College  @relation(fields: [collegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([userId, key])
+  @@index([collegeId])
+  @@map("student_state")
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, CheckCircle2, Circle, Copy, Filter, Search, Sparkles, X } from "lucide-react";
+import { Check, CheckCircle2, ChevronLeft, ChevronRight, Circle, Copy, Filter, Layers, RotateCw, Search, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type {
   CalendarData,
@@ -617,14 +617,63 @@ export function ChatTemplate({ data, mod }: { data: ChatData; mod: ModuleDef }) 
 }
 
 /* ── Generator ─────────────────────────────────── */
+interface ParsedFlashcard {
+  id: number;
+  title: string;
+  front: string;
+  back: string;
+  hook?: string;
+}
+
+function extractFlashcards(md: string): ParsedFlashcard[] {
+  if (!md || !/Flashcard\s+\d+/i.test(md)) return [];
+  const cards: ParsedFlashcard[] = [];
+  const sections = md.split(/(?:#{1,4}\s*)?Flashcard\s+(\d+)[:\s-]*/i);
+  for (let i = 1; i < sections.length; i += 2) {
+    const num = parseInt(sections[i] || "0", 10);
+    const body = sections[i + 1] || "";
+    const lines = body.split("\n");
+    const rawTitle = (lines[0] || `Card ${num}`).replace(/^[:\s-]+/, "").trim();
+
+    const frontMatch = body.match(/\*\*Front[^\*]*\*\*:?\s*([\s\S]*?)(?=\n\s*-?\s*\*\*Back|\n\s*###|\n\s*####|$)/i);
+    const backMatch = body.match(/\*\*Back[^\*]*\*\*:?\s*([\s\S]*?)(?=\n\s*-?\s*\*\*Memory|\n\s*###|\n\s*####|$)/i);
+    const hookMatch = body.match(/\*\*Memory[^\*]*\*\*:?\s*([\s\S]*?)(?=\n\s*###|\n\s*####|$)/i);
+
+    if (frontMatch || backMatch) {
+      cards.push({
+        id: num || cards.length + 1,
+        title: rawTitle || `Card ${cards.length + 1}`,
+        front: (frontMatch?.[1] || "").trim().replace(/^-\s*/, ""),
+        back: (backMatch?.[1] || "").trim().replace(/^-\s*/, ""),
+        hook: hookMatch?.[1]?.trim().replace(/^-\s*/, ""),
+      });
+    }
+  }
+  return cards;
+}
+
 export function GeneratorTemplate({ data, mod }: { data: GeneratorData; mod: ModuleDef }) {
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(data.fields.map((f) => [f.name, f.defaultValue ?? f.options?.[0] ?? ""])),
   );
   const [copied, setCopied] = useState(false);
+  const [activeCardIndex, setActiveCardIndex] = useState(0);
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [viewMode, setViewMode] = useState<"interactive" | "all">("interactive");
+
   const mutation = useMutation({
     mutationFn: (inputs: Record<string, string>) => apiFetch("/api/v1/ai/generate", GenerateReply, { method: "POST", body: { module: mod.slug, inputs } }),
   });
+
+  const flashcards = useMemo(() => {
+    return mutation.data ? extractFlashcards(mutation.data.markdown) : [];
+  }, [mutation.data]);
+
+  useEffect(() => {
+    setActiveCardIndex(0);
+    setIsFlipped(false);
+    setViewMode("interactive");
+  }, [mutation.data]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
@@ -714,10 +763,155 @@ export function GeneratorTemplate({ data, mod }: { data: GeneratorData; mod: Mod
               <Spinner /> Generating…
             </div>
           ) : mutation.data ? (
-            <div className="space-y-4">
-              <SafeMarkdown>{mutation.data.markdown}</SafeMarkdown>
-              <AiLabel />
-            </div>
+            flashcards.length > 0 ? (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-2.5">
+                  <div className="flex items-center gap-1.5 rounded-lg bg-surface-2 p-1 text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("interactive")}
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-md px-3 py-1 transition-colors",
+                        viewMode === "interactive" ? "bg-surface text-brand shadow-xs" : "text-ink-2 hover:text-ink",
+                      )}
+                    >
+                      <Layers className="size-3.5" />
+                      <span>Interactive Cards ({flashcards.length})</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("all")}
+                      className={cn(
+                        "rounded-md px-3 py-1 transition-colors",
+                        viewMode === "all" ? "bg-surface text-brand shadow-xs" : "text-ink-2 hover:text-ink",
+                      )}
+                    >
+                      <span>Full Notes View</span>
+                    </button>
+                  </div>
+                  <span className="text-xs font-medium text-ink-3">
+                    Card {activeCardIndex + 1} of {flashcards.length}
+                  </span>
+                </div>
+
+                {viewMode === "interactive" && flashcards[activeCardIndex] ? (
+                  (() => {
+                    const card = flashcards[activeCardIndex]!;
+                    return (
+                      <div className="space-y-4">
+                        {/* Active Flashcard Face */}
+                        <div
+                          onClick={() => setIsFlipped((f) => !f)}
+                          className={cn(
+                            "group relative flex min-h-[260px] cursor-pointer select-none flex-col justify-between rounded-2xl border-2 p-6 transition-all duration-300 shadow-xs",
+                            isFlipped
+                              ? "border-teal-500/50 bg-teal-500/5 hover:border-teal-500/70 dark:bg-teal-950/20"
+                              : "border-brand/40 bg-brand/5 hover:border-brand/60 dark:bg-brand/10",
+                          )}
+                        >
+                          <div>
+                            <div className="mb-3 flex items-center justify-between text-xs font-bold uppercase tracking-wider">
+                              <span className={cn("flex items-center gap-1.5", isFlipped ? "text-teal-600 dark:text-teal-400" : "text-brand")}>
+                                {isFlipped ? "Answer / Explanation" : "Question / Prompt"}
+                              </span>
+                              <span className="rounded-full bg-surface px-2.5 py-0.5 text-[11px] font-semibold text-ink-2 shadow-2xs">
+                                {card.title}
+                              </span>
+                            </div>
+
+                            <div className="py-2 text-ink">
+                              {isFlipped ? (
+                                <div className="space-y-3">
+                                  <div className="whitespace-pre-line text-sm leading-relaxed sm:text-base font-normal">
+                                    {card.back}
+                                  </div>
+                                  {card.hook ? (
+                                    <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-amber/30 bg-gold-soft p-3 text-xs text-amber font-medium">
+                                      <span className="text-base leading-none">💡</span>
+                                      <div>
+                                        <strong className="mb-0.5 block font-semibold text-ink">Key Takeaway / Memory Hook:</strong>
+                                        {card.hook}
+                                      </div>
+                                    </div>
+                                  ) : null}
+                                </div>
+                              ) : (
+                                <div className="pt-2 text-base font-semibold leading-relaxed text-ink sm:text-lg">
+                                  {card.front}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="mt-4 flex items-center justify-between border-t border-line/60 pt-3.5 text-xs text-ink-3">
+                            <span className="flex items-center gap-1.5 font-medium text-brand group-hover:underline">
+                              <RotateCw className="size-3.5" />
+                              {isFlipped ? "Click card to flip back to question" : "Click anywhere on card to reveal answer"}
+                            </span>
+                            <span className="font-semibold text-ink-2">
+                              {activeCardIndex + 1} / {flashcards.length}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Navigation Controls */}
+                        <div className="flex items-center justify-between pt-1">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            disabled={activeCardIndex === 0}
+                            onClick={() => {
+                              setIsFlipped(false);
+                              setActiveCardIndex((i) => Math.max(0, i - 1));
+                            }}
+                            className="flex items-center gap-1 text-xs"
+                          >
+                            <ChevronLeft className="size-4" /> Previous
+                          </Button>
+
+                          <Button
+                            type="button"
+                            variant="primary"
+                            size="sm"
+                            onClick={() => setIsFlipped((f) => !f)}
+                            className="flex items-center gap-1.5 text-xs font-semibold"
+                          >
+                            <RotateCw className="size-3.5" />
+                            {isFlipped ? "Show Question" : "Flip to Answer"}
+                          </Button>
+
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            disabled={activeCardIndex === flashcards.length - 1}
+                            onClick={() => {
+                              setIsFlipped(false);
+                              setActiveCardIndex((i) => Math.min(flashcards.length - 1, i + 1));
+                            }}
+                            className="flex items-center gap-1 text-xs"
+                          >
+                            Next <ChevronRight className="size-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div className="space-y-4">
+                    <SafeMarkdown>{mutation.data.markdown}</SafeMarkdown>
+                  </div>
+                )}
+
+                <AiLabel />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <SafeMarkdown>{mutation.data.markdown}</SafeMarkdown>
+                <AiLabel />
+              </div>
+            )
           ) : (
             <EmptyState title="Nothing generated yet" body="Fill in the inputs and generate. Output is a draft for you to review and edit." />
           )}

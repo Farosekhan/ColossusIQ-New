@@ -10,9 +10,12 @@ import { signCertificateFields } from "@/lib/security/certificate-signature";
 import { getStore } from "@/lib/data";
 import { memoryState } from "@/lib/data/memory";
 import type { Attempt } from "@/lib/data/store";
+import { geminiEnabled } from "@/lib/ai/gemini";
 import { audit } from "./audit";
 import { courseCompleted } from "./course-state";
 import { recordFacultyEvent } from "./faculty-activity";
+import { GenerateQuizBody, type QuizResults } from "@/lib/api/learning-schemas";
+import { aiQuizQuestions } from "./quiz-ai";
 import { APTITUDE_BANK, bankFor, templateQuestions, topicsFor, type BankQuestion } from "./learning-content";
 import { collegeIndex, collegeName, collegeStream, enabledGroups, listColleges } from "./records";
 import type { MockResult } from "./router";
@@ -256,9 +259,61 @@ const CreateQuiz = z
     questions: z.array(QuestionSchema).min(3).max(30),
   })
   .strict();
-const GenerateQuiz = z
-  .object({ department: z.string().min(2).max(80), topic: z.string().trim().max(100).optional(), count: z.number().int().min(3).max(20) })
-  .strict();
+
+/** Per-quiz analytics for staff: who took it, how they scored, and which questions the class got wrong. */
+async function quizResults(quiz: Quiz): Promise<QuizResults> {
+  const store = getStore();
+  const attempts = (await store.attempts.list({ quizId: quiz.id })).sort((x, y) => x.at.localeCompare(y.at));
+  const certs = new Set((await store.certificates.list({ quizId: quiz.id })).map((c) => c.studentSub));
+  const by = new Map<string, Attempt[]>();
+  for (const t of attempts) by.set(t.studentSub, [...(by.get(t.studentSub) ?? []), t]);
+  const students = [...by.values()]
+    .map((list) => {
+      const last = list[list.length - 1]!;
+      const best = Math.max(...list.map((t) => t.percentage));
+      return { name: last.studentName, attempts: list.length, best, latest: last.percentage, passed: best >= quiz.passMark, certificate: certs.has(last.studentSub), lastAt: last.at };
+    })
+    .sort((x, y) => y.best - x.best || x.name.localeCompare(y.name));
+  const bests = students.map((x) => x.best);
+  const passed = students.filter((x) => x.passed).length;
+  const buckets = [
+    { label: "0–39%", min: 0 },
+    { label: "40–59%", min: 40 },
+    { label: "60–79%", min: 60 },
+    { label: "80–100%", min: 80 },
+  ];
+  const distribution = buckets.map((b, i) => ({ label: b.label, count: bests.filter((v) => v >= b.min && (i === buckets.length - 1 || v < buckets[i + 1]!.min)).length }));
+  // Answers recorded before the quiz was edited no longer line up with its questions, so they are left out.
+  const usable = attempts.filter((t) => t.answers && t.answers.length === quiz.questions.length);
+  const questions = quiz.questions.map((x, i) => {
+    const optionCounts = [0, 0, 0, 0];
+    let answered = 0;
+    let right = 0;
+    for (const t of usable) {
+      const given = t.answers![i];
+      if (given === null || given === undefined) continue;
+      answered++;
+      optionCounts[given] = (optionCounts[given] ?? 0) + 1;
+      if (given === x.answer) right++;
+    }
+    return { number: i + 1, prompt: x.prompt, answer: x.answer, answered, correctPct: answered ? Math.round((right / answered) * 100) : null, optionCounts, options: [...x.options] };
+  });
+  return {
+    quiz: { id: quiz.id, title: quiz.title, status: quiz.status, passMark: quiz.passMark, questions: quiz.questions.length },
+    summary: {
+      students: students.length,
+      attempts: attempts.length,
+      passed,
+      passRate: students.length ? Math.round((passed / students.length) * 100) : 0,
+      average: attempts.length ? Math.round(attempts.reduce((n, t) => n + t.percentage, 0) / attempts.length) : 0,
+      highest: bests.length ? Math.max(...bests) : 0,
+      lowest: bests.length ? Math.min(...bests) : 0,
+    },
+    distribution,
+    students,
+    questions,
+  };
+}
 
 /* ───────────────────────────── dispatcher ────────────────────────── */
 export async function dispatchLearning(method: string, segs: string[], rawBody: unknown, session: SessionPayload, query?: URLSearchParams): Promise<MockResult> {
@@ -280,14 +335,20 @@ export async function dispatchLearning(method: string, segs: string[], rawBody: 
     if (a1 === "generate" && method === "POST") {
       if (!isStaff) return err(403, "forbidden", "Only faculty can generate quizzes.");
       if (!stream) return err(400, "choose_college", "Switch into a college first.");
-      const p = GenerateQuiz.safeParse(rawBody);
+      const p = GenerateQuizBody.safeParse(rawBody);
       if (!p.success) return err(422, "validation", "Check the quiz settings.");
       if (!streamOptions("department", stream).includes(p.data.department) && p.data.department !== APTITUDE_DEPARTMENT) return err(422, "validation", "Department not in your college's stream.");
+      const topicText = p.data.topic ? cleanText(p.data.topic, 100) : "";
+      const ai = await aiQuizQuestions(session, p.data);
+      if (ai.limited) return ai.limited;
+      const written = (ai.questions ?? []).slice(0, p.data.count).map(shuffleOptions);
       const bank = p.data.department === APTITUDE_DEPARTMENT ? APTITUDE_BANK : bankFor(p.data.department);
-      const topics = p.data.topic ? [cleanText(p.data.topic, 100), ...topicsFor(p.data.department, p.data.topic)] : topicsFor(p.data.department, p.data.department);
-      const fromBank = bank.slice(0, p.data.count);
-      const questions = [...fromBank, ...templateQuestions(p.data.department, topics, Math.max(0, p.data.count - fromBank.length))].map(shuffleOptions);
-      return ok({ questions, fromBank: fromBank.length, templated: questions.length - fromBank.length, aiGenerated: true, reviewRequired: true });
+      const topics = topicText ? [topicText, ...topicsFor(p.data.department, topicText)] : topicsFor(p.data.department, p.data.department);
+      // The curated bank fills whatever the model did not write; templates only fill what is still missing.
+      const fromBank = bank.slice(0, p.data.count - written.length).map(shuffleOptions);
+      const templated = templateQuestions(p.data.department, topics, Math.max(0, p.data.count - written.length - fromBank.length)).map(shuffleOptions);
+      const questions = [...fromBank, ...written, ...templated];
+      return ok({ questions, fromBank: fromBank.length, templated: templated.length, aiCount: written.length, aiGenerated: written.length > 0, aiFailed: geminiEnabled() && written.length === 0, reviewRequired: true });
     }
 
     if (a1 === undefined && method === "GET") {
@@ -415,6 +476,11 @@ export async function dispatchLearning(method: string, segs: string[], rawBody: 
         } else certificate = existing;
       }
       return ok({ score, total, percentage, grade: g.grade, gradeLabel: g.label, passed: g.passed, passMark: quiz.passMark, attemptsLeft: 2 - prior, certificateId: certificate?.id ?? null, review });
+    }
+
+    if (a2 === "results" && method === "GET") {
+      if (!isStaff) return err(403, "forbidden", "Only faculty can see results.");
+      return ok(await quizResults(quiz));
     }
 
     if (a2 === "status" && method === "POST") {

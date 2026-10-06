@@ -36,10 +36,15 @@ import { dispatchRecords } from "./records-router";
 import { dispatchLearning } from "./learning";
 import { dispatchCourses } from "./course-builder";
 import { dispatchTeaching } from "./teaching";
-import { dispatchAssignments } from "./assignments";
+import { assignmentNotifications, dispatchAssignments } from "./assignments";
 import { dispatchKnowledge } from "./knowledge-base";
 import { dispatchQuestionAi } from "./question-ai";
 import { dispatchMentor, mentorChat } from "./mentor";
+import { dispatchStudyPlanner } from "./study-planner";
+import { dispatchLanguages, languageChat } from "./languages";
+import { dispatchMissionPlanner } from "./mission-planner";
+import { dispatchResearch, researchChat } from "./research";
+import { dispatchAchievements } from "./achievements";
 import { ChatBodySchema } from "@/lib/api/mentor-schemas";
 import { audit, recentAudit } from "./audit";
 import { createStudent, deleteStudent, getStudentsList, importStudents, updateStudent } from "./students-store";
@@ -226,6 +231,11 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
   if (segs[0] === "assignments") return dispatchAssignments(method, segs, rawBody, session);
   if (segs[0] === "knowledge") return dispatchKnowledge(method, segs, rawBody, session);
   if (segs[0] === "mentor") return dispatchMentor(method, segs, session);
+  if (segs[0] === "study-planner") return dispatchStudyPlanner(method, segs, rawBody, session);
+  if (segs[0] === "languages") return dispatchLanguages(method, segs, rawBody, session);
+  if (segs[0] === "mission-planner") return dispatchMissionPlanner(method, segs, rawBody, session);
+  if (segs[0] === "research") return dispatchResearch(method, segs, rawBody, session);
+  if (segs[0] === "achievements") return dispatchAchievements(method, segs, session);
   if (LEARNING_AREAS.has(segs[0] ?? "")) return dispatchLearning(method, segs, rawBody, session, query);
   if (segs[0] === "students" && segs[1] !== "me") return dispatchStudents(method, segs, rawBody, session, query);
   if (segs[0] === "faculty") return dispatchFaculty(method, segs, rawBody, session, query);
@@ -329,7 +339,7 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
 
     /* ── session & shell ── */
     case "GET notifications": {
-      const rawList = await getStore().notifications.forUser(session);
+      const rawList = [...(await assignmentNotifications(session)), ...(await getStore().notifications.forUser(session))];
       const cfg = (await getStore().settings.get(session.college, "notifications-config"))
         ?? (session.college !== "all" ? await getStore().settings.get("all", "notifications-config") : undefined);
       if (!cfg) return ok(rawList);
@@ -662,6 +672,8 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
       const parsed = ChatBody.safeParse(rawBody);
       if (!parsed.success) return err(400, "invalid_body", "Message must be 1–2000 characters.");
       if (parsed.data.agent === "mentor") return mentorChat(session, parsed.data);
+      if (parsed.data.agent === "language") return languageChat(session, parsed.data);
+      if (parsed.data.agent === "research") return researchChat(session, parsed.data);
       return ok(chatReply(parsed.data.agent, cleanText(parsed.data.message, 2000)));
     }
     case "POST ai/generate": {
@@ -671,7 +683,7 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
       const mod = findModule(parsed.data.module);
       if (!mod || !mod.roles.includes(session.role) || !(await moduleEnabled(mod, session))) return forbidden();
       const inputs = Object.fromEntries(Object.entries(parsed.data.inputs).map(([key, v]) => [key, cleanText(v, 4000)]));
-      return ok(generate(parsed.data.module, inputs));
+      return ok(await generate(parsed.data.module, inputs));
     }
     case "POST ai/interview/start": {
       if (session.role !== "student") return forbidden();
