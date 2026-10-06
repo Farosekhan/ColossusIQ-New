@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
 import { LinkButton } from "@/components/ui/primitives";
 import { MarketingNav } from "@/components/marketing/nav";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 const LINKS = [
   { href: "/modules", label: "Platform" },
@@ -29,6 +30,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             ))}
           </nav>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <LinkButton href="/login" variant="ghost" size="sm" className="max-sm:hidden">
               Sign in
             </LinkButton>

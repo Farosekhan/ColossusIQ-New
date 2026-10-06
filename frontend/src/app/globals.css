@@ -108,6 +108,11 @@ body {
   color: var(--ink);
 }
 
+select option {
+  background-color: var(--surface);
+  color: var(--ink);
+}
+
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
