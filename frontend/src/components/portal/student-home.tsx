@@ -74,8 +74,8 @@ export function StudentHome() {
           <CardHeader title="Today" subtitle="Synced from your timetable and study plan" action={<LinkButton href="/student/daily-plan" variant="ghost" size="sm">Open planner</LinkButton>} />
           <CardBody>
             <ol className="space-y-2">
-              {data.today.map((it) => (
-                <li key={it.time} className="flex items-center gap-4 rounded-lg border border-line px-4 py-3">
+              {data.today.map((it, i) => (
+                <li key={`${it.time}-${i}`} className="flex items-center gap-4 rounded-lg border border-line px-4 py-3">
                   <span className="w-12 text-sm font-semibold tabular-nums text-ink-2">{it.time}</span>
                   <span className={cn("h-7 w-1 rounded-full", KIND_TONE[it.kind] ?? "bg-ink-3")} aria-hidden />
                   <span className="text-sm text-ink">{it.title}</span>
@@ -103,8 +103,8 @@ export function StudentHome() {
             <CardHeader title="Upcoming" />
             <CardBody className="pt-3">
               <ul className="divide-y divide-line">
-                {data.upcoming.map((u) => (
-                  <li key={u.title} className="flex items-center justify-between py-2.5 text-sm">
+                {data.upcoming.map((u, i) => (
+                  <li key={`${u.title}-${i}`} className="flex items-center justify-between py-2.5 text-sm">
                     <span className="text-ink">{u.title}</span>
                     <span className="text-ink-3">{u.when}</span>
                   </li>
@@ -119,8 +119,8 @@ export function StudentHome() {
         <CardHeader title="Weak topics to fix" subtitle={`Exam in ${data.examCountdown.days} days · ${data.examCountdown.syllabusCovered}% of syllabus covered`} action={<LinkButton href="/student/mock-tests" size="sm">Take adaptive test</LinkButton>} />
         <CardBody>
           <div className="grid gap-4 md:grid-cols-3">
-            {data.weakTopics.map((w) => (
-              <div key={w.topic} className="rounded-xl border border-line p-4">
+            {data.weakTopics.map((w, i) => (
+              <div key={`${w.subject}-${w.topic}-${i}`} className="rounded-xl border border-line p-4">
                 <div className="flex items-center gap-2">
                   <Target className="size-4 text-rose" aria-hidden />
                   <p className="text-xs font-medium uppercase tracking-wide text-ink-3">{w.subject}</p>
