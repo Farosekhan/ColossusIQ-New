@@ -192,11 +192,11 @@ const PRESETS = [
 /* ── Default Plan Generator Function ───────────────── */
 
 function buildInitialPlan(overrides?: Partial<EventPlan>): EventPlan {
-  const title = overrides?.title || "TechNova 2026: One-Day Campus Technology Summit";
+  const title = overrides?.title || "Campus Event Blueprint";
   const category = overrides?.category || "Workshop";
-  const dept = overrides?.department || "Computer Science & Engineering";
-  const audience = overrides?.audience || 500;
-  const budget = overrides?.budget || 150000;
+  const dept = overrides?.department || "Academic Affairs";
+  const audience = overrides?.audience || 100;
+  const budget = overrides?.budget || 50000;
   const venue = overrides?.venue || "Main Campus Auditorium";
   const duration = overrides?.duration || "1 Day";
 
@@ -208,77 +208,77 @@ function buildInitialPlan(overrides?: Partial<EventPlan>): EventPlan {
   const contingencyCost = budget - (venueCost + speakerCost + foodCost + prizeCost + printCost);
 
   return {
-    id: overrides?.id || "PLAN-TECHNOVA-DEFAULT",
+    id: overrides?.id || `PLAN-${Date.now()}`,
     title,
-    tagline: overrides?.tagline || "Empowering the next generation of engineers with real-world technologies",
+    tagline: overrides?.tagline || `Empowering participants through real-world learning and collaborative experiences`,
     category,
     department: dept,
     audience,
     duration,
-    date: overrides?.date || "2026-11-20",
+    date: overrides?.date || new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
     startTime: overrides?.startTime || "09:00",
     venue,
     budget,
-    organiser: overrides?.organiser || `Department of ${dept}`,
+    organiser: overrides?.organiser || (dept ? `Department of ${dept}` : "Campus Organizing Committee"),
     description:
       overrides?.description ||
-      `A high-impact ${duration.toLowerCase()} event bringing together ${audience} students, faculty, and industry practitioners for interactive keynotes, hands-on learning sprints, and project exhibitions at ${venue}.`,
+      `A high-impact ${duration.toLowerCase()} ${category.toLowerCase()} bringing together ${audience} participants at ${venue}.`,
     highlights: overrides?.highlights || ["Keynote Lectures", "Hands-on Workshops", "Project Expo", "Networking Lunch", "Certificates & Awards"],
     status: overrides?.status || "Draft",
     publishedId: overrides?.publishedId,
-    createdAt: overrides?.createdAt || "2026-10-03T00:00:00.000Z",
+    createdAt: overrides?.createdAt || new Date().toISOString(),
 
     sessions: [
       {
         id: "s1",
         time: "09:00 - 09:45",
         title: "Registration, Welcome Kit & High Tea",
-        speaker: "Student Coordination Committee",
-        room: "Auditorium Foyer",
+        speaker: "Event Organizing Committee",
+        room: `${venue} Foyer`,
         type: "break",
         description: "Student badge collection, credential verification, and welcome high tea.",
       },
       {
         id: "s2",
         time: "09:45 - 10:45",
-        title: "Inaugural Keynote: Architecting Next-Gen Scalable Systems",
-        speaker: "Chief Guest & Industry Fellow",
+        title: "Inaugural Keynote & Opening Address",
+        speaker: "Chief Guest & Domain Specialist",
         room: venue,
         type: "keynote",
-        description: "Lamp lighting ceremony, welcome speech by Principal, and keynote address on emerging technological paradigms.",
+        description: "Welcome speech by leadership, lamp lighting ceremony, and inaugural keynote address.",
       },
       {
         id: "s3",
         time: "11:00 - 13:00",
-        title: "Parallel Deep-Dive Tracks: GenAI, Cloud-Native, & IoT Security",
+        title: "Interactive Masterclass & Deep-Dive Tracks",
         speaker: "Faculty Leads & Technology Mentors",
-        room: "Labs 1, 2, & Seminar Hall B",
+        room: `${venue} Seminar Rooms`,
         type: "workshop",
         description: "Hands-on engineering tracks where students build working prototypes with code walkthroughs.",
       },
       {
         id: "s4",
         time: "13:00 - 14:00",
-        title: "Networking Lunch & Sponsor Expo",
+        title: "Networking Lunch & Project Expo",
         speaker: "Open Interaction",
-        room: "Campus Banquet Hall",
+        room: "Campus Banquet / Dining Hall",
         type: "networking",
         description: "Curated lunch for attendees, speakers, and recruiters with partner exhibition stalls.",
       },
       {
         id: "s5",
         time: "14:00 - 16:15",
-        title: "Rapid Hackathon & Live Project Pitch Battle",
-        speaker: "Industry Jury Panel",
+        title: "Rapid Hack Sprint & Live Pitch Battle",
+        speaker: "Evaluation Jury Panel",
         room: venue,
         type: "competition",
-        description: "Top 12 student teams present working demos with 3-minute pitches followed by live Q&A.",
+        description: "Participant teams present working demos with short pitches followed by live Q&A.",
       },
       {
         id: "s6",
         time: "16:30 - 17:30",
-        title: "Valedictory Ceremony, Cash Awards & Mementos",
-        speaker: "Dean of Academics & Patron",
+        title: "Valedictory Ceremony, Awards & Mementos",
+        speaker: "Patron & Event Coordinator",
         room: venue,
         type: "valedictory",
         description: "Announcement of category winners, certificate distribution, feedback collection, and group photography.",
@@ -286,21 +286,21 @@ function buildInitialPlan(overrides?: Partial<EventPlan>): EventPlan {
     ],
 
     budgetItems: [
-      { id: "b1", category: "Venue & AV", item: "Auditorium Rental, Sound System & Dual Projectors", amount: venueCost, notes: "Main hall lighting, 4 wireless mics, stage setup" },
-      { id: "b2", category: "Speakers & Honorarium", item: "Keynote Speakers Honorarium, Travel & Lodging", amount: speakerCost, notes: "2 external VIP guest speakers + local transport" },
-      { id: "b3", category: "Food & Catering", item: "Morning Tea, Buffet Lunch & Evening Refreshments", amount: foodCost, notes: `Buffet catering for ${audience} attendees + faculty guests` },
-      { id: "b4", category: "Prizes & Awards", item: "Cash Prizes for Hackathon Winners & Custom Trophies", amount: prizeCost, notes: "1st ₹25k, 2nd ₹15k, 3rd ₹10k + mementos for guests" },
-      { id: "b5", category: "Printing & Merch", item: "Lanyards, ID Badges, Posters & Participation Certificates", amount: printCost, notes: `${audience} participant kits + vinyl banners` },
-      { id: "b6", category: "Logistics & Contingency", item: "Emergency Logistics, Medical First-Aid & Discretionary Reserve", amount: contingencyCost, notes: "Unforeseen expenses and buffer" },
+      { id: "b1", category: "Venue & AV", item: "Auditorium Rental, Sound System & AV Feeds", amount: venueCost, notes: "Main hall lighting, microphones, and stage setup" },
+      { id: "b2", category: "Speakers & Honorarium", item: "Keynote Speakers Honorarium, Travel & Lodging", amount: speakerCost, notes: "External guest speakers travel & hospitality" },
+      { id: "b3", category: "Food & Catering", item: "Morning Tea, Buffet Lunch & Evening Refreshments", amount: foodCost, notes: `Buffet catering for ${audience} attendees & guests` },
+      { id: "b4", category: "Prizes & Awards", item: "Prizes for Winners & Recognition Trophies", amount: prizeCost, notes: "Top winners awards and mementos for guests" },
+      { id: "b5", category: "Printing & Merch", item: "Lanyards, ID Badges, Posters & Participation Certificates", amount: printCost, notes: `${audience} participant kits and vinyl banners` },
+      { id: "b6", category: "Logistics & Contingency", item: "Emergency Logistics, Medical First-Aid & Reserve", amount: contingencyCost, notes: "Unforeseen expenses and operational buffer" },
     ],
 
     promo: {
       emailSubject: `Invitation: ${title} — Secure Your Spot Today!`,
-      emailBody: `Dear Students and Faculty Colleagues,\n\nThe ${dept} is delighted to announce ${title}, scheduled on ${overrides?.date || "November 20, 2026"} at ${venue}.\n\nThis premier campus event features keynote addresses from renowned domain experts, hands-on masterclasses, and an exciting innovation sprint with ₹${(Math.round(budget * 0.14)).toLocaleString("en-IN")} in prizes.\n\nKey Highlights:\n- 3 Dedicated Hands-on Learning Tracks\n- Live Project Pitch Showcase with Industry Judges\n- Verified Digital Certificates for all attendees\n- Networking Buffet Lunch included\n\nSeats are strictly limited to ${audience} participants. Early registration is mandatory.\n\nRegister here: https://portal.campus.edu/events/register\n\nWarm regards,\nOrganizing Committee\n${dept}`,
-      instagram: `⚡ MARK YOUR CALENDARS: ${title} is here! 🚀\n\nGet ready for ${duration.toLowerCase()} of high-voltage technology, masterclasses, and hack sprints! 🔥\n\n📍 Venue: ${venue}\n🗓 Date: ${overrides?.date || "Nov 20, 2026"} | ⏰ 09:00 AM onwards\n👥 Capacity: Only ${audience} seats\n\nTag your project team in the comments! 🔗 Link in bio to register before slots fill up!\n\n#CampusTech #${dept.replace(/\s+/g, "")} #Innovation #Hackathon #CollegeLife #TechSummit2026`,
-      linkedin: `We are thrilled to officially unveil "${title}", hosted by the ${dept} at ${venue}.\n\nThis landmark event brings together over ${audience} aspiring technologists, faculty researchers, and industry pioneers to deliberate on emerging technological frontiers.\n\nHighlights include:\n✅ Expert Keynote Addresses\n✅ Hands-on Technical Deep-Dives\n✅ Competitive Project Pitches with Cash Awards\n✅ Career Networking with Corporate Partners\n\nRegistration and agenda details are now live on the campus portal.\n\n#HigherEducation #Engineering #Innovation #CampusLife #FutureOfTech`,
-      whatsapp: `📢 *OFFICIAL NOTICE: ${title}*\n\nHey everyone! The ${dept} invites you to the biggest campus tech event of the semester! 🚀\n\n📅 *Date:* ${overrides?.date || "November 20, 2026"}\n⏰ *Time:* 09:00 AM\n📍 *Venue:* ${venue}\n🎁 *Perks:* Food & Kits, Verified Certificates, Cash Prize Pool!\n\n👉 *Register now:* https://portal.campus.edu/events\n_Limited to first ${audience} students only!_`,
-      posterTagline: "Innovate. Build. Inspire. Join the Premier Campus Technology Event of 2026.",
+      emailBody: `Dear Students and Faculty Colleagues,\n\nThe ${dept} is delighted to announce ${title}, scheduled on ${overrides?.date || new Date(Date.now() + 14 * 86400000).toLocaleDateString()} at ${venue}.\n\nThis premier campus event features keynote addresses from renowned domain experts, hands-on masterclasses, and an exciting competition sprint with ₹${(Math.round(budget * 0.14)).toLocaleString("en-IN")} in prizes.\n\nKey Highlights:\n- Dedicated Hands-on Learning Tracks\n- Live Project Pitch Showcase with Industry Judges\n- Verified Digital Certificates for all attendees\n- Networking Buffet Lunch included\n\nSeats are strictly limited to ${audience} participants. Early registration is mandatory.\n\nWarm regards,\nOrganizing Committee\n${dept}`,
+      instagram: `⚡ MARK YOUR CALENDARS: ${title} is here! 🚀\n\nGet ready for ${duration.toLowerCase()} of interactive learning, masterclasses, and networking! 🔥\n\n📍 Venue: ${venue}\n👥 Capacity: ${audience} seats\n\n🔗 Link in bio to register before slots fill up!\n\n#CampusLife #${dept.replace(/\s+/g, "")} #Innovation #CollegeLife`,
+      linkedin: `We are thrilled to officially announce "${title}", hosted by the ${dept} at ${venue}.\n\nThis landmark event brings together over ${audience} aspiring technologists, faculty researchers, and industry pioneers to deliberate on emerging technological frontiers.\n\nHighlights include:\n✅ Expert Keynote Addresses\n✅ Hands-on Technical Deep-Dives\n✅ Competitive Project Pitches with Awards\n✅ Career Networking with Industry Partners\n\nRegistration and agenda details are now live on the campus portal.\n\n#HigherEducation #CampusLife #FutureOfTech`,
+      whatsapp: `📢 *OFFICIAL NOTICE: ${title}*\n\nHey everyone! The ${dept} invites you to ${title}! 🚀\n\n📍 *Venue:* ${venue}\n👥 *Capacity:* ${audience} seats\n🎁 *Perks:* Food & Kits, Verified Certificates, Prize Pool!\n\n_Register early to secure your spot!_`,
+      posterTagline: `Join ${title} — Premier Campus Event.`,
     },
 
     formFields: {
@@ -316,18 +316,18 @@ function buildInitialPlan(overrides?: Partial<EventPlan>): EventPlan {
     },
 
     customQuestions: [
-      "What is your primary area of interest (e.g. AI, Web, Cloud, Embedded)?",
-      "Do you require special accessibility accommodations?",
+      "What is your primary area of interest?",
+      "Do you require any accessibility accommodations?",
     ],
 
     volunteerSquads: [
       {
         id: "vs1",
         team: "Registration & Desk Coordination",
-        lead: "Aarav Sharma (Final Year)",
-        headcount: 6,
+        lead: "Registration Lead Coordinator",
+        headcount: 4,
         tasks: [
-          { id: "t1", text: "Set up registration counters & barcode scanners", done: true },
+          { id: "t1", text: "Set up registration counters & check-in systems", done: true },
           { id: "t2", text: "Sort ID badges & welcome kits alphabetically", done: true },
           { id: "t3", text: "Manage spot entries and attendance desk", done: false },
         ],
@@ -335,8 +335,8 @@ function buildInitialPlan(overrides?: Partial<EventPlan>): EventPlan {
       {
         id: "vs2",
         team: "Technical & AV Production",
-        lead: "Pooja Hegde (Prefect - Tech Club)",
-        headcount: 5,
+        lead: "Technical Lead Coordinator",
+        headcount: 4,
         tasks: [
           { id: "t4", text: "Test auditorium audio-visual feeds and projection", done: true },
           { id: "t5", text: "Deploy dedicated high-speed Wi-Fi SSID for attendees", done: false },
@@ -346,10 +346,10 @@ function buildInitialPlan(overrides?: Partial<EventPlan>): EventPlan {
       {
         id: "vs3",
         team: "Hospitality & Guest Relations",
-        lead: "Rohan Varma (Student Council)",
-        headcount: 4,
+        lead: "Hospitality Lead Coordinator",
+        headcount: 3,
         tasks: [
-          { id: "t7", text: "Coordinate airport / station pick-up for keynote speakers", done: true },
+          { id: "t7", text: "Coordinate arrival and reception for keynote speakers", done: true },
           { id: "t8", text: "Prepare VIP lounge, water bottles & welcome bouquets", done: false },
           { id: "t9", text: "Escort dignitaries to stage for lamp lighting", done: false },
         ],
@@ -357,8 +357,8 @@ function buildInitialPlan(overrides?: Partial<EventPlan>): EventPlan {
       {
         id: "vs4",
         team: "Food, Catering & Logistics",
-        lead: "Sneha Nair (Hospitality Lead)",
-        headcount: 5,
+        lead: "Logistics Lead Coordinator",
+        headcount: 4,
         tasks: [
           { id: "t10", text: "Supervise buffet setup and hygienic drinking water points", done: false },
           { id: "t11", text: "Distribute refreshment coupons and manage crowd flow", done: false },
@@ -368,8 +368,8 @@ function buildInitialPlan(overrides?: Partial<EventPlan>): EventPlan {
       {
         id: "vs5",
         team: "Media, PR & Live Coverage",
-        lead: "Vikram Malhotra (Media Club)",
-        headcount: 4,
+        lead: "Media Lead Coordinator",
+        headcount: 3,
         tasks: [
           { id: "t13", text: "Capture high-res photos & video reels during keynotes", done: false },
           { id: "t14", text: "Publish real-time stories to college social handles", done: false },
@@ -388,29 +388,6 @@ function buildInitialPlan(overrides?: Partial<EventPlan>): EventPlan {
     ],
   };
 }
-
-const DEFAULT_INITIAL_PLAN: EventPlan = buildInitialPlan({ id: "PLAN-TECHNOVA-DEFAULT" });
-const DEFAULT_SAVED_PLANS: EventPlan[] = [
-  DEFAULT_INITIAL_PLAN,
-  buildInitialPlan({
-    id: "PLAN-AI-HACK",
-    title: "CodeForge 2026: National GenAI & Cloud Hackathon",
-    category: "Hackathon",
-    department: "Computer Science & Engineering",
-    audience: 500,
-    budget: 200000,
-    venue: "Central Innovation Lab",
-  }),
-  buildInitialPlan({
-    id: "PLAN-CULT-FEST",
-    title: "Tarang 2026: Inter-College Cultural Extravaganza",
-    category: "Cultural",
-    department: "Student Activity Council",
-    audience: 1500,
-    budget: 450000,
-    venue: "Open-Air Amphitheatre",
-  }),
-];
 
 /* ── Main Bespoke Module Component ──────────────────── */
 
@@ -451,66 +428,92 @@ export function EventGeneratorModule({ role }: { role: Role }) {
     return publishedList.length > 0 ? publishedList.length : totalEvents;
   }, [campusEventsQuery.data, eventItems, totalEvents]);
 
-  // Current active plan
-  const [plan, setPlan] = useState<EventPlan>(DEFAULT_INITIAL_PLAN);
-  // Saved plans archive
-  const [savedPlans, setSavedPlans] = useState<EventPlan[]>(DEFAULT_SAVED_PLANS);
+  // Current active plan (starts empty/null until generated or selected)
+  const [plan, setPlan] = useState<EventPlan | null>(null);
+  // Saved plans archive (persisted to localStorage)
+  const [savedPlans, setSavedPlans] = useState<EventPlan[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("colossusiq_saved_event_plans");
+        if (stored) return JSON.parse(stored);
+      } catch { }
+    }
+    return [];
+  });
 
   // Tab navigation
   const [activeTab, setActiveTab] = useState<
     "overview" | "agenda" | "budget" | "promo" | "forms" | "volunteers"
   >("overview");
 
-  // Generator form input state
-  const [inputTitle, setInputTitle] = useState(plan.title);
-  const [inputCategory, setInputCategory] = useState<EventCategory>(plan.category);
-  const [inputDepartment, setInputDepartment] = useState(plan.department);
-  const [inputAudience, setInputAudience] = useState(plan.audience);
-  const [inputDuration, setInputDuration] = useState(plan.duration);
-  const [inputDate, setInputDate] = useState(plan.date);
-  const [inputStartTime, setInputStartTime] = useState(plan.startTime);
-  const [inputVenue, setInputVenue] = useState(plan.venue);
-  const [inputBudget, setInputBudget] = useState(plan.budget);
-  const [inputBrief, setInputBrief] = useState(
-    "Create a flagship technology event for students with keynote addresses, parallel workshops, and an exciting competition with prizes."
-  );
+  // Generator form input state - starts clean without dummy data
+  const [inputTitle, setInputTitle] = useState("");
+  const [inputCategory, setInputCategory] = useState<EventCategory>("Workshop");
+  const [inputDepartment, setInputDepartment] = useState("");
+  const [inputAudience, setInputAudience] = useState<number | "">("");
+  const [inputDuration, setInputDuration] = useState("1 Day");
+  const [inputDate, setInputDate] = useState("");
+  const [inputStartTime, setInputStartTime] = useState("09:00");
+  const [inputVenue, setInputVenue] = useState("");
+  const [inputBudget, setInputBudget] = useState<number | "">("");
+  const [inputBrief, setInputBrief] = useState("");
 
   // Live input change handlers that keep plan preview synchronized
   const handleTitleChange = (val: string) => {
     setInputTitle(val);
-    setPlan((prev) => ({ ...prev, title: val }));
+    if (plan) {
+      setPlan((prev) => (prev ? { ...prev, title: val } : null));
+    }
   };
   const handleCategoryChange = (val: EventCategory) => {
     setInputCategory(val);
-    setPlan((prev) => ({ ...prev, category: val }));
+    if (plan) {
+      setPlan((prev) => (prev ? { ...prev, category: val } : null));
+    }
   };
   const handleDepartmentChange = (val: string) => {
     setInputDepartment(val);
-    setPlan((prev) => ({ ...prev, department: val }));
+    if (plan) {
+      setPlan((prev) => (prev ? { ...prev, department: val } : null));
+    }
   };
-  const handleAudienceChange = (val: number) => {
-    setInputAudience(val);
-    setPlan((prev) => ({ ...prev, audience: val }));
+  const handleAudienceChange = (val: string) => {
+    const num = val === "" ? "" : Number(val);
+    setInputAudience(num);
+    if (plan && typeof num === "number") {
+      setPlan((prev) => (prev ? { ...prev, audience: num } : null));
+    }
   };
   const handleDurationChange = (val: string) => {
     setInputDuration(val);
-    setPlan((prev) => ({ ...prev, duration: val }));
+    if (plan) {
+      setPlan((prev) => (prev ? { ...prev, duration: val } : null));
+    }
   };
   const handleDateChange = (val: string) => {
     setInputDate(val);
-    setPlan((prev) => ({ ...prev, date: val }));
+    if (plan) {
+      setPlan((prev) => (prev ? { ...prev, date: val } : null));
+    }
   };
   const handleStartTimeChange = (val: string) => {
     setInputStartTime(val);
-    setPlan((prev) => ({ ...prev, startTime: val }));
+    if (plan) {
+      setPlan((prev) => (prev ? { ...prev, startTime: val } : null));
+    }
   };
   const handleVenueChange = (val: string) => {
     setInputVenue(val);
-    setPlan((prev) => ({ ...prev, venue: val }));
+    if (plan) {
+      setPlan((prev) => (prev ? { ...prev, venue: val } : null));
+    }
   };
-  const handleBudgetChange = (val: number) => {
-    setInputBudget(val);
-    setPlan((prev) => ({ ...prev, budget: val }));
+  const handleBudgetChange = (val: string) => {
+    const num = val === "" ? "" : Number(val);
+    setInputBudget(num);
+    if (plan && typeof num === "number") {
+      setPlan((prev) => (prev ? { ...prev, budget: num } : null));
+    }
   };
 
   // Filter for Agenda
@@ -555,6 +558,7 @@ export function EventGeneratorModule({ role }: { role: Role }) {
   // Publish to Campus Events mutation with REAL data post and academic calendar sync
   const publishMutation = useMutation({
     mutationFn: async ({ status }: { status: "Published" | "Draft" }) => {
+      if (!plan) throw new Error("No active blueprint to publish");
       const realTitle = (inputTitle || plan.title || "Campus Event").trim().slice(0, 100);
       const realCategory = (inputCategory || plan.category || "Workshop") as EventCategory;
       const realDate = (inputDate || plan.date || new Date().toISOString().slice(0, 10)).trim();
@@ -617,20 +621,23 @@ export function EventGeneratorModule({ role }: { role: Role }) {
       await qc.invalidateQueries({ queryKey: ["records", "events"] });
       await qc.invalidateQueries({ queryKey: ["academic-calendar"] });
 
-      setPlan((p) => ({
-        ...p,
-        title: data.title,
-        category: data.category,
-        date: data.date,
-        startTime: data.startTime,
-        venue: data.venue,
-        department: data.department,
-        audience: data.capacity,
-        budget: data.budget,
-        duration: data.duration,
-        status: data.status,
-        publishedId: data.id || "EVT-OK",
-      }));
+      setPlan((p) => {
+        if (!p) return null;
+        return {
+          ...p,
+          title: data.title,
+          category: data.category,
+          date: data.date,
+          startTime: data.startTime,
+          venue: data.venue,
+          department: data.department,
+          audience: data.capacity,
+          budget: data.budget,
+          duration: data.duration,
+          status: data.status,
+          publishedId: data.id || "EVT-OK",
+        };
+      });
 
       setPublishSuccess(
         `Event "${data.title}" successfully published to Campus Events! (Record ID: ${data.id || "EVT-NEW"})`
@@ -649,18 +656,27 @@ export function EventGeneratorModule({ role }: { role: Role }) {
     setTimeout(() => setGenerationStep(4), 1700);
 
     setTimeout(() => {
+      const title = inputTitle.trim() || `${inputCategory} Event ${new Date().getFullYear()}`;
+      const department = inputDepartment.trim() || "Academic Affairs";
+      const audience = typeof inputAudience === "number" && inputAudience > 0 ? inputAudience : 100;
+      const budget = typeof inputBudget === "number" && inputBudget > 0 ? inputBudget : 50000;
+      const venue = inputVenue.trim() || "Main Campus Auditorium";
+      const duration = inputDuration || "1 Day";
+      const date = inputDate || new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
+      const startTime = inputStartTime || "09:00";
+
       const newGenerated = buildInitialPlan({
-        title: inputTitle,
+        title,
         category: inputCategory,
-        department: inputDepartment,
-        audience: inputAudience,
-        duration: inputDuration,
-        date: inputDate,
-        startTime: inputStartTime,
-        venue: inputVenue,
-        budget: inputBudget,
-        description: inputBrief,
-        tagline: `Premier ${inputCategory.toLowerCase()} curated for ${inputAudience} participants by the ${inputDepartment}.`,
+        department,
+        audience,
+        duration,
+        date,
+        startTime,
+        venue,
+        budget,
+        description: inputBrief.trim() || `Curated ${duration.toLowerCase()} ${inputCategory.toLowerCase()} bringing together ${audience} participants at ${venue}.`,
+        tagline: `Premier ${inputCategory.toLowerCase()} curated for ${audience} participants by ${department}.`,
       });
 
       setPlan(newGenerated);
@@ -687,8 +703,8 @@ export function EventGeneratorModule({ role }: { role: Role }) {
       department: preset.department,
       audience: preset.audience,
       duration: preset.duration,
-      date: inputDate,
-      startTime: inputStartTime,
+      date: inputDate || new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
+      startTime: inputStartTime || "09:00",
       venue: preset.venue,
       budget: preset.budget,
       description: preset.tagline,
@@ -699,9 +715,16 @@ export function EventGeneratorModule({ role }: { role: Role }) {
 
   // Save current plan into archive
   const handleSavePlan = () => {
+    if (!plan) return;
     setSavedPlans((prev) => {
       const filtered = prev.filter((p) => p.id !== plan.id);
-      return [plan, ...filtered];
+      const updated = [plan, ...filtered];
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("colossusiq_saved_event_plans", JSON.stringify(updated));
+        } catch { }
+      }
+      return updated;
     });
     setSaveToast(true);
     setTimeout(() => setSaveToast(false), 2500);
@@ -709,21 +732,24 @@ export function EventGeneratorModule({ role }: { role: Role }) {
 
   // Calculate Budget Metrics
   const totalAllocated = useMemo(() => {
+    if (!plan) return 0;
     return plan.budgetItems.reduce((sum, item) => sum + item.amount, 0);
-  }, [plan.budgetItems]);
+  }, [plan]);
 
-  const budgetVariance = plan.budget - totalAllocated;
-  const costPerStudent = plan.audience > 0 ? Math.round(totalAllocated / plan.audience) : 0;
-  const budgetUtilization = Math.round((totalAllocated / (plan.budget || 1)) * 100);
+  const budgetVariance = plan ? plan.budget - totalAllocated : 0;
+  const costPerStudent = plan && plan.audience > 0 ? Math.round(totalAllocated / plan.audience) : 0;
+  const budgetUtilization = plan ? Math.round((totalAllocated / (plan.budget || 1)) * 100) : 0;
 
   // Filtered Sessions
   const filteredSessions = useMemo(() => {
+    if (!plan) return [];
     if (agendaFilter === "all") return plan.sessions;
     return plan.sessions.filter((s) => s.type === agendaFilter);
-  }, [plan.sessions, agendaFilter]);
+  }, [plan, agendaFilter]);
 
   // Export as Markdown
   const exportMarkdown = () => {
+    if (!plan) return;
     const md = `# ${plan.title}
 *${plan.tagline}*
 
@@ -749,8 +775,8 @@ ${plan.highlights.map((h) => `- ${h}`).join("\n")}
 | Time | Session | Speaker / Host | Venue | Type |
 |---|---|---|---|---|
 ${plan.sessions
-  .map((s) => `| ${s.time} | **${s.title}** | ${s.speaker} | ${s.room} | ${s.type.toUpperCase()} |`)
-  .join("\n")}
+        .map((s) => `| ${s.time} | **${s.title}** | ${s.speaker} | ${s.room} | ${s.type.toUpperCase()} |`)
+        .join("\n")}
 
 ---
 
@@ -758,8 +784,8 @@ ${plan.sessions
 | Category | Line Item | Amount (₹) | Notes |
 |---|---|---|---|
 ${plan.budgetItems
-  .map((b) => `| ${b.category} | ${b.item} | ₹${b.amount.toLocaleString("en-IN")} | ${b.notes} |`)
-  .join("\n")}
+        .map((b) => `| ${b.category} | ${b.item} | ₹${b.amount.toLocaleString("en-IN")} | ${b.notes} |`)
+        .join("\n")}
 
 ---
 
@@ -816,12 +842,16 @@ ${plan.promo.whatsapp}
                     </Badge>
                   </Link>
                 )}
-                {plan.status === "Published" ? (
-                  <Badge tone="teal" className="inline-flex items-center gap-1">
-                    <CheckCircle2 className="size-3" /> Published to Campus
-                  </Badge>
+                {plan ? (
+                  plan.status === "Published" ? (
+                    <Badge tone="teal" className="inline-flex items-center gap-1">
+                      <CheckCircle2 className="size-3" /> Published to Campus
+                    </Badge>
+                  ) : (
+                    <Badge tone="amber">Draft Blueprint</Badge>
+                  )
                 ) : (
-                  <Badge tone="amber">Draft Blueprint</Badge>
+                  <Badge tone="neutral">No Active Blueprint</Badge>
                 )}
               </div>
               <p className="text-xs text-ink-3 truncate mt-0.5">
@@ -835,6 +865,7 @@ ${plan.promo.whatsapp}
           <Button
             variant="secondary"
             size="sm"
+            disabled={!plan}
             onClick={handleSavePlan}
             className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5"
           >
@@ -845,6 +876,7 @@ ${plan.promo.whatsapp}
           <Button
             variant="secondary"
             size="sm"
+            disabled={!plan}
             onClick={exportMarkdown}
             className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5"
           >
@@ -854,7 +886,7 @@ ${plan.promo.whatsapp}
           <Button
             variant="primary"
             size="sm"
-            disabled={publishMutation.isPending}
+            disabled={!plan || publishMutation.isPending}
             onClick={() => publishMutation.mutate({ status: "Published" })}
             className="w-full sm:w-auto flex items-center justify-center gap-1.5"
           >
@@ -980,12 +1012,15 @@ ${plan.promo.whatsapp}
                       max={5000}
                       step={50}
                       value={inputAudience}
-                      onChange={(e) => handleAudienceChange(Number(e.target.value))}
+                      onChange={(e) => handleAudienceChange(e.target.value)}
                       className={inputClass}
+                      placeholder="e.g. 500"
                     />
                     <div className="text-[10px] text-ink-3 flex justify-between">
                       <span>Attendees</span>
-                      <span className="font-medium text-brand">₹{(inputBudget / (inputAudience || 1)).toFixed(0)}/head</span>
+                      {typeof inputAudience === "number" && inputAudience > 0 && typeof inputBudget === "number" && inputBudget > 0 ? (
+                        <span className="font-medium text-brand">₹{(inputBudget / inputAudience).toFixed(0)}/head</span>
+                      ) : null}
                     </div>
                   </div>
                 </Field>
@@ -999,11 +1034,12 @@ ${plan.promo.whatsapp}
                       max={2000000}
                       step={5000}
                       value={inputBudget}
-                      onChange={(e) => handleBudgetChange(Number(e.target.value))}
+                      onChange={(e) => handleBudgetChange(e.target.value)}
                       className={inputClass}
+                      placeholder="e.g. 150000"
                     />
                     <div className="text-[10px] text-ink-3 text-right font-medium">
-                      ₹{inputBudget.toLocaleString("en-IN")}
+                      {typeof inputBudget === "number" && inputBudget > 0 ? `₹${inputBudget.toLocaleString("en-IN")}` : ""}
                     </div>
                   </div>
                 </Field>
@@ -1085,1096 +1121,1228 @@ ${plan.promo.whatsapp}
 
           {/* Saved Blueprints Library */}
           <Card className="p-4">
-            <span className="text-xs font-semibold uppercase tracking-wider text-ink-3 block mb-3">
-              Saved Event Plans ({savedPlans.length})
-            </span>
-            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-              {savedPlans.map((sp) => (
-                <div
-                  key={sp.id}
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-ink-3">
+                Saved Event Plans ({savedPlans.length})
+              </span>
+              {savedPlans.length > 0 && (
+                <button
+                  type="button"
                   onClick={() => {
-                    setPlan(sp);
-                    setInputTitle(sp.title);
-                    setInputCategory(sp.category);
-                    setInputDepartment(sp.department);
-                    setInputAudience(sp.audience);
-                    setInputBudget(sp.budget);
-                    setInputVenue(sp.venue);
+                    setSavedPlans([]);
+                    if (typeof window !== "undefined") {
+                      try {
+                        localStorage.removeItem("colossusiq_saved_event_plans");
+                      } catch { }
+                    }
                   }}
-                  className={cn(
-                    "flex items-center justify-between p-2.5 rounded-xl border text-xs cursor-pointer transition-all",
-                    sp.id === plan.id
-                      ? "border-brand bg-brand-soft/40 font-medium text-brand"
-                      : "border-line bg-surface hover:bg-surface-2 text-ink"
-                  )}
+                  className="text-[10px] text-ink-3 hover:text-rose transition-colors"
+                  title="Clear all saved plans"
                 >
-                  <div className="min-w-0 pr-2">
-                    <p className="truncate font-semibold">{sp.title}</p>
-                    <p className="text-[10px] text-ink-3">
-                      {sp.category} · {sp.audience} students · ₹{(sp.budget / 1000).toFixed(0)}k
-                    </p>
-                  </div>
-                  <ChevronRight className="size-3.5 shrink-0 text-ink-3" />
-                </div>
-              ))}
+                  Clear All
+                </button>
+              )}
             </div>
+            {savedPlans.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-line p-3 text-center text-xs text-ink-3">
+                No saved blueprints yet.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                {savedPlans.map((sp) => (
+                  <div
+                    key={sp.id}
+                    onClick={() => {
+                      setPlan(sp);
+                      setInputTitle(sp.title);
+                      setInputCategory(sp.category);
+                      setInputDepartment(sp.department);
+                      setInputAudience(sp.audience);
+                      setInputBudget(sp.budget);
+                      setInputVenue(sp.venue);
+                    }}
+                    className={cn(
+                      "flex items-center justify-between p-2.5 rounded-xl border text-xs cursor-pointer transition-all",
+                      plan && sp.id === plan.id
+                        ? "border-brand bg-brand-soft/40 font-medium text-brand"
+                        : "border-line bg-surface hover:bg-surface-2 text-ink"
+                    )}
+                  >
+                    <div className="min-w-0 pr-2">
+                      <p className="truncate font-semibold">{sp.title}</p>
+                      <p className="text-[10px] text-ink-3">
+                        {sp.category} · {sp.audience} students · ₹{(sp.budget / 1000).toFixed(0)}k
+                      </p>
+                    </div>
+                    <ChevronRight className="size-3.5 shrink-0 text-ink-3" />
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         </div>
 
         {/* ── Right Column: Dynamic Workspace Tabs ─────────── */}
         <div className="space-y-5 min-w-0 w-full overflow-hidden">
-          {/* Navigation Tabs - Responsive Scrollable Bar */}
-          <div className="w-full border-b border-line pb-2">
-            <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-none no-scrollbar touch-pan-x -mb-px">
-              {[
-                { id: "overview", label: "Executive Blueprint", icon: Layers },
-                { id: "agenda", label: `Agenda & Timeline (${plan.sessions.length})`, icon: Clock },
-                { id: "budget", label: "Budget Planner", icon: DollarSign },
-                { id: "promo", label: "Promotion Kit", icon: Megaphone },
-                { id: "forms", label: "Forms & Survey", icon: FileText },
-                { id: "volunteers", label: "Committees & Tasks", icon: Users },
-              ].map((tab) => {
-                const Icon = tab.icon;
-                const active = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                    className={cn(
-                      "shrink-0 inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap",
-                      active
-                        ? "bg-brand text-white shadow-sm font-semibold"
-                        : "bg-surface text-ink-2 hover:text-ink hover:bg-surface-2 border border-line/60"
-                    )}
-                  >
-                    <Icon className="size-3.5 sm:size-4" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          {!plan ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-line bg-surface p-8 sm:p-12 text-center min-h-[500px]">
+              <div className="flex size-16 items-center justify-center rounded-2xl bg-brand/10 text-brand mb-4">
+                <Sparkles className="size-8" />
+              </div>
+              <h2 className="text-xl font-bold tracking-tight text-ink mb-2">
+                No Event Blueprint Generated Yet
+              </h2>
+              <p className="text-sm text-ink-3 max-w-lg mb-6 leading-relaxed">
+                Configure your event parameters on the left and click &ldquo;Generate AI Event Plan&rdquo; — or pick one of the Quick-Start Presets — to synthesize a complete executive blueprint, timeline agenda, itemised budget, volunteer squads, and marketing kit.
+              </p>
 
-          {/* ═════════ TAB 1: EXECUTIVE BLUEPRINT ═════════ */}
-          {activeTab === "overview" && (
-            <div className="space-y-5 min-w-0 w-full">
-              {/* Event Hero Banner */}
-              <div className="rounded-2xl border border-line bg-gradient-to-r from-surface to-brand-soft/20 p-4 sm:p-6 relative overflow-hidden">
-                <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-                  <div className="space-y-2 max-w-2xl min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge tone="brand">{plan.category}</Badge>
-                      <Badge tone="sky">{plan.duration}</Badge>
-                      <span className="text-xs text-ink-3 flex items-center gap-1">
-                        <MapPin className="size-3.5 shrink-0" /> {plan.venue}
-                      </span>
-                    </div>
-                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-ink break-words">{plan.title}</h2>
-                    <p className="text-xs sm:text-sm font-medium text-ink-2 break-words">{plan.tagline}</p>
-                    <p className="text-xs text-ink-3 leading-relaxed break-words">{plan.description}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xl text-left mb-6">
+                <div className="flex items-start gap-3 p-3 rounded-xl border border-line bg-surface-2/40">
+                  <span className="flex size-7 items-center justify-center rounded-lg bg-brand/10 text-brand shrink-0">
+                    <Layers className="size-4" />
+                  </span>
+                  <div>
+                    <h4 className="text-xs font-semibold text-ink">Executive Blueprint</h4>
+                    <p className="text-[11px] text-ink-3">High-level KPIs, readiness checklist & hall matching</p>
                   </div>
+                </div>
 
-                  <div className="rounded-xl border border-line bg-surface p-3.5 sm:p-4 text-center shrink-0 w-full lg:w-36 space-y-1 shadow-sm">
-                    <span className="text-[11px] font-medium text-ink-3 uppercase">Status</span>
-                    <div>
-                      {plan.status === "Published" ? (
-                        <span className="inline-flex items-center gap-1 text-teal font-semibold text-sm">
-                          <CheckCircle2 className="size-4" /> Published
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-amber font-semibold text-sm">
-                          <AlertCircle className="size-4" /> In Planning
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-ink-3 pt-1">
-                      {plan.publishedId ? `ID: ${plan.publishedId}` : "Ready to push live"}
-                    </p>
+                <div className="flex items-start gap-3 p-3 rounded-xl border border-line bg-sky/10 text-sky shrink-0">
+                  <span className="flex size-7 items-center justify-center rounded-lg bg-sky/10 text-sky shrink-0">
+                    <Clock className="size-4" />
+                  </span>
+                  <div>
+                    <h4 className="text-xs font-semibold text-ink">Agenda & Timeline</h4>
+                    <p className="text-[11px] text-ink-3">Multi-track schedules with speakers, rooms, and sessions</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 rounded-xl border border-line bg-gold/10 text-gold shrink-0">
+                  <span className="flex size-7 items-center justify-center rounded-lg bg-gold/10 text-gold shrink-0">
+                    <DollarSign className="size-4" />
+                  </span>
+                  <div>
+                    <h4 className="text-xs font-semibold text-ink">Budget Planner</h4>
+                    <p className="text-[11px] text-ink-3">Auto-balanced allocations, per-head costs & contingency buffer</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 rounded-xl border border-line bg-rose/10 text-rose shrink-0">
+                  <span className="flex size-7 items-center justify-center rounded-lg bg-rose/10 text-rose shrink-0">
+                    <Megaphone className="size-4" />
+                  </span>
+                  <div>
+                    <h4 className="text-xs font-semibold text-ink">Promo Kit & Volunteers</h4>
+                    <p className="text-[11px] text-ink-3">Ready broadcast copy, registration form schema & squad tasks</p>
                   </div>
                 </div>
               </div>
 
-              {/* KPI Stat Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <Card className="p-3.5 sm:p-4">
-                  <div className="flex items-center justify-between text-ink-3 text-xs">
-                    <span>Footfall Target</span>
-                    <Users className="size-4 text-brand shrink-0" />
-                  </div>
-                  <div className="mt-2 flex items-baseline gap-1.5 sm:gap-2">
-                    <span className="text-xl sm:text-2xl font-bold text-ink">{plan.audience}</span>
-                    <span className="text-xs text-ink-3">students</span>
-                  </div>
-                  <div className="mt-1 text-[11px] text-teal flex items-center gap-1 truncate">
-                    <CheckCircle2 className="size-3 shrink-0" /> Hall capacity matched
-                  </div>
-                </Card>
-
-                <Card className="p-3.5 sm:p-4">
-                  <div className="flex items-center justify-between text-ink-3 text-xs">
-                    <span>Total Financials</span>
-                    <DollarSign className="size-4 text-gold shrink-0" />
-                  </div>
-                  <div className="mt-2 flex items-baseline gap-1.5 sm:gap-2">
-                    <span className="text-xl sm:text-2xl font-bold text-ink">₹{(plan.budget / 1000).toFixed(0)}k</span>
-                    <span className="text-xs text-ink-3">allocated</span>
-                  </div>
-                  <div className="mt-1 text-[11px] text-ink-3 truncate">
-                    ₹{costPerStudent}/head economy
-                  </div>
-                </Card>
-
-                <Card className="p-3.5 sm:p-4">
-                  <div className="flex items-center justify-between text-ink-3 text-xs">
-                    <span>Schedule Content</span>
-                    <Clock className="size-4 text-sky shrink-0" />
-                  </div>
-                  <div className="mt-2 flex items-baseline gap-1.5 sm:gap-2">
-                    <span className="text-xl sm:text-2xl font-bold text-ink">{plan.sessions.length}</span>
-                    <span className="text-xs text-ink-3">tracks/sessions</span>
-                  </div>
-                  <div className="mt-1 text-[11px] text-ink-3 truncate">
-                    {plan.duration} intensive
-                  </div>
-                </Card>
-
-                <Card className="p-3.5 sm:p-4">
-                  <div className="flex items-center justify-between text-ink-3 text-xs">
-                    <span>Coordinators Squad</span>
-                    <UserCheck className="size-4 text-rose shrink-0" />
-                  </div>
-                  <div className="mt-2 flex items-baseline gap-1.5 sm:gap-2">
-                    <span className="text-xl sm:text-2xl font-bold text-ink">
-                      {plan.volunteerSquads.reduce((sum, s) => sum + s.headcount, 0)}
-                    </span>
-                    <span className="text-xs text-ink-3">volunteers</span>
-                  </div>
-                  <div className="mt-1 text-[11px] text-ink-3 truncate">
-                    Across 5 committees
-                  </div>
-                </Card>
+              <Button
+                type="button"
+                className="flex items-center gap-2"
+                disabled={isGenerating}
+                onClick={handleGenerate}
+              >
+                {isGenerating ? <Spinner /> : <Sparkles className="size-4" />}
+                {isGenerating ? "Synthesizing Plan…" : "Generate AI Event Plan"}
+              </Button>
+            </div>
+          ) : (
+            <>
+              {/* Navigation Tabs - Responsive Scrollable Bar */}
+              <div className="w-full border-b border-line pb-2">
+                <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-none no-scrollbar touch-pan-x -mb-px">
+                  {[
+                    { id: "overview", label: "Executive Blueprint", icon: Layers },
+                    { id: "agenda", label: `Agenda & Timeline (${plan.sessions.length})`, icon: Clock },
+                    { id: "budget", label: "Budget Planner", icon: DollarSign },
+                    { id: "promo", label: "Promotion Kit", icon: Megaphone },
+                    { id: "forms", label: "Forms & Survey", icon: FileText },
+                    { id: "volunteers", label: "Committees & Tasks", icon: Users },
+                  ].map((tab) => {
+                    const Icon = tab.icon;
+                    const active = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                        className={cn(
+                          "shrink-0 inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap",
+                          active
+                            ? "bg-brand text-white shadow-sm font-semibold"
+                            : "bg-surface text-ink-2 hover:text-ink hover:bg-surface-2 border border-line/60"
+                        )}
+                      >
+                        <Icon className="size-3.5 sm:size-4" />
+                        <span>{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Highlights & Preparation Roadmap */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
-                <Card>
-                  <CardHeader
-                    title="Key Program Highlights"
-                    subtitle="Generated focus areas for attendees"
-                  />
-                  <CardBody className="space-y-2">
-                    {plan.highlights.map((h, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-3 p-2 rounded-lg bg-surface-2/50 text-xs font-medium text-ink"
-                      >
-                        <span className="flex size-5 items-center justify-center rounded-full bg-brand text-white text-[10px] font-bold">
-                          {i + 1}
-                        </span>
-                        <span>{h}</span>
-                      </div>
-                    ))}
-                  </CardBody>
-                </Card>
-
-                <Card>
-                  <CardHeader
-                    title="Readiness Checklist"
-                    subtitle="Operational countdown to launch"
-                  />
-                  <CardBody className="space-y-2.5">
-                    {plan.milestones.map((m) => (
-                      <div
-                        key={m.id}
-                        onClick={() => {
-                          setPlan((prev) => ({
-                            ...prev,
-                            milestones: prev.milestones.map((item) =>
-                              item.id === m.id ? { ...item, done: !item.done } : item
-                            ),
-                          }));
-                        }}
-                        className="flex items-center justify-between p-2.5 rounded-xl border border-line bg-surface hover:bg-surface-2 cursor-pointer transition-colors text-xs"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <input
-                            type="checkbox"
-                            checked={m.done}
-                            onChange={() => {}}
-                            className="rounded border-line text-brand focus:ring-brand"
-                          />
-                          <span className={cn(m.done && "line-through text-ink-3 font-normal", "font-medium text-ink")}>
-                            {m.title}
+              {/* ═════════ TAB 1: EXECUTIVE BLUEPRINT ═════════ */}
+              {activeTab === "overview" && (
+                <div className="space-y-5 min-w-0 w-full">
+                  {/* Event Hero Banner */}
+                  <div className="rounded-2xl border border-line bg-gradient-to-r from-surface to-brand-soft/20 p-4 sm:p-6 relative overflow-hidden">
+                    <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                      <div className="space-y-2 max-w-2xl min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge tone="brand">{plan.category}</Badge>
+                          <Badge tone="sky">{plan.duration}</Badge>
+                          <span className="text-xs text-ink-3 flex items-center gap-1">
+                            <MapPin className="size-3.5 shrink-0" /> {plan.venue}
                           </span>
                         </div>
-                        <Badge tone={m.done ? "teal" : "neutral"}>{m.phase}</Badge>
+                        <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-ink break-words">{plan.title}</h2>
+                        <p className="text-xs sm:text-sm font-medium text-ink-2 break-words">{plan.tagline}</p>
+                        <p className="text-xs text-ink-3 leading-relaxed break-words">{plan.description}</p>
                       </div>
-                    ))}
-                  </CardBody>
-                </Card>
-              </div>
-            </div>
-          )}
 
-          {/* ═════════ TAB 2: DYNAMIC AGENDA BUILDER ═════════ */}
-          {activeTab === "agenda" && (
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-2/40 p-3 rounded-xl border border-line">
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-                  <span className="text-xs font-semibold text-ink-3 uppercase mr-1">Filter:</span>
-                  {["all", "keynote", "workshop", "break", "competition", "networking", "valedictory"].map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => setAgendaFilter(type)}
-                      className={cn(
-                        "px-2.5 py-1 rounded-lg text-xs font-medium capitalize transition-all",
-                        agendaFilter === type
-                          ? "bg-brand text-white shadow-sm"
-                          : "bg-surface text-ink-2 hover:bg-surface-2 border border-line"
-                      )}
-                    >
-                      {type}
-                    </button>
-                  ))}
+                      <div className="rounded-xl border border-line bg-surface p-3.5 sm:p-4 text-center shrink-0 w-full lg:w-36 space-y-1 shadow-sm">
+                        <span className="text-[11px] font-medium text-ink-3 uppercase">Status</span>
+                        <div>
+                          {plan.status === "Published" ? (
+                            <span className="inline-flex items-center gap-1 text-teal font-semibold text-sm">
+                              <CheckCircle2 className="size-4" /> Published
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-amber font-semibold text-sm">
+                              <AlertCircle className="size-4" /> In Planning
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-ink-3 pt-1">
+                          {plan.publishedId ? `ID: ${plan.publishedId}` : "Ready to push live"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* KPI Stat Cards */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                    <Card className="p-3.5 sm:p-4">
+                      <div className="flex items-center justify-between text-ink-3 text-xs">
+                        <span>Footfall Target</span>
+                        <Users className="size-4 text-brand shrink-0" />
+                      </div>
+                      <div className="mt-2 flex items-baseline gap-1.5 sm:gap-2">
+                        <span className="text-xl sm:text-2xl font-bold text-ink">{plan.audience}</span>
+                        <span className="text-xs text-ink-3">students</span>
+                      </div>
+                      <div className="mt-1 text-[11px] text-teal flex items-center gap-1 truncate">
+                        <CheckCircle2 className="size-3 shrink-0" /> Hall capacity matched
+                      </div>
+                    </Card>
+
+                    <Card className="p-3.5 sm:p-4">
+                      <div className="flex items-center justify-between text-ink-3 text-xs">
+                        <span>Total Financials</span>
+                        <DollarSign className="size-4 text-gold shrink-0" />
+                      </div>
+                      <div className="mt-2 flex items-baseline gap-1.5 sm:gap-2">
+                        <span className="text-xl sm:text-2xl font-bold text-ink">₹{(plan.budget / 1000).toFixed(0)}k</span>
+                        <span className="text-xs text-ink-3">allocated</span>
+                      </div>
+                      <div className="mt-1 text-[11px] text-ink-3 truncate">
+                        ₹{costPerStudent}/head economy
+                      </div>
+                    </Card>
+
+                    <Card className="p-3.5 sm:p-4">
+                      <div className="flex items-center justify-between text-ink-3 text-xs">
+                        <span>Schedule Content</span>
+                        <Clock className="size-4 text-sky shrink-0" />
+                      </div>
+                      <div className="mt-2 flex items-baseline gap-1.5 sm:gap-2">
+                        <span className="text-xl sm:text-2xl font-bold text-ink">{plan.sessions.length}</span>
+                        <span className="text-xs text-ink-3">tracks/sessions</span>
+                      </div>
+                      <div className="mt-1 text-[11px] text-ink-3 truncate">
+                        {plan.duration} intensive
+                      </div>
+                    </Card>
+
+                    <Card className="p-3.5 sm:p-4">
+                      <div className="flex items-center justify-between text-ink-3 text-xs">
+                        <span>Coordinators Squad</span>
+                        <UserCheck className="size-4 text-rose shrink-0" />
+                      </div>
+                      <div className="mt-2 flex items-baseline gap-1.5 sm:gap-2">
+                        <span className="text-xl sm:text-2xl font-bold text-ink">
+                          {plan.volunteerSquads.reduce((sum, s) => sum + s.headcount, 0)}
+                        </span>
+                        <span className="text-xs text-ink-3">volunteers</span>
+                      </div>
+                      <div className="mt-1 text-[11px] text-ink-3 truncate">
+                        Across 5 committees
+                      </div>
+                    </Card>
+                  </div>
+
+                  {/* Highlights & Preparation Roadmap */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+                    <Card>
+                      <CardHeader
+                        title="Key Program Highlights"
+                        subtitle="Generated focus areas for attendees"
+                      />
+                      <CardBody className="space-y-2">
+                        {plan.highlights.map((h, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center gap-3 p-2 rounded-lg bg-surface-2/50 text-xs font-medium text-ink"
+                          >
+                            <span className="flex size-5 items-center justify-center rounded-full bg-brand text-white text-[10px] font-bold">
+                              {i + 1}
+                            </span>
+                            <span>{h}</span>
+                          </div>
+                        ))}
+                      </CardBody>
+                    </Card>
+
+                    <Card>
+                      <CardHeader
+                        title="Readiness Checklist"
+                        subtitle="Operational countdown to launch"
+                      />
+                      <CardBody className="space-y-2.5">
+                        {plan.milestones.map((m) => (
+                          <div
+                            key={m.id}
+                            onClick={() => {
+                              setPlan((prev) => {
+                                if (!prev) return null;
+                                return {
+                                  ...prev,
+                                  milestones: prev.milestones.map((item) =>
+                                    item.id === m.id ? { ...item, done: !item.done } : item
+                                  ),
+                                };
+                              });
+                            }}
+                            className="flex items-center justify-between p-2.5 rounded-xl border border-line bg-surface hover:bg-surface-2 cursor-pointer transition-colors text-xs"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <input
+                                type="checkbox"
+                                checked={m.done}
+                                onChange={() => { }}
+                                className="rounded border-line text-brand focus:ring-brand"
+                              />
+                              <span className={cn(m.done && "line-through text-ink-3 font-normal", "font-medium text-ink")}>
+                                {m.title}
+                              </span>
+                            </div>
+                            <Badge tone={m.done ? "teal" : "neutral"}>{m.phase}</Badge>
+                          </div>
+                        ))}
+                      </CardBody>
+                    </Card>
+                  </div>
                 </div>
-
-                <Button
-                  size="sm"
-                  onClick={() => setIsAddingSession(true)}
-                  className="flex items-center gap-1.5 shrink-0"
-                >
-                  <Plus className="size-3.5" /> Add New Session
-                </Button>
-              </div>
-
-              {/* Add New Session Form */}
-              {isAddingSession && (
-                <Card className="p-4 border-brand/50 bg-brand-soft/20 animate-in fade-in duration-200">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-semibold text-brand">Add New Agenda Session</span>
-                    <button
-                      type="button"
-                      onClick={() => setIsAddingSession(false)}
-                      className="text-xs text-ink-3 hover:text-ink"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                  <div className="grid sm:grid-cols-3 gap-3">
-                    <Field label="Time Range" htmlFor="new-sess-time">
-                      <input
-                        id="new-sess-time"
-                        type="text"
-                        className={inputClass}
-                        placeholder="e.g. 11:00 - 12:30"
-                        value={newSession.time}
-                        onChange={(e) => setNewSession((p) => ({ ...p, time: e.target.value }))}
-                      />
-                    </Field>
-                    <Field label="Session Title" htmlFor="new-sess-title">
-                      <input
-                        id="new-sess-title"
-                        type="text"
-                        className={inputClass}
-                        placeholder="e.g. Panel Discussion"
-                        value={newSession.title}
-                        onChange={(e) => setNewSession((p) => ({ ...p, title: e.target.value }))}
-                      />
-                    </Field>
-                    <Field label="Session Type" htmlFor="new-sess-type">
-                      <select
-                        id="new-sess-type"
-                        className={inputClass}
-                        value={newSession.type}
-                        onChange={(e) => setNewSession((p) => ({ ...p, type: e.target.value as SessionItem["type"] }))}
-                      >
-                        <option value="keynote">Keynote</option>
-                        <option value="workshop">Workshop</option>
-                        <option value="break">Break / Meals</option>
-                        <option value="competition">Competition</option>
-                        <option value="networking">Networking</option>
-                        <option value="valedictory">Valedictory</option>
-                      </select>
-                    </Field>
-                  </div>
-                  <div className="grid sm:grid-cols-2 gap-3 mt-3">
-                    <Field label="Speaker / Facilitator" htmlFor="new-sess-speaker">
-                      <input
-                        id="new-sess-speaker"
-                        type="text"
-                        className={inputClass}
-                        placeholder="e.g. Dr. Ramesh Kumar"
-                        value={newSession.speaker}
-                        onChange={(e) => setNewSession((p) => ({ ...p, speaker: e.target.value }))}
-                      />
-                    </Field>
-                    <Field label="Hall / Room" htmlFor="new-sess-room">
-                      <input
-                        id="new-sess-room"
-                        type="text"
-                        className={inputClass}
-                        placeholder="e.g. Auditorium Hall A"
-                        value={newSession.room}
-                        onChange={(e) => setNewSession((p) => ({ ...p, room: e.target.value }))}
-                      />
-                    </Field>
-                  </div>
-                  <div className="mt-3">
-                    <Field label="Short Description" htmlFor="new-sess-desc">
-                      <input
-                        id="new-sess-desc"
-                        type="text"
-                        className={inputClass}
-                        placeholder="Key topics and deliverables for this session"
-                        value={newSession.description}
-                        onChange={(e) => setNewSession((p) => ({ ...p, description: e.target.value }))}
-                      />
-                    </Field>
-                  </div>
-                  <div className="mt-3 flex justify-end gap-2">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => setIsAddingSession(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        if (!newSession.title) return;
-                        const item: SessionItem = {
-                          id: `sess-${Date.now()}`,
-                          time: newSession.time || "10:00 - 11:00",
-                          title: newSession.title,
-                          speaker: newSession.speaker || "TBA",
-                          room: newSession.room || plan.venue,
-                          type: newSession.type || "workshop",
-                          description: newSession.description || "",
-                        };
-                        setPlan((p) => ({ ...p, sessions: [...p.sessions, item] }));
-                        setIsAddingSession(false);
-                        setNewSession({ time: "11:30 - 12:30", title: "", speaker: "", room: "", type: "workshop", description: "" });
-                      }}
-                    >
-                      Save Session
-                    </Button>
-                  </div>
-                </Card>
               )}
 
-              {/* Sessions List */}
-              <div className="space-y-3">
-                {filteredSessions.map((session, index) => {
-                  const isEditing = editingSession?.id === session.id;
+              {/* ═════════ TAB 2: DYNAMIC AGENDA BUILDER ═════════ */}
+              {activeTab === "agenda" && (
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-2/40 p-3 rounded-xl border border-line">
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+                      <span className="text-xs font-semibold text-ink-3 uppercase mr-1">Filter:</span>
+                      {["all", "keynote", "workshop", "break", "competition", "networking", "valedictory"].map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setAgendaFilter(type)}
+                          className={cn(
+                            "px-2.5 py-1 rounded-lg text-xs font-medium capitalize transition-all",
+                            agendaFilter === type
+                              ? "bg-brand text-white shadow-sm"
+                              : "bg-surface text-ink-2 hover:bg-surface-2 border border-line"
+                          )}
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
 
-                  return (
-                    <Card
-                      key={session.id}
-                      className={cn(
-                        "p-4 transition-all hover:border-brand/40",
-                        isEditing && "border-brand bg-brand-soft/10"
-                      )}
+                    <Button
+                      size="sm"
+                      onClick={() => setIsAddingSession(true)}
+                      className="flex items-center gap-1.5 shrink-0"
                     >
-                      {isEditing ? (
-                        <div className="space-y-3">
-                          <div className="grid sm:grid-cols-3 gap-3">
-                            <Field label="Time" htmlFor="edit-sess-time">
-                              <input
-                                id="edit-sess-time"
-                                className={inputClass}
-                                value={editingSession.time}
-                                onChange={(e) => setEditingSession({ ...editingSession, time: e.target.value })}
-                              />
-                            </Field>
-                            <Field label="Title" htmlFor="edit-sess-title">
-                              <input
-                                id="edit-sess-title"
-                                className={inputClass}
-                                value={editingSession.title}
-                                onChange={(e) => setEditingSession({ ...editingSession, title: e.target.value })}
-                              />
-                            </Field>
-                            <Field label="Type" htmlFor="edit-sess-type">
-                              <select
-                                id="edit-sess-type"
-                                className={inputClass}
-                                value={editingSession.type}
-                                onChange={(e) => setEditingSession({ ...editingSession, type: e.target.value as SessionItem["type"] })}
-                              >
-                                <option value="keynote">Keynote</option>
-                                <option value="workshop">Workshop</option>
-                                <option value="break">Break / Meals</option>
-                                <option value="competition">Competition</option>
-                                <option value="networking">Networking</option>
-                                <option value="valedictory">Valedictory</option>
-                              </select>
-                            </Field>
-                          </div>
-                          <div className="grid sm:grid-cols-2 gap-3">
-                            <Field label="Speaker" htmlFor="edit-sess-speaker">
-                              <input
-                                id="edit-sess-speaker"
-                                className={inputClass}
-                                value={editingSession.speaker}
-                                onChange={(e) => setEditingSession({ ...editingSession, speaker: e.target.value })}
-                              />
-                            </Field>
-                            <Field label="Room" htmlFor="edit-sess-room">
-                              <input
-                                id="edit-sess-room"
-                                className={inputClass}
-                                value={editingSession.room}
-                                onChange={(e) => setEditingSession({ ...editingSession, room: e.target.value })}
-                              />
-                            </Field>
-                          </div>
-                          <Field label="Description" htmlFor="edit-sess-desc">
-                            <input
-                              id="edit-sess-desc"
-                              className={inputClass}
-                              value={editingSession.description}
-                              onChange={(e) => setEditingSession({ ...editingSession, description: e.target.value })}
-                            />
-                          </Field>
-                          <div className="flex justify-end gap-2 pt-2">
-                            <Button size="sm" variant="secondary" onClick={() => setEditingSession(null)}>
-                              Cancel
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setPlan((p) => ({
-                                  ...p,
-                                  sessions: p.sessions.map((s) => (s.id === editingSession.id ? editingSession : s)),
-                                }));
-                                setEditingSession(null);
-                              }}
-                            >
-                              Save Edits
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div className="flex items-start gap-3.5">
-                            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-xs font-bold text-ink">
-                              {index + 1}
-                            </span>
-                            <div className="space-y-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-semibold text-sm text-ink">{session.title}</span>
-                                <Badge
-                                  tone={
-                                    session.type === "keynote"
-                                      ? "brand"
-                                      : session.type === "workshop"
-                                      ? "sky"
-                                      : session.type === "competition"
-                                      ? "gold"
-                                      : session.type === "break"
-                                      ? "teal"
-                                      : "neutral"
-                                  }
-                                >
-                                  {session.type}
-                                </Badge>
+                      <Plus className="size-3.5" /> Add New Session
+                    </Button>
+                  </div>
+
+                  {/* Add New Session Form */}
+                  {isAddingSession && (
+                    <Card className="p-4 border-brand/50 bg-brand-soft/20 animate-in fade-in duration-200">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-semibold text-brand">Add New Agenda Session</span>
+                        <button
+                          type="button"
+                          onClick={() => setIsAddingSession(false)}
+                          className="text-xs text-ink-3 hover:text-ink"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      <div className="grid sm:grid-cols-3 gap-3">
+                        <Field label="Time Range" htmlFor="new-sess-time">
+                          <input
+                            id="new-sess-time"
+                            type="text"
+                            className={inputClass}
+                            placeholder="e.g. 11:00 - 12:30"
+                            value={newSession.time}
+                            onChange={(e) => setNewSession((p) => ({ ...p, time: e.target.value }))}
+                          />
+                        </Field>
+                        <Field label="Session Title" htmlFor="new-sess-title">
+                          <input
+                            id="new-sess-title"
+                            type="text"
+                            className={inputClass}
+                            placeholder="e.g. Panel Discussion"
+                            value={newSession.title}
+                            onChange={(e) => setNewSession((p) => ({ ...p, title: e.target.value }))}
+                          />
+                        </Field>
+                        <Field label="Session Type" htmlFor="new-sess-type">
+                          <select
+                            id="new-sess-type"
+                            className={inputClass}
+                            value={newSession.type}
+                            onChange={(e) => setNewSession((p) => ({ ...p, type: e.target.value as SessionItem["type"] }))}
+                          >
+                            <option value="keynote">Keynote</option>
+                            <option value="workshop">Workshop</option>
+                            <option value="break">Break / Meals</option>
+                            <option value="competition">Competition</option>
+                            <option value="networking">Networking</option>
+                            <option value="valedictory">Valedictory</option>
+                          </select>
+                        </Field>
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-3 mt-3">
+                        <Field label="Speaker / Facilitator" htmlFor="new-sess-speaker">
+                          <input
+                            id="new-sess-speaker"
+                            type="text"
+                            className={inputClass}
+                            placeholder="e.g. Dr. Ramesh Kumar"
+                            value={newSession.speaker}
+                            onChange={(e) => setNewSession((p) => ({ ...p, speaker: e.target.value }))}
+                          />
+                        </Field>
+                        <Field label="Hall / Room" htmlFor="new-sess-room">
+                          <input
+                            id="new-sess-room"
+                            type="text"
+                            className={inputClass}
+                            placeholder="e.g. Auditorium Hall A"
+                            value={newSession.room}
+                            onChange={(e) => setNewSession((p) => ({ ...p, room: e.target.value }))}
+                          />
+                        </Field>
+                      </div>
+                      <div className="mt-3">
+                        <Field label="Short Description" htmlFor="new-sess-desc">
+                          <input
+                            id="new-sess-desc"
+                            type="text"
+                            className={inputClass}
+                            placeholder="Key topics and deliverables for this session"
+                            value={newSession.description}
+                            onChange={(e) => setNewSession((p) => ({ ...p, description: e.target.value }))}
+                          />
+                        </Field>
+                      </div>
+                      <div className="mt-3 flex justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => setIsAddingSession(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            if (!newSession.title) return;
+                            const item: SessionItem = {
+                              id: `sess-${Date.now()}`,
+                              time: newSession.time || "10:00 - 11:00",
+                              title: newSession.title,
+                              speaker: newSession.speaker || "TBA",
+                              room: newSession.room || plan.venue,
+                              type: newSession.type || "workshop",
+                              description: newSession.description || "",
+                            };
+                            setPlan((p) => {
+                              if (!p) return null;
+                              return { ...p, sessions: [...p.sessions, item] };
+                            });
+                            setIsAddingSession(false);
+                            setNewSession({ time: "11:30 - 12:30", title: "", speaker: "", room: "", type: "workshop", description: "" });
+                          }}
+                        >
+                          Save Session
+                        </Button>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Sessions List */}
+                  <div className="space-y-3">
+                    {filteredSessions.map((session, index) => {
+                      const isEditing = editingSession?.id === session.id;
+
+                      return (
+                        <Card
+                          key={session.id}
+                          className={cn(
+                            "p-4 transition-all hover:border-brand/40",
+                            isEditing && "border-brand bg-brand-soft/10"
+                          )}
+                        >
+                          {isEditing ? (
+                            <div className="space-y-3">
+                              <div className="grid sm:grid-cols-3 gap-3">
+                                <Field label="Time" htmlFor="edit-sess-time">
+                                  <input
+                                    id="edit-sess-time"
+                                    className={inputClass}
+                                    value={editingSession.time}
+                                    onChange={(e) => setEditingSession({ ...editingSession, time: e.target.value })}
+                                  />
+                                </Field>
+                                <Field label="Title" htmlFor="edit-sess-title">
+                                  <input
+                                    id="edit-sess-title"
+                                    className={inputClass}
+                                    value={editingSession.title}
+                                    onChange={(e) => setEditingSession({ ...editingSession, title: e.target.value })}
+                                  />
+                                </Field>
+                                <Field label="Type" htmlFor="edit-sess-type">
+                                  <select
+                                    id="edit-sess-type"
+                                    className={inputClass}
+                                    value={editingSession.type}
+                                    onChange={(e) => setEditingSession({ ...editingSession, type: e.target.value as SessionItem["type"] })}
+                                  >
+                                    <option value="keynote">Keynote</option>
+                                    <option value="workshop">Workshop</option>
+                                    <option value="break">Break / Meals</option>
+                                    <option value="competition">Competition</option>
+                                    <option value="networking">Networking</option>
+                                    <option value="valedictory">Valedictory</option>
+                                  </select>
+                                </Field>
                               </div>
-                              <p className="text-xs text-ink-3">{session.description}</p>
-                              <div className="flex flex-wrap items-center gap-4 text-[11px] text-ink-3 pt-1">
-                                <span className="flex items-center gap-1 font-medium text-ink">
-                                  <Clock className="size-3 text-brand" /> {session.time}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <UserCheck className="size-3" /> {session.speaker}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <MapPin className="size-3" /> {session.room}
-                                </span>
+                              <div className="grid sm:grid-cols-2 gap-3">
+                                <Field label="Speaker" htmlFor="edit-sess-speaker">
+                                  <input
+                                    id="edit-sess-speaker"
+                                    className={inputClass}
+                                    value={editingSession.speaker}
+                                    onChange={(e) => setEditingSession({ ...editingSession, speaker: e.target.value })}
+                                  />
+                                </Field>
+                                <Field label="Room" htmlFor="edit-sess-room">
+                                  <input
+                                    id="edit-sess-room"
+                                    className={inputClass}
+                                    value={editingSession.room}
+                                    onChange={(e) => setEditingSession({ ...editingSession, room: e.target.value })}
+                                  />
+                                </Field>
+                              </div>
+                              <Field label="Description" htmlFor="edit-sess-desc">
+                                <input
+                                  id="edit-sess-desc"
+                                  className={inputClass}
+                                  value={editingSession.description}
+                                  onChange={(e) => setEditingSession({ ...editingSession, description: e.target.value })}
+                                />
+                              </Field>
+                              <div className="flex justify-end gap-2 pt-2">
+                                <Button size="sm" variant="secondary" onClick={() => setEditingSession(null)}>
+                                  Cancel
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setPlan((p) => {
+                                      if (!p) return null;
+                                      return {
+                                        ...p,
+                                        sessions: p.sessions.map((s) => (s.id === editingSession.id ? editingSession : s)),
+                                      };
+                                    });
+                                    setEditingSession(null);
+                                  }}
+                                >
+                                  Save Edits
+                                </Button>
                               </div>
                             </div>
-                          </div>
+                          ) : (
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                              <div className="flex items-start gap-3.5">
+                                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-xs font-bold text-ink">
+                                  {index + 1}
+                                </span>
+                                <div className="space-y-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="font-semibold text-sm text-ink">{session.title}</span>
+                                    <Badge
+                                      tone={
+                                        session.type === "keynote"
+                                          ? "brand"
+                                          : session.type === "workshop"
+                                            ? "sky"
+                                            : session.type === "competition"
+                                              ? "gold"
+                                              : session.type === "break"
+                                                ? "teal"
+                                                : "neutral"
+                                      }
+                                    >
+                                      {session.type}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-xs text-ink-3">{session.description}</p>
+                                  <div className="flex flex-wrap items-center gap-4 text-[11px] text-ink-3 pt-1">
+                                    <span className="flex items-center gap-1 font-medium text-ink">
+                                      <Clock className="size-3 text-brand" /> {session.time}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <UserCheck className="size-3" /> {session.speaker}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <MapPin className="size-3" /> {session.room}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
 
-                          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setEditingSession(session)}
-                              className="size-8 p-0"
-                            >
-                              <Edit3 className="size-3.5" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                setPlan((p) => ({
-                                  ...p,
-                                  sessions: p.sessions.filter((s) => s.id !== session.id),
-                                }));
-                              }}
-                              className="size-8 p-0 text-rose hover:text-rose hover:bg-rose-soft"
-                            >
-                              <Trash2 className="size-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* ═════════ TAB 3: BUDGET & FINANCE PLANNER ═════════ */}
-          {activeTab === "budget" && (
-            <div className="space-y-5">
-              {/* Financial Dashboard Header */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                <Card className="p-4">
-                  <span className="text-xs font-medium text-ink-3">Total Allocated</span>
-                  <div className="mt-1 text-2xl font-bold text-ink">
-                    ₹{totalAllocated.toLocaleString("en-IN")}
+                              <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setEditingSession(session)}
+                                  className="size-8 p-0"
+                                >
+                                  <Edit3 className="size-3.5" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setPlan((p) => {
+                                      if (!p) return null;
+                                      return {
+                                        ...p,
+                                        sessions: p.sessions.filter((s) => s.id !== session.id),
+                                      };
+                                    });
+                                  }}
+                                  className="size-8 p-0 text-rose hover:text-rose hover:bg-rose-soft"
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </Card>
+                      );
+                    })}
                   </div>
-                  <div className="mt-1 text-[11px] text-ink-3">
-                    Cap: ₹{plan.budget.toLocaleString("en-IN")} ({budgetUtilization}%)
-                  </div>
-                </Card>
-
-                <Card className="p-4">
-                  <span className="text-xs font-medium text-ink-3">Budget Balance</span>
-                  <div className={cn("mt-1 text-2xl font-bold", budgetVariance >= 0 ? "text-teal" : "text-rose")}>
-                    {budgetVariance >= 0 ? `+₹${budgetVariance.toLocaleString("en-IN")}` : `-₹${Math.abs(budgetVariance).toLocaleString("en-IN")}`}
-                  </div>
-                  <div className="mt-1 text-[11px] text-ink-3">
-                    {budgetVariance >= 0 ? "Under budget reserve" : "Over-budget! Trim items"}
-                  </div>
-                </Card>
-
-                <Card className="p-4">
-                  <span className="text-xs font-medium text-ink-3">Cost Efficiency</span>
-                  <div className="mt-1 text-2xl font-bold text-ink">
-                    ₹{costPerStudent}
-                  </div>
-                  <div className="mt-1 text-[11px] text-teal flex items-center gap-1">
-                    <CheckCircle2 className="size-3" /> per attendee for {plan.audience} students
-                  </div>
-                </Card>
-              </div>
-
-              {/* Add Expense Line Item */}
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-semibold text-ink">Itemised Cost Ledger</h3>
-                <Button size="sm" onClick={() => setIsAddingBudget(!isAddingBudget)}>
-                  <Plus className="size-3.5 mr-1" /> Add Expense Item
-                </Button>
-              </div>
-
-              {isAddingBudget && (
-                <Card className="p-4 border-brand/50 bg-brand-soft/20 animate-in fade-in">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <Field label="Category" htmlFor="new-bud-cat">
-                      <select
-                        id="new-bud-cat"
-                        className={inputClass}
-                        value={newBudget.category}
-                        onChange={(e) => setNewBudget({ ...newBudget, category: e.target.value as BudgetItem["category"] })}
-                      >
-                        <option value="Venue & AV">Venue & AV</option>
-                        <option value="Speakers & Honorarium">Speakers & Honorarium</option>
-                        <option value="Food & Catering">Food & Catering</option>
-                        <option value="Prizes & Awards">Prizes & Awards</option>
-                        <option value="Printing & Merch">Printing & Merch</option>
-                        <option value="Logistics & Contingency">Logistics & Contingency</option>
-                      </select>
-                    </Field>
-                    <Field label="Expense Item Name" htmlFor="new-bud-item">
-                      <input
-                        id="new-bud-item"
-                        className={inputClass}
-                        placeholder="e.g. Mementos & Medals"
-                        value={newBudget.item}
-                        onChange={(e) => setNewBudget({ ...newBudget, item: e.target.value })}
-                      />
-                    </Field>
-                    <Field label="Cost (₹)" htmlFor="new-bud-amount">
-                      <input
-                        id="new-bud-amount"
-                        type="number"
-                        className={inputClass}
-                        value={newBudget.amount}
-                        onChange={(e) => setNewBudget({ ...newBudget, amount: Number(e.target.value) })}
-                      />
-                    </Field>
-                    <Field label="Notes" htmlFor="new-bud-notes">
-                      <input
-                        id="new-bud-notes"
-                        className={inputClass}
-                        placeholder="Vendor or terms"
-                        value={newBudget.notes}
-                        onChange={(e) => setNewBudget({ ...newBudget, notes: e.target.value })}
-                      />
-                    </Field>
-                  </div>
-                  <div className="mt-3 flex justify-end gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => setIsAddingBudget(false)}>
-                      Cancel
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        if (!newBudget.item || !newBudget.amount) return;
-                        const item: BudgetItem = {
-                          id: `b-${Date.now()}`,
-                          category: newBudget.category || "Food & Catering",
-                          item: newBudget.item,
-                          amount: Number(newBudget.amount),
-                          notes: newBudget.notes || "",
-                        };
-                        setPlan((p) => ({ ...p, budgetItems: [...p.budgetItems, item] }));
-                        setIsAddingBudget(false);
-                        setNewBudget({ category: "Food & Catering", item: "", amount: 10000, notes: "" });
-                      }}
-                    >
-                      Save Item
-                    </Button>
-                  </div>
-                </Card>
+                </div>
               )}
 
-              {/* Budget Table */}
-              <Card className="overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-surface-2 text-ink-3 uppercase text-[10px] tracking-wider border-b border-line">
-                      <tr>
-                        <th className="px-4 py-3">Category</th>
-                        <th className="px-4 py-3">Line Item Description</th>
-                        <th className="px-4 py-3">Notes & Quantities</th>
-                        <th className="px-4 py-3 text-right">Amount (₹)</th>
-                        <th className="px-4 py-3 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-line">
-                      {plan.budgetItems.map((b) => (
-                        <tr key={b.id} className="hover:bg-surface-2/40 transition-colors">
-                          <td className="px-4 py-3">
-                            <Badge
-                              tone={
-                                b.category === "Venue & AV"
-                                  ? "brand"
-                                  : b.category === "Food & Catering"
-                                  ? "teal"
-                                  : b.category === "Prizes & Awards"
-                                  ? "gold"
-                                  : b.category === "Speakers & Honorarium"
-                                  ? "sky"
-                                  : "neutral"
-                              }
-                            >
-                              {b.category}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3 font-semibold text-ink">{b.item}</td>
-                          <td className="px-4 py-3 text-ink-3">{b.notes}</td>
-                          <td className="px-4 py-3 text-right font-bold text-ink">
-                            ₹{b.amount.toLocaleString("en-IN")}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setPlan((p) => ({
-                                  ...p,
-                                  budgetItems: p.budgetItems.filter((item) => item.id !== b.id),
-                                }));
-                              }}
-                              className="text-ink-3 hover:text-rose p-1 transition-colors"
-                            >
-                              <Trash2 className="size-3.5" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-surface-2/80 font-bold border-t border-line">
-                      <tr>
-                        <td className="px-4 py-3 text-ink" colSpan={3}>
-                          Grand Total
-                        </td>
-                        <td className="px-4 py-3 text-right text-brand text-sm">
-                          ₹{totalAllocated.toLocaleString("en-IN")}
-                        </td>
-                        <td className="px-4 py-3"></td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </Card>
-            </div>
-          )}
-
-          {/* ═════════ TAB 4: PROMOTION SUITE ═════════ */}
-          {activeTab === "promo" && (
-            <div className="space-y-5">
-              {/* Email Broadcast */}
-              <Card>
-                <CardHeader
-                  title="Official Invitation Email (Students & Faculty)"
-                  subtitle="Ready-to-broadcast mail template"
-                  action={
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => copyText(`${plan.promo.emailSubject}\n\n${plan.promo.emailBody}`, "email")}
-                      className="flex items-center gap-1.5"
-                    >
-                      {copiedKey === "email" ? <Check className="size-3.5 text-teal" /> : <Copy className="size-3.5" />}
-                      {copiedKey === "email" ? "Copied!" : "Copy Email"}
-                    </Button>
-                  }
-                />
-                <CardBody className="space-y-3">
-                  <div>
-                    <label className="text-xs font-semibold text-ink-3 block mb-1">Subject Line:</label>
-                    <input
-                      type="text"
-                      className={inputClass}
-                      value={plan.promo.emailSubject}
-                      onChange={(e) =>
-                        setPlan((p) => ({
-                          ...p,
-                          promo: { ...p.promo, emailSubject: e.target.value },
-                        }))
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-ink-3 block mb-1">Email Body:</label>
-                    <textarea
-                      rows={8}
-                      className={cn(inputClass, "font-mono text-xs leading-relaxed")}
-                      value={plan.promo.emailBody}
-                      onChange={(e) =>
-                        setPlan((p) => ({
-                          ...p,
-                          promo: { ...p.promo, emailBody: e.target.value },
-                        }))
-                      }
-                    />
-                  </div>
-                </CardBody>
-              </Card>
-
-              {/* Social Channels */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
-                {/* Instagram Script */}
-                <Card>
-                  <CardHeader
-                    title="Instagram Carousel Script"
-                    subtitle="Visual copy with hashtags"
-                    action={
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => copyText(plan.promo.instagram, "insta")}
-                        className="flex items-center gap-1.5"
-                      >
-                        {copiedKey === "insta" ? <Check className="size-3.5 text-teal" /> : <Copy className="size-3.5" />}
-                        {copiedKey === "insta" ? "Copied" : "Copy"}
-                      </Button>
-                    }
-                  />
-                  <CardBody>
-                    <textarea
-                      rows={7}
-                      className={cn(inputClass, "text-xs font-sans")}
-                      value={plan.promo.instagram}
-                      onChange={(e) =>
-                        setPlan((p) => ({
-                          ...p,
-                          promo: { ...p.promo, instagram: e.target.value },
-                        }))
-                      }
-                    />
-                  </CardBody>
-                </Card>
-
-                {/* LinkedIn Press Release */}
-                <Card>
-                  <CardHeader
-                    title="LinkedIn Corporate Post"
-                    subtitle="Industry and sponsor facing announcement"
-                    action={
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => copyText(plan.promo.linkedin, "linkedin")}
-                        className="flex items-center gap-1.5"
-                      >
-                        {copiedKey === "linkedin" ? <Check className="size-3.5 text-teal" /> : <Copy className="size-3.5" />}
-                        {copiedKey === "linkedin" ? "Copied" : "Copy"}
-                      </Button>
-                    }
-                  />
-                  <CardBody>
-                    <textarea
-                      rows={7}
-                      className={cn(inputClass, "text-xs font-sans")}
-                      value={plan.promo.linkedin}
-                      onChange={(e) =>
-                        setPlan((p) => ({
-                          ...p,
-                          promo: { ...p.promo, linkedin: e.target.value },
-                        }))
-                      }
-                    />
-                  </CardBody>
-                </Card>
-              </div>
-
-              {/* WhatsApp Broadcast */}
-              <Card>
-                <CardHeader
-                  title="WhatsApp & Discord Class Broadcast"
-                  subtitle="Snappy bulleted message for instant messaging channels"
-                  action={
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => copyText(plan.promo.whatsapp, "wa")}
-                      className="flex items-center gap-1.5"
-                    >
-                      {copiedKey === "wa" ? <Check className="size-3.5 text-teal" /> : <Copy className="size-3.5" />}
-                      {copiedKey === "wa" ? "Copied!" : "Copy WhatsApp"}
-                    </Button>
-                  }
-                />
-                <CardBody>
-                  <textarea
-                    rows={5}
-                    className={cn(inputClass, "font-sans text-xs")}
-                    value={plan.promo.whatsapp}
-                    onChange={(e) =>
-                      setPlan((p) => ({
-                        ...p,
-                        promo: { ...p.promo, whatsapp: e.target.value },
-                      }))
-                    }
-                  />
-                </CardBody>
-              </Card>
-            </div>
-          )}
-
-          {/* ═════════ TAB 5: REGISTRATION & FEEDBACK FORMS ═════════ */}
-          {activeTab === "forms" && (
-            <div className="space-y-5">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
-                {/* Form Fields Toggler */}
-                <Card>
-                  <CardHeader
-                    title="Registration Form Fields"
-                    subtitle="Toggle required student registration inputs"
-                  />
-                  <CardBody className="space-y-3">
-                    {(
-                      [
-                        { key: "rollNo", label: "Roll Number / University Reg No" },
-                        { key: "department", label: "Academic Department & Branch" },
-                        { key: "semester", label: "Current Semester / Year" },
-                        { key: "phone", label: "WhatsApp Contact Number" },
-                        { key: "mealPreference", label: "Meal Preference (Veg / Non-Veg)" },
-                        { key: "githubUrl", label: "GitHub / Portfolio Profile" },
-                        { key: "teamName", label: "Team Name (Hackathons & Quizzes)" },
-                        { key: "tshirtSize", label: "T-Shirt / Kit Size (S, M, L, XL)" },
-                        { key: "laptopRequired", label: "Brings Laptop with Chargers" },
-                      ] as const
-                    ).map((field) => (
-                      <label
-                        key={field.key}
-                        className="flex items-center justify-between p-2.5 rounded-xl border border-line bg-surface hover:bg-surface-2 cursor-pointer transition-colors text-xs font-medium"
-                      >
-                        <span className="text-ink">{field.label}</span>
-                        <input
-                          type="checkbox"
-                          checked={plan.formFields[field.key]}
-                          onChange={(e) => {
-                            setPlan((p) => ({
-                              ...p,
-                              formFields: {
-                                ...p.formFields,
-                                [field.key]: e.target.checked,
-                              },
-                            }));
-                          }}
-                          className="rounded border-line text-brand focus:ring-brand size-4"
-                        />
-                      </label>
-                    ))}
-                  </CardBody>
-                </Card>
-
-                {/* Live Form Preview */}
-                <Card className="border-brand/40 bg-surface">
-                  <CardHeader
-                    title="Student Registration Preview"
-                    subtitle="Interactive live preview of student form"
-                  />
-                  <CardBody className="space-y-3 pt-2">
-                    <Field label="Full Name *" htmlFor="prev-name">
-                      <input id="prev-name" type="text" className={inputClass} placeholder="e.g. Ananya Sen" />
-                    </Field>
-                    <Field label="College Email Address *" htmlFor="prev-email">
-                      <input id="prev-email" type="email" className={inputClass} placeholder="ananya.sen@campus.edu" />
-                    </Field>
-
-                    {plan.formFields.rollNo && (
-                      <Field label="Roll Number *" htmlFor="prev-roll">
-                        <input id="prev-roll" type="text" className={inputClass} placeholder="23CS042" />
-                      </Field>
-                    )}
-
-                    {plan.formFields.department && (
-                      <Field label="Department" htmlFor="prev-dept">
-                        <input id="prev-dept" type="text" className={inputClass} defaultValue={plan.department} />
-                      </Field>
-                    )}
-
-                    {plan.formFields.mealPreference && (
-                      <Field label="Dietary Preference" htmlFor="prev-diet">
-                        <select id="prev-diet" className={inputClass}>
-                          <option>Vegetarian</option>
-                          <option>Non-Vegetarian</option>
-                          <option>Vegan</option>
-                        </select>
-                      </Field>
-                    )}
-
-                    {plan.formFields.tshirtSize && (
-                      <Field label="T-Shirt Size" htmlFor="prev-tshirt">
-                        <select id="prev-tshirt" className={inputClass}>
-                          <option>Medium (M)</option>
-                          <option>Large (L)</option>
-                          <option>Small (S)</option>
-                          <option>Extra Large (XL)</option>
-                        </select>
-                      </Field>
-                    )}
-
-                    {plan.formFields.githubUrl && (
-                      <Field label="GitHub / Project Portfolio" htmlFor="prev-github">
-                        <input id="prev-github" type="url" className={inputClass} placeholder="https://github.com/username" />
-                      </Field>
-                    )}
-
-                    <Button className="w-full mt-4" size="md">
-                      Submit Event Registration
-                    </Button>
-                  </CardBody>
-                </Card>
-              </div>
-
-              {/* Feedback Survey Form Preview */}
-              <Card>
-                <CardHeader
-                  title="Post-Event Survey Schema"
-                  subtitle="Auto-triggered upon attendance verification"
-                />
-                <CardBody className="space-y-4">
-                  <div className="grid sm:grid-cols-3 gap-3">
-                    {[
-                      "1. Overall Event Experience (1-5★)",
-                      "2. Speaker Clarity & Subject Mastery (1-5★)",
-                      "3. Venue, AV & Catering Satisfaction (1-5★)",
-                    ].map((q) => (
-                      <div key={q} className="rounded-xl border border-line bg-surface-2/40 p-3 text-xs">
-                        <p className="font-semibold text-ink mb-2">{q}</p>
-                        <div className="flex gap-1.5 text-gold">★★★★★</div>
+              {/* ═════════ TAB 3: BUDGET & FINANCE PLANNER ═════════ */}
+              {activeTab === "budget" && (
+                <div className="space-y-5">
+                  {/* Financial Dashboard Header */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                    <Card className="p-4">
+                      <span className="text-xs font-medium text-ink-3">Total Allocated</span>
+                      <div className="mt-1 text-2xl font-bold text-ink">
+                        ₹{totalAllocated.toLocaleString("en-IN")}
                       </div>
-                    ))}
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-ink-3 block mb-1">Open Feedback Prompt:</label>
-                    <input
-                      type="text"
-                      className={inputClass}
-                      defaultValue="What was the most impactful takeaway, and what should we improve in the next edition?"
-                    />
-                  </div>
-                </CardBody>
-              </Card>
-            </div>
-          )}
-
-          {/* ═════════ TAB 6: VOLUNTEERS & COMMITTEES ═════════ */}
-          {activeTab === "volunteers" && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-ink">Volunteer & Coordination Squads</h3>
-                  <p className="text-xs text-ink-3">
-                    Assign student coordinators, manage headcount, and track preparation checklists.
-                  </p>
-                </div>
-                <Badge tone="brand">
-                  Total Staff: {plan.volunteerSquads.reduce((s, sq) => s + sq.headcount, 0)} Coordinators
-                </Badge>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {plan.volunteerSquads.map((squad) => (
-                  <Card key={squad.id} className="p-4 space-y-3">
-                    <div className="flex items-start justify-between border-b border-line pb-2.5">
-                      <div>
-                        <h4 className="font-bold text-sm text-ink">{squad.team}</h4>
-                        <p className="text-xs text-brand font-medium">Lead: {squad.lead}</p>
+                      <div className="mt-1 text-[11px] text-ink-3">
+                        Cap: ₹{plan.budget.toLocaleString("en-IN")} ({budgetUtilization}%)
                       </div>
-                      <div className="flex items-center gap-1.5 text-xs text-ink-3">
-                        <Users className="size-3.5 text-ink-2" />
-                        <span className="font-bold text-ink">{squad.headcount}</span> members
-                      </div>
-                    </div>
+                    </Card>
 
-                    <div className="space-y-1.5">
-                      {squad.tasks.map((task) => (
-                        <label
-                          key={task.id}
-                          className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-surface-2 cursor-pointer text-xs transition-colors"
-                        >
+                    <Card className="p-4">
+                      <span className="text-xs font-medium text-ink-3">Budget Balance</span>
+                      <div className={cn("mt-1 text-2xl font-bold", budgetVariance >= 0 ? "text-teal" : "text-rose")}>
+                        {budgetVariance >= 0 ? `+₹${budgetVariance.toLocaleString("en-IN")}` : `-₹${Math.abs(budgetVariance).toLocaleString("en-IN")}`}
+                      </div>
+                      <div className="mt-1 text-[11px] text-ink-3">
+                        {budgetVariance >= 0 ? "Under budget reserve" : "Over-budget! Trim items"}
+                      </div>
+                    </Card>
+
+                    <Card className="p-4">
+                      <span className="text-xs font-medium text-ink-3">Cost Efficiency</span>
+                      <div className="mt-1 text-2xl font-bold text-ink">
+                        ₹{costPerStudent}
+                      </div>
+                      <div className="mt-1 text-[11px] text-teal flex items-center gap-1">
+                        <CheckCircle2 className="size-3" /> per attendee for {plan.audience} students
+                      </div>
+                    </Card>
+                  </div>
+
+                  {/* Add Expense Line Item */}
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-sm font-semibold text-ink">Itemised Cost Ledger</h3>
+                    <Button size="sm" onClick={() => setIsAddingBudget(!isAddingBudget)}>
+                      <Plus className="size-3.5 mr-1" /> Add Expense Item
+                    </Button>
+                  </div>
+
+                  {isAddingBudget && (
+                    <Card className="p-4 border-brand/50 bg-brand-soft/20 animate-in fade-in">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <Field label="Category" htmlFor="new-bud-cat">
+                          <select
+                            id="new-bud-cat"
+                            className={inputClass}
+                            value={newBudget.category}
+                            onChange={(e) => setNewBudget({ ...newBudget, category: e.target.value as BudgetItem["category"] })}
+                          >
+                            <option value="Venue & AV">Venue & AV</option>
+                            <option value="Speakers & Honorarium">Speakers & Honorarium</option>
+                            <option value="Food & Catering">Food & Catering</option>
+                            <option value="Prizes & Awards">Prizes & Awards</option>
+                            <option value="Printing & Merch">Printing & Merch</option>
+                            <option value="Logistics & Contingency">Logistics & Contingency</option>
+                          </select>
+                        </Field>
+                        <Field label="Expense Item Name" htmlFor="new-bud-item">
                           <input
-                            type="checkbox"
-                            checked={task.done}
-                            onChange={() => {
-                              setPlan((prev) => ({
-                                ...prev,
-                                volunteerSquads: prev.volunteerSquads.map((sq) =>
-                                  sq.id === squad.id
-                                    ? {
-                                        ...sq,
-                                        tasks: sq.tasks.map((t) =>
-                                          t.id === task.id ? { ...t, done: !t.done } : t
-                                        ),
-                                      }
-                                    : sq
-                                ),
-                              }));
-                            }}
-                            className="rounded border-line text-brand focus:ring-brand size-3.5"
+                            id="new-bud-item"
+                            className={inputClass}
+                            placeholder="e.g. Mementos & Medals"
+                            value={newBudget.item}
+                            onChange={(e) => setNewBudget({ ...newBudget, item: e.target.value })}
                           />
-                          <span className={cn(task.done && "line-through text-ink-3", "text-ink")}>
-                            {task.text}
-                          </span>
-                        </label>
-                      ))}
+                        </Field>
+                        <Field label="Cost (₹)" htmlFor="new-bud-amount">
+                          <input
+                            id="new-bud-amount"
+                            type="number"
+                            className={inputClass}
+                            value={newBudget.amount}
+                            onChange={(e) => setNewBudget({ ...newBudget, amount: Number(e.target.value) })}
+                          />
+                        </Field>
+                        <Field label="Notes" htmlFor="new-bud-notes">
+                          <input
+                            id="new-bud-notes"
+                            className={inputClass}
+                            placeholder="Vendor or terms"
+                            value={newBudget.notes}
+                            onChange={(e) => setNewBudget({ ...newBudget, notes: e.target.value })}
+                          />
+                        </Field>
+                      </div>
+                      <div className="mt-3 flex justify-end gap-2">
+                        <Button size="sm" variant="secondary" onClick={() => setIsAddingBudget(false)}>
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            if (!newBudget.item || !newBudget.amount) return;
+                            const item: BudgetItem = {
+                              id: `b-${Date.now()}`,
+                              category: newBudget.category || "Food & Catering",
+                              item: newBudget.item,
+                              amount: Number(newBudget.amount),
+                              notes: newBudget.notes || "",
+                            };
+                            setPlan((p) => {
+                              if (!p) return null;
+                              return { ...p, budgetItems: [...p.budgetItems, item] };
+                            });
+                            setIsAddingBudget(false);
+                            setNewBudget({ category: "Food & Catering", item: "", amount: 10000, notes: "" });
+                          }}
+                        >
+                          Save Item
+                        </Button>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Budget Table */}
+                  <Card className="overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-surface-2 text-ink-3 uppercase text-[10px] tracking-wider border-b border-line">
+                          <tr>
+                            <th className="px-4 py-3">Category</th>
+                            <th className="px-4 py-3">Line Item Description</th>
+                            <th className="px-4 py-3">Notes & Quantities</th>
+                            <th className="px-4 py-3 text-right">Amount (₹)</th>
+                            <th className="px-4 py-3 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-line">
+                          {plan.budgetItems.map((b) => (
+                            <tr key={b.id} className="hover:bg-surface-2/40 transition-colors">
+                              <td className="px-4 py-3">
+                                <Badge
+                                  tone={
+                                    b.category === "Venue & AV"
+                                      ? "brand"
+                                      : b.category === "Food & Catering"
+                                        ? "teal"
+                                        : b.category === "Prizes & Awards"
+                                          ? "gold"
+                                          : b.category === "Speakers & Honorarium"
+                                            ? "sky"
+                                            : "neutral"
+                                  }
+                                >
+                                  {b.category}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3 font-semibold text-ink">{b.item}</td>
+                              <td className="px-4 py-3 text-ink-3">{b.notes}</td>
+                              <td className="px-4 py-3 text-right font-bold text-ink">
+                                ₹{b.amount.toLocaleString("en-IN")}
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPlan((p) => {
+                                      if (!p) return null;
+                                      return {
+                                        ...p,
+                                        budgetItems: p.budgetItems.filter((item) => item.id !== b.id),
+                                      };
+                                    });
+                                  }}
+                                  className="text-ink-3 hover:text-rose p-1 transition-colors"
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-surface-2/80 font-bold border-t border-line">
+                          <tr>
+                            <td className="px-4 py-3 text-ink" colSpan={3}>
+                              Grand Total
+                            </td>
+                            <td className="px-4 py-3 text-right text-brand text-sm">
+                              ₹{totalAllocated.toLocaleString("en-IN")}
+                            </td>
+                            <td className="px-4 py-3"></td>
+                          </tr>
+                        </tfoot>
+                      </table>
                     </div>
                   </Card>
-                ))}
-              </div>
-            </div>
+                </div>
+              )}
+
+              {/* ═════════ TAB 4: PROMOTION SUITE ═════════ */}
+              {activeTab === "promo" && (
+                <div className="space-y-5">
+                  {/* Email Broadcast */}
+                  <Card>
+                    <CardHeader
+                      title="Official Invitation Email (Students & Faculty)"
+                      subtitle="Ready-to-broadcast mail template"
+                      action={
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => copyText(`${plan.promo.emailSubject}\n\n${plan.promo.emailBody}`, "email")}
+                          className="flex items-center gap-1.5"
+                        >
+                          {copiedKey === "email" ? <Check className="size-3.5 text-teal" /> : <Copy className="size-3.5" />}
+                          {copiedKey === "email" ? "Copied!" : "Copy Email"}
+                        </Button>
+                      }
+                    />
+                    <CardBody className="space-y-3">
+                      <div>
+                        <label className="text-xs font-semibold text-ink-3 block mb-1">Subject Line:</label>
+                        <input
+                          type="text"
+                          className={inputClass}
+                          value={plan.promo.emailSubject}
+                          onChange={(e) =>
+                            setPlan((p) => {
+                              if (!p) return null;
+                              return {
+                                ...p,
+                                promo: { ...p.promo, emailSubject: e.target.value },
+                              };
+                            })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-ink-3 block mb-1">Email Body:</label>
+                        <textarea
+                          rows={8}
+                          className={cn(inputClass, "font-mono text-xs leading-relaxed")}
+                          value={plan.promo.emailBody}
+                          onChange={(e) =>
+                            setPlan((p) => {
+                              if (!p) return null;
+                              return {
+                                ...p,
+                                promo: { ...p.promo, emailBody: e.target.value },
+                              };
+                            })
+                          }
+                        />
+                      </div>
+                    </CardBody>
+                  </Card>
+
+                  {/* Social Channels */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                    {/* Instagram Script */}
+                    <Card>
+                      <CardHeader
+                        title="Instagram Carousel Script"
+                        subtitle="Visual copy with hashtags"
+                        action={
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => copyText(plan.promo.instagram, "insta")}
+                            className="flex items-center gap-1.5"
+                          >
+                            {copiedKey === "insta" ? <Check className="size-3.5 text-teal" /> : <Copy className="size-3.5" />}
+                            {copiedKey === "insta" ? "Copied" : "Copy"}
+                          </Button>
+                        }
+                      />
+                      <CardBody>
+                        <textarea
+                          rows={7}
+                          className={cn(inputClass, "text-xs font-sans")}
+                          value={plan.promo.instagram}
+                          onChange={(e) =>
+                            setPlan((p) => {
+                              if (!p) return null;
+                              return {
+                                ...p,
+                                promo: { ...p.promo, instagram: e.target.value },
+                              };
+                            })
+                          }
+                        />
+                      </CardBody>
+                    </Card>
+
+                    {/* LinkedIn Press Release */}
+                    <Card>
+                      <CardHeader
+                        title="LinkedIn Corporate Post"
+                        subtitle="Industry and sponsor facing announcement"
+                        action={
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => copyText(plan.promo.linkedin, "linkedin")}
+                            className="flex items-center gap-1.5"
+                          >
+                            {copiedKey === "linkedin" ? <Check className="size-3.5 text-teal" /> : <Copy className="size-3.5" />}
+                            {copiedKey === "linkedin" ? "Copied" : "Copy"}
+                          </Button>
+                        }
+                      />
+                      <CardBody>
+                        <textarea
+                          rows={7}
+                          className={cn(inputClass, "text-xs font-sans")}
+                          value={plan.promo.linkedin}
+                          onChange={(e) =>
+                            setPlan((p) => {
+                              if (!p) return null;
+                              return {
+                                ...p,
+                                promo: { ...p.promo, linkedin: e.target.value },
+                              };
+                            })
+                          }
+                        />
+                      </CardBody>
+                    </Card>
+                  </div>
+
+                  {/* WhatsApp Broadcast */}
+                  <Card>
+                    <CardHeader
+                      title="WhatsApp & Discord Class Broadcast"
+                      subtitle="Snappy bulleted message for instant messaging channels"
+                      action={
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => copyText(plan.promo.whatsapp, "wa")}
+                          className="flex items-center gap-1.5"
+                        >
+                          {copiedKey === "wa" ? <Check className="size-3.5 text-teal" /> : <Copy className="size-3.5" />}
+                          {copiedKey === "wa" ? "Copied!" : "Copy WhatsApp"}
+                        </Button>
+                      }
+                    />
+                    <CardBody>
+                      <textarea
+                        rows={5}
+                        className={cn(inputClass, "font-sans text-xs")}
+                        value={plan.promo.whatsapp}
+                        onChange={(e) =>
+                          setPlan((p) => {
+                            if (!p) return null;
+                            return {
+                              ...p,
+                              promo: { ...p.promo, whatsapp: e.target.value },
+                            };
+                          })
+                        }
+                      />
+                    </CardBody>
+                  </Card>
+                </div>
+              )}
+
+              {/* ═════════ TAB 5: REGISTRATION & FEEDBACK FORMS ═════════ */}
+              {activeTab === "forms" && (
+                <div className="space-y-5">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+                    {/* Form Fields Toggler */}
+                    <Card>
+                      <CardHeader
+                        title="Registration Form Fields"
+                        subtitle="Toggle required student registration inputs"
+                      />
+                      <CardBody className="space-y-3">
+                        {(
+                          [
+                            { key: "rollNo", label: "Roll Number / University Reg No" },
+                            { key: "department", label: "Academic Department & Branch" },
+                            { key: "semester", label: "Current Semester / Year" },
+                            { key: "phone", label: "WhatsApp Contact Number" },
+                            { key: "mealPreference", label: "Meal Preference (Veg / Non-Veg)" },
+                            { key: "githubUrl", label: "GitHub / Portfolio Profile" },
+                            { key: "teamName", label: "Team Name (Hackathons & Quizzes)" },
+                            { key: "tshirtSize", label: "T-Shirt / Kit Size (S, M, L, XL)" },
+                            { key: "laptopRequired", label: "Brings Laptop with Chargers" },
+                          ] as const
+                        ).map((field) => (
+                          <label
+                            key={field.key}
+                            className="flex items-center justify-between p-2.5 rounded-xl border border-line bg-surface hover:bg-surface-2 cursor-pointer transition-colors text-xs font-medium"
+                          >
+                            <span className="text-ink">{field.label}</span>
+                            <input
+                              type="checkbox"
+                              checked={plan.formFields[field.key]}
+                              onChange={(e) => {
+                                setPlan((p) => {
+                                  if (!p) return null;
+                                  return {
+                                    ...p,
+                                    formFields: {
+                                      ...p.formFields,
+                                      [field.key]: e.target.checked,
+                                    },
+                                  };
+                                });
+                              }}
+                              className="rounded border-line text-brand focus:ring-brand size-4"
+                            />
+                          </label>
+                        ))}
+                      </CardBody>
+                    </Card>
+
+                    {/* Live Form Preview */}
+                    <Card className="border-brand/40 bg-surface">
+                      <CardHeader
+                        title="Student Registration Preview"
+                        subtitle="Interactive live preview of student form"
+                      />
+                      <CardBody className="space-y-3 pt-2">
+                        <Field label="Full Name *" htmlFor="prev-name">
+                          <input id="prev-name" type="text" className={inputClass} placeholder="e.g. Ananya Sen" />
+                        </Field>
+                        <Field label="College Email Address *" htmlFor="prev-email">
+                          <input id="prev-email" type="email" className={inputClass} placeholder="ananya.sen@campus.edu" />
+                        </Field>
+
+                        {plan.formFields.rollNo && (
+                          <Field label="Roll Number *" htmlFor="prev-roll">
+                            <input id="prev-roll" type="text" className={inputClass} placeholder="23CS042" />
+                          </Field>
+                        )}
+
+                        {plan.formFields.department && (
+                          <Field label="Department" htmlFor="prev-dept">
+                            <input id="prev-dept" type="text" className={inputClass} defaultValue={plan.department} />
+                          </Field>
+                        )}
+
+                        {plan.formFields.mealPreference && (
+                          <Field label="Dietary Preference" htmlFor="prev-diet">
+                            <select id="prev-diet" className={inputClass}>
+                              <option>Vegetarian</option>
+                              <option>Non-Vegetarian</option>
+                              <option>Vegan</option>
+                            </select>
+                          </Field>
+                        )}
+
+                        {plan.formFields.tshirtSize && (
+                          <Field label="T-Shirt Size" htmlFor="prev-tshirt">
+                            <select id="prev-tshirt" className={inputClass}>
+                              <option>Medium (M)</option>
+                              <option>Large (L)</option>
+                              <option>Small (S)</option>
+                              <option>Extra Large (XL)</option>
+                            </select>
+                          </Field>
+                        )}
+
+                        {plan.formFields.githubUrl && (
+                          <Field label="GitHub / Project Portfolio" htmlFor="prev-github">
+                            <input id="prev-github" type="url" className={inputClass} placeholder="https://github.com/username" />
+                          </Field>
+                        )}
+
+                        <Button className="w-full mt-4" size="md">
+                          Submit Event Registration
+                        </Button>
+                      </CardBody>
+                    </Card>
+                  </div>
+
+                  {/* Feedback Survey Form Preview */}
+                  <Card>
+                    <CardHeader
+                      title="Post-Event Survey Schema"
+                      subtitle="Auto-triggered upon attendance verification"
+                    />
+                    <CardBody className="space-y-4">
+                      <div className="grid sm:grid-cols-3 gap-3">
+                        {[
+                          "1. Overall Event Experience (1-5★)",
+                          "2. Speaker Clarity & Subject Mastery (1-5★)",
+                          "3. Venue, AV & Catering Satisfaction (1-5★)",
+                        ].map((q) => (
+                          <div key={q} className="rounded-xl border border-line bg-surface-2/40 p-3 text-xs">
+                            <p className="font-semibold text-ink mb-2">{q}</p>
+                            <div className="flex gap-1.5 text-gold">★★★★★</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-ink-3 block mb-1">Open Feedback Prompt:</label>
+                        <input
+                          type="text"
+                          className={inputClass}
+                          defaultValue="What was the most impactful takeaway, and what should we improve in the next edition?"
+                        />
+                      </div>
+                    </CardBody>
+                  </Card>
+                </div>
+              )}
+
+              {/* ═════════ TAB 6: VOLUNTEERS & COMMITTEES ═════════ */}
+              {activeTab === "volunteers" && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-ink">Volunteer & Coordination Squads</h3>
+                      <p className="text-xs text-ink-3">
+                        Assign student coordinators, manage headcount, and track preparation checklists.
+                      </p>
+                    </div>
+                    <Badge tone="brand">
+                      Total Staff: {plan.volunteerSquads.reduce((s, sq) => s + sq.headcount, 0)} Coordinators
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {plan.volunteerSquads.map((squad) => (
+                      <Card key={squad.id} className="p-4 space-y-3">
+                        <div className="flex items-start justify-between border-b border-line pb-2.5">
+                          <div>
+                            <h4 className="font-bold text-sm text-ink">{squad.team}</h4>
+                            <p className="text-xs text-brand font-medium">Lead: {squad.lead}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-ink-3">
+                            <Users className="size-3.5 text-ink-2" />
+                            <span className="font-bold text-ink">{squad.headcount}</span> members
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          {squad.tasks.map((task) => (
+                            <label
+                              key={task.id}
+                              className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-surface-2 cursor-pointer text-xs transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={task.done}
+                                onChange={() => {
+                                  setPlan((prev) => {
+                                    if (!prev) return null;
+                                    return {
+                                      ...prev,
+                                      volunteerSquads: prev.volunteerSquads.map((sq) =>
+                                        sq.id === squad.id
+                                          ? {
+                                            ...sq,
+                                            tasks: sq.tasks.map((t) =>
+                                              t.id === task.id ? { ...t, done: !t.done } : t
+                                            ),
+                                          }
+                                          : sq
+                                      ),
+                                    };
+                                  });
+                                }}
+                                className="rounded border-line text-brand focus:ring-brand size-3.5"
+                              />
+                              <span className={cn(task.done && "line-through text-ink-3", "text-ink")}>
+                                {task.text}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

@@ -402,8 +402,8 @@ const INITIAL_SCHEDULED: ScheduledReport[] = [
 
 export function ReportsModule({ role }: { role?: Role }) {
   // Main state
-  const [reports, setReports] = useState<ReportItem[]>(INITIAL_REPORTS);
-  const [scheduledReports, setScheduledReports] = useState<ScheduledReport[]>(INITIAL_SCHEDULED);
+  const [reports, setReports] = useState<ReportItem[]>([]);
+  const [scheduledReports, setScheduledReports] = useState<ScheduledReport[]>([]);
   const [activeTab, setActiveTab] = useState<"all" | "scheduled">("all");
 
   // Filtering state

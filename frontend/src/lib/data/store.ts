@@ -164,6 +164,10 @@ export interface EvaluationStore {
   queue(session: SessionPayload): Promise<EvaluationQueueItem[]>;
   /** Approve (no override) or override with a reason. Returns the updated item. */
   decide(session: SessionPayload, id: string, decision: { finalScore: number; reason?: string }): Promise<EvaluationQueueItem | undefined>;
+  /** Add an evaluated item to the queue / history */
+  add?(session: SessionPayload, item: EvaluationQueueItem): Promise<EvaluationQueueItem>;
+  /** Get evaluations for student */
+  forStudent?(session: SessionPayload): Promise<EvaluationQueueItem[]>;
 }
 
 export interface InterviewSession {

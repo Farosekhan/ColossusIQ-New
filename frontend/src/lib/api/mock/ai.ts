@@ -184,31 +184,167 @@ const KEY_POINTS: Record<string, Array<[string, RegExp]>> = {
     ["Describes Work/Finish vectors", /work|finish/i],
     ["Explains iteration until all finish", /all process|until|repeat/i],
   ],
+  "ds-avl:q2": [
+    ["Defines AVL tree and Balance Factor formula", /avl|balance factor|height\(left\)|height\(right\)/i],
+    ["Explains single rotations (LL and RR)", /ll\s*rotation|rr\s*rotation|single rotation|left rotation|right rotation/i],
+    ["Explains double rotations (LR and RL)", /lr\s*rotation|rl\s*rotation|double rotation/i],
+    ["Mentions logarithmic O(log n) time complexity", /o\(log\s*n\)|logarithmic|complexity/i],
+  ],
+  "cn-routing:q4": [
+    ["States Bellman-Ford or Distance Vector update rule", /bellman|distance vector|dx\(y\)|routing table/i],
+    ["Explains count-to-infinity loop upon link failure", /count[- ]to[- ]infinity|link failure|loop/i],
+    ["Describes split horizon or poison reverse mitigation", /split horizon|poison reverse/i],
+  ],
+  "se-lifecycle:q1": [
+    ["Compares iterative/sprint model with sequential waterfall", /agile|waterfall|sprint|iterative|sequential/i],
+    ["Addresses requirement changes and adaptability", /requirement|flexib|adapt|change/i],
+    ["Covers customer collaboration and testing cycles", /customer|feedback|continuous testing|delivery/i],
+  ],
 };
 
-export function evaluateDescriptive(testId: string, questionId: string, answer: string, max: number): EvaluationResult {
-  const points = KEY_POINTS[`${testId}:${questionId}`] ?? [["Relevant content", /\w{4,}/]];
-  const hits = points.filter(([, re]) => re.test(answer));
-  const misses = points.filter(([, re]) => !re.test(answer));
+export interface RubricCriterionInput {
+  criterion: string;
+  max: number;
+  keywords?: string[];
+}
+
+export function evaluateDescriptive(
+  testId: string,
+  questionId: string,
+  answer: string,
+  max: number,
+  questionText?: string,
+  expectedKeywords?: string[],
+  customRubric?: RubricCriterionInput[],
+): EvaluationResult {
   const words = answer.trim().split(/\s+/).filter(Boolean).length;
-  const coverage = hits.length / points.length;
-  const lengthFactor = Math.min(1, words / 60);
-  const raw = max * (0.75 * coverage + 0.25 * lengthFactor);
-  const scoreVal = Math.round(raw * 2) / 2;
-  const confidence = Math.round((words < 15 ? 0.55 : 0.7 + 0.25 * coverage) * 100) / 100;
-  const per = max / points.length;
+
+  // 1. Explicit custom rubric provided
+  if (customRubric && customRubric.length > 0) {
+    const hits: string[] = [];
+    const misses: string[] = [];
+    const rubric = customRubric.map((r) => {
+      const kws =
+        r.keywords && r.keywords.length > 0
+          ? r.keywords
+          : r.criterion
+              .toLowerCase()
+              .split(/[^a-z0-9_-]+/)
+              .filter((w) => w.length > 3 && !["with", "from", "that", "this", "explain", "describe", "show"].includes(w));
+      const matched = kws.filter((kw) => answer.toLowerCase().includes(kw.toLowerCase()));
+      const ratio = kws.length > 0 ? matched.length / kws.length : words > 25 ? 0.8 : 0.4;
+      const awarded = Math.round(r.max * Math.min(1, Math.max(0.2, ratio * 1.1)) * 10) / 10;
+      if (ratio >= 0.4) {
+        hits.push(r.criterion);
+      } else {
+        misses.push(r.criterion);
+      }
+      return { criterion: r.criterion, awarded: Math.min(r.max, awarded), max: r.max };
+    });
+    const totalScore = Math.min(max, Math.round(rubric.reduce((s, c) => s + c.awarded, 0) * 2) / 2);
+    const confidence = Math.round(Math.min(0.96, Math.max(0.55, 0.72 + (hits.length / customRubric.length) * 0.23)) * 100) / 100;
+    return {
+      score: totalScore,
+      max,
+      confidence,
+      rubric,
+      evidence: hits.map((h) => `✓ ${h}`),
+      missing: misses,
+      feedback:
+        misses.length === 0
+          ? "Comprehensive and well-structured answer covering all required rubric criteria."
+          : `Good attempt. To improve, focus on: ${misses.join("; ")}. Ensure precise technical terms.`,
+      reviewRequired: confidence < 0.8 || words < 20,
+    };
+  }
+
+  // 2. Known test fixture key
+  const key = `${testId}:${questionId}`;
+  if (KEY_POINTS[key]) {
+    const points = KEY_POINTS[key];
+    const hits = points.filter(([, re]) => re.test(answer));
+    const misses = points.filter(([, re]) => !re.test(answer));
+    const coverage = hits.length / points.length;
+    const lengthFactor = Math.min(1, words / 60);
+    const raw = max * (0.75 * coverage + 0.25 * lengthFactor);
+    const scoreVal = Math.round(raw * 2) / 2;
+    const confidence = Math.round((words < 15 ? 0.55 : 0.7 + 0.25 * coverage) * 100) / 100;
+    const per = max / points.length;
+    return {
+      score: scoreVal,
+      max,
+      confidence,
+      rubric: points.map(([criterion, re]) => ({ criterion, awarded: re.test(answer) ? Math.round(per * 10) / 10 : 0, max: Math.round(per * 10) / 10 })),
+      evidence: hits.map(([c]) => `✓ ${c}`),
+      missing: misses.map(([c]) => c),
+      feedback:
+        misses.length === 0
+          ? "Complete answer covering every expected point. Consider tightening the wording."
+          : `Good start. To improve, address: ${misses.map(([c]) => c.toLowerCase()).join("; ")}.`,
+      reviewRequired: confidence < 0.8 || words < 15,
+    };
+  }
+
+  // 3. Dynamic evaluation from question text and keywords
+  const promptWords = (questionText || "")
+    .toLowerCase()
+    .split(/[^a-z0-9_-]+/)
+    .filter((w) => w.length > 3 && !["explain", "describe", "define", "what", "with", "example", "suitable", "using"].includes(w));
+  const combinedKeywords = Array.from(new Set([...(expectedKeywords || []), ...promptWords]));
+
+  const criteria = [
+    {
+      criterion: "Definition & Core Concept",
+      weight: 0.35,
+      test: () => words >= 15 && (combinedKeywords.length === 0 || combinedKeywords.some((k) => answer.toLowerCase().includes(k.toLowerCase()))),
+    },
+    {
+      criterion: "Technical Terminology & Accuracy",
+      weight: 0.3,
+      test: () => {
+        const matches = combinedKeywords.filter((k) => answer.toLowerCase().includes(k.toLowerCase())).length;
+        return combinedKeywords.length > 0 ? matches >= Math.ceil(combinedKeywords.length * 0.4) : words >= 25;
+      },
+    },
+    {
+      criterion: "Illustrative Example / Application",
+      weight: 0.25,
+      test: () => /example|e\.g\.|for instance|such as|table|diagram|step|code|relation/i.test(answer),
+    },
+    {
+      criterion: "Clarity, Depth & Structure",
+      weight: 0.1,
+      test: () => words >= 35,
+    },
+  ];
+
+  const hits: string[] = [];
+  const misses: string[] = [];
+  const rubric = criteria.map((c) => {
+    const passed = c.test();
+    const cMax = Math.round(max * c.weight * 10) / 10;
+    const awarded = passed ? cMax : Math.round(cMax * 0.3 * 10) / 10;
+    if (passed) hits.push(c.criterion);
+    else misses.push(c.criterion);
+    return { criterion: c.criterion, awarded, max: cMax };
+  });
+
+  const totalRaw = rubric.reduce((sum, item) => sum + item.awarded, 0);
+  const scoreVal = Math.min(max, Math.round(totalRaw * 2) / 2);
+  const confidence = Math.round(Math.min(0.95, Math.max(0.6, 0.7 + (hits.length / criteria.length) * 0.22)) * 100) / 100;
+
   return {
     score: scoreVal,
     max,
     confidence,
-    rubric: points.map(([criterion, re]) => ({ criterion, awarded: re.test(answer) ? Math.round(per * 10) / 10 : 0, max: Math.round(per * 10) / 10 })),
-    evidence: hits.map(([c]) => `✓ ${c}`),
-    missing: misses.map(([c]) => c),
+    rubric,
+    evidence: hits.map((h) => `✓ Covered ${h.toLowerCase()}`),
+    missing: misses.map((m) => `Missing ${m.toLowerCase()}`),
     feedback:
       misses.length === 0
-        ? "Complete answer covering every expected point. Consider tightening the wording."
-        : `Good start. To improve, address: ${misses.map(([c]) => c.toLowerCase()).join("; ")}.`,
-    reviewRequired: confidence < 0.8 || words < 15,
+        ? "Well-articulated explanation with solid conceptual depth and relevant examples."
+        : `To improve your score, include ${misses.map((m) => m.toLowerCase()).join(" and ")}.`,
+    reviewRequired: confidence < 0.8 || words < 20,
   };
 }
 

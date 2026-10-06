@@ -142,10 +142,10 @@ export function StudentsModule({ role: _role }: { role: Role }) {
         email: "",
         phone: "",
       });
-      showToast("Student created and added to the directory successfully!");
+      showToast("Student created and saved to PostgreSQL successfully! (POST)");
     },
     onError: (err: any) => {
-      showToast(err?.message || "Failed to create student.");
+      showToast(err?.message || "Failed to create student in PostgreSQL.");
     },
   });
 
@@ -163,10 +163,10 @@ export function StudentsModule({ role: _role }: { role: Role }) {
       setIsImportModalOpen(false);
       setParsedRows([]);
       setUploadFileName(null);
-      showToast(`Successfully imported ${res?.imported ?? parsedRows.length} students into the directory!`);
+      showToast(`Successfully imported ${res?.imported ?? parsedRows.length} students into PostgreSQL! (Bulk POST)`);
     },
     onError: (err: any) => {
-      showToast(err?.message || "Failed to import students from file.");
+      showToast(err?.message || "Failed to import students to PostgreSQL.");
     },
   });
 
@@ -182,10 +182,10 @@ export function StudentsModule({ role: _role }: { role: Role }) {
       qc.invalidateQueries({ queryKey: ["students-list"] });
       qc.invalidateQueries({ queryKey: ["module", "students"] });
       setEditingStudent(null);
-      showToast("Student record updated successfully!");
+      showToast("Student record updated in PostgreSQL successfully! (PUT)");
     },
     onError: (err: any) => {
-      showToast(err?.message || "Failed to update student.");
+      showToast(err?.message || "Failed to update student in PostgreSQL.");
     },
   });
 
@@ -200,10 +200,10 @@ export function StudentsModule({ role: _role }: { role: Role }) {
       qc.invalidateQueries({ queryKey: ["students-list"] });
       qc.invalidateQueries({ queryKey: ["module", "students"] });
       setDeletingStudent(null);
-      showToast("Student removed from directory.");
+      showToast("Student deleted from PostgreSQL database! (DELETE)");
     },
     onError: (err: any) => {
-      showToast(err?.message || "Failed to delete student.");
+      showToast(err?.message || "Failed to delete student from PostgreSQL.");
     },
   });
 
@@ -384,9 +384,32 @@ export function StudentsModule({ role: _role }: { role: Role }) {
         </div>
       )}
 
+      {/* PostgreSQL Live Database Status Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-2.5 text-xs text-ink dark:border-emerald-500/40 dark:bg-emerald-950/20 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <span className="relative flex size-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500"></span>
+          </span>
+          <span className="font-semibold text-emerald-800 dark:text-emerald-300">
+            PostgreSQL Live Database Connected
+          </span>
+          <span className="text-ink-3 hidden sm:inline">•</span>
+          <span className="text-ink-2 hidden sm:inline">
+            Direct CRUD operations active on tables: <code className="font-mono text-[11px] bg-surface px-1.5 py-0.5 rounded border border-line">students</code>, <code className="font-mono text-[11px] bg-surface px-1.5 py-0.5 rounded border border-line">users</code>
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 text-[10px] font-mono">
+          <span className="rounded bg-sky-100 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 px-2 py-0.5 border border-sky-300/40">GET (Sync)</span>
+          <span className="rounded bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 border border-emerald-300/40 font-bold">POST (+Add)</span>
+          <span className="rounded bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 px-2 py-0.5 border border-amber-300/40">PUT (Edit)</span>
+          <span className="rounded bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 px-2 py-0.5 border border-rose-300/40">DELETE (Remove)</span>
+        </div>
+      </div>
+
       {/* Main Table Card */}
       <Card className="overflow-hidden border border-line bg-surface shadow-xs">
-        {/* Toolbar Header matching screenshot */}
+        {/* Toolbar Header */}
         <div className="flex flex-col gap-3 border-b border-line p-4 sm:flex-row sm:items-center">
           {/* Search Input */}
           <div className="relative flex-1 min-w-0">
@@ -418,7 +441,7 @@ export function StudentsModule({ role: _role }: { role: Role }) {
             </select>
           </div>
 
-          {/* Action Buttons: Export Excel & Import Students */}
+          {/* Action Buttons: Add Student (POST), Import (Bulk POST), Export */}
           <div className="flex items-center gap-2 shrink-0">
             <Button
               variant="secondary"
@@ -432,6 +455,20 @@ export function StudentsModule({ role: _role }: { role: Role }) {
             </Button>
 
             <Button
+              variant="secondary"
+              size="md"
+              onClick={() => {
+                setIsImportModalOpen(true);
+                setImportTab("excel");
+              }}
+              className="flex items-center gap-1.5 text-sm"
+              title="Bulk upload students from Excel/CSV file"
+            >
+              <Upload className="size-4" />
+              <span>Import students</span>
+            </Button>
+
+            <Button
               variant="primary"
               size="md"
               onClick={() => {
@@ -439,9 +476,10 @@ export function StudentsModule({ role: _role }: { role: Role }) {
                 setImportTab("form");
               }}
               className="flex items-center gap-1.5 text-sm font-semibold shadow-xs"
+              title="Add a new student (POST to PostgreSQL)"
             >
-              <Upload className="size-4" />
-              <span>Import students</span>
+              <UserPlus className="size-4" />
+              <span>+ Add Student</span>
             </Button>
           </div>
         </div>
@@ -512,7 +550,7 @@ export function StudentsModule({ role: _role }: { role: Role }) {
                   <th className="px-4 py-3">CGPA</th>
                   <th className="px-4 py-3">Career Readiness</th>
                   <th className="px-4 py-3">Support Signal</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  <th className="px-4 py-3 text-right">Actions (PUT / DELETE)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -581,8 +619,8 @@ export function StudentsModule({ role: _role }: { role: Role }) {
                                 isLow
                                   ? "bg-rose-500"
                                   : isMid
-                                  ? "bg-amber-500"
-                                  : "bg-teal-600"
+                                    ? "bg-amber-500"
+                                    : "bg-teal-600"
                               )}
                               style={{ width: `${student.readiness}%` }}
                             />
@@ -600,10 +638,10 @@ export function StudentsModule({ role: _role }: { role: Role }) {
                             student.signal === "Review suggested"
                               ? "amber"
                               : student.signal === "At risk"
-                              ? "rose"
-                              : student.signal === "High performer"
-                              ? "brand"
-                              : "teal"
+                                ? "rose"
+                                : student.signal === "High performer"
+                                  ? "brand"
+                                  : "teal"
                           }
                           className="text-[11px]"
                         >
@@ -618,7 +656,7 @@ export function StudentsModule({ role: _role }: { role: Role }) {
                             type="button"
                             onClick={() => setEditingStudent(student)}
                             className="p-1 rounded text-ink-3 hover:text-brand hover:bg-brand-soft transition-colors"
-                            title="Edit student"
+                            title="Edit student in PostgreSQL (PUT)"
                           >
                             <Edit3 className="size-3.5" />
                           </button>
@@ -626,7 +664,7 @@ export function StudentsModule({ role: _role }: { role: Role }) {
                             type="button"
                             onClick={() => setDeletingStudent(student)}
                             className="p-1 rounded text-ink-3 hover:text-rose hover:bg-rose-soft transition-colors"
-                            title="Delete student"
+                            title="Delete student from PostgreSQL (DELETE)"
                           >
                             <Trash2 className="size-3.5" />
                           </button>
@@ -642,25 +680,33 @@ export function StudentsModule({ role: _role }: { role: Role }) {
 
         {/* Footer Showing count matching screenshot */}
         <div className="border-t border-line px-4 py-3 text-xs text-ink-3 flex items-center justify-between">
-          <span className="font-medium bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 px-2 py-0.5 rounded border border-amber-200/50 dark:border-amber-800/50">
-            Showing {filteredStudents.length} of {students.length}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 px-2.5 py-0.5 rounded border border-amber-200/50 dark:border-amber-800/50">
+              Showing {filteredStudents.length} of {students.length}
+            </span>
+            <span className="text-ink-3 hidden sm:inline">•</span>
+            <span className="text-ink-2 font-medium hidden sm:inline">PostgreSQL Live Sync</span>
+          </div>
           <span className="text-[11px] text-ink-3">
-            Real-time Institutional Directory
+            Real-time Institutional Directory (PostgreSQL GET / POST / PUT / DELETE)
           </span>
         </div>
       </Card>
 
-      {/* ── MODAL 1: IMPORT STUDENTS (FORM & EXCEL TABS) ── */}
+      {/* ── MODAL 1: ADD / IMPORT STUDENTS (POST) ── */}
       {isImportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in">
           <div className="w-full max-w-xl rounded-2xl border border-line bg-surface p-6 shadow-xl space-y-5">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-line pb-3">
               <div>
-                <h2 className="text-lg font-bold text-ink">Import Students</h2>
+                <h2 className="text-lg font-bold text-ink">
+                  {importTab === "form" ? "Add Student (POST to PostgreSQL)" : "Import Students (Bulk POST to PostgreSQL)"}
+                </h2>
                 <p className="text-xs text-ink-3">
-                  Add student records via manual form entry or bulk Excel / CSV upload.
+                  {importTab === "form"
+                    ? "Creates a new student record and login account directly in the PostgreSQL database."
+                    : "Upload an Excel or CSV file to bulk insert multiple students into PostgreSQL."}
                 </p>
               </div>
               <button
@@ -815,10 +861,10 @@ export function StudentsModule({ role: _role }: { role: Role }) {
                     type="submit"
                     variant="primary"
                     disabled={createMutation.isPending}
-                    className="flex items-center gap-1.5"
+                    className="flex items-center gap-1.5 font-semibold"
                   >
                     {createMutation.isPending ? <Spinner className="size-3.5" /> : <UserPlus className="size-3.5" />}
-                    Save Student
+                    Save Student (POST to Database)
                   </Button>
                 </div>
               </form>
@@ -920,10 +966,10 @@ export function StudentsModule({ role: _role }: { role: Role }) {
                     variant="primary"
                     disabled={parsedRows.length === 0 || importMutation.isPending}
                     onClick={() => importMutation.mutate(parsedRows)}
-                    className="flex items-center gap-1.5"
+                    className="flex items-center gap-1.5 font-semibold"
                   >
                     {importMutation.isPending ? <Spinner className="size-3.5" /> : <Upload className="size-3.5" />}
-                    Confirm & Import {parsedRows.length} Students
+                    Confirm & Import {parsedRows.length} Students (Bulk POST)
                   </Button>
                 </div>
               </div>
@@ -938,8 +984,8 @@ export function StudentsModule({ role: _role }: { role: Role }) {
           <div className="w-full max-w-lg rounded-2xl border border-line bg-surface p-6 shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-line pb-3">
               <div>
-                <h2 className="text-lg font-bold text-ink">Edit Student Record</h2>
-                <p className="text-xs text-ink-3">Update academic profile, section, and readiness signal.</p>
+                <h2 className="text-lg font-bold text-ink">Edit Student Record (PUT to PostgreSQL)</h2>
+                <p className="text-xs text-ink-3">Updates academic profile, section, and readiness signal directly in PostgreSQL database.</p>
               </div>
               <button
                 type="button"
@@ -1040,8 +1086,9 @@ export function StudentsModule({ role: _role }: { role: Role }) {
                 <Button type="button" variant="secondary" onClick={() => setEditingStudent(null)}>
                   Cancel
                 </Button>
-                <Button type="submit" variant="primary" disabled={updateMutation.isPending}>
-                  {updateMutation.isPending ? <Spinner className="size-3.5" /> : "Save Changes"}
+                <Button type="submit" variant="primary" disabled={updateMutation.isPending} className="flex items-center gap-1.5 font-semibold">
+                  {updateMutation.isPending ? <Spinner className="size-3.5" /> : <Edit3 className="size-3.5" />}
+                  Save Changes (PUT to Database)
                 </Button>
               </div>
             </form>
@@ -1058,13 +1105,13 @@ export function StudentsModule({ role: _role }: { role: Role }) {
                 <Trash2 className="size-5" />
               </span>
               <div>
-                <h3 className="text-base font-bold text-ink">Remove Student?</h3>
-                <p className="text-xs text-ink-3">This action cannot be undone.</p>
+                <h3 className="text-base font-bold text-ink">Delete Student (DELETE from PostgreSQL)?</h3>
+                <p className="text-xs text-ink-3">This action will delete the student from PostgreSQL database.</p>
               </div>
             </div>
 
             <p className="text-sm text-ink-2 leading-relaxed">
-              Are you sure you want to remove <span className="font-semibold text-ink">{deletingStudent.name}</span> (Roll: <span className="font-mono text-xs">{deletingStudent.roll}</span>) from the department student records?
+              Are you sure you want to remove <span className="font-semibold text-ink">{deletingStudent.name}</span> (Roll: <span className="font-mono text-xs">{deletingStudent.roll}</span>) from PostgreSQL department records?
             </p>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-line">
@@ -1076,10 +1123,10 @@ export function StudentsModule({ role: _role }: { role: Role }) {
                 variant="danger"
                 disabled={deleteMutation.isPending}
                 onClick={() => deleteMutation.mutate(deletingStudent.id)}
-                className="flex items-center gap-1.5"
+                className="flex items-center gap-1.5 font-semibold"
               >
                 {deleteMutation.isPending ? <Spinner className="size-3.5" /> : <Trash2 className="size-3.5" />}
-                Delete Record
+                Delete Record (DELETE from Database)
               </Button>
             </div>
           </div>

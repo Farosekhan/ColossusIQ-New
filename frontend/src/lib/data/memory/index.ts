@@ -274,7 +274,6 @@ export const memoryStore: DataStore = {
           found.title = course.title;
           if (course.department) found.department = course.department;
           if (course.semester) found.semester = course.semester;
-          if (course.credits) found.credits = course.credits;
           if (course.createdBy) {
             found.faculty = course.createdBy;
             found.createdBy = course.createdBy;
@@ -475,7 +474,38 @@ export const memoryStore: DataStore = {
       if (!item) return undefined;
       item.status = decision.reason === undefined ? "approved" : "overridden";
       item.finalScore = decision.finalScore;
+      if (decision.reason) item.facultyRemarks = decision.reason;
       return item;
+    },
+    async add(session, item) {
+      let q = evalQueues.get(session.sub);
+      if (!q) {
+        q = evaluationQueue();
+        evalQueues.set(session.sub, q);
+      }
+      // Check if already exists; if so, replace
+      const idx = q.findIndex((i) => i.id === item.id);
+      if (idx >= 0) {
+        q[idx] = item;
+      } else {
+        q.unshift(item);
+      }
+      return item;
+    },
+    async forStudent(session) {
+      const all: EvaluationQueueItem[] = [];
+      for (const q of evalQueues.values()) {
+        all.push(...q);
+      }
+      if (all.length === 0) {
+        all.push(...evaluationQueue());
+      }
+      const seen = new Set<string>();
+      return all.filter((i) => {
+        if (seen.has(i.id)) return false;
+        seen.add(i.id);
+        return true;
+      });
     },
   },
 

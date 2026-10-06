@@ -210,7 +210,7 @@ export function AicteComplianceModule({ role }: { role: Role }) {
       )}
 
       {/* Hero Banner with Live College Status */}
-      <Card className="border-border/60 bg-gradient-to-r from-card via-card to-primary-500/5">
+      <Card className="border-border/60 bg-linear-to-r from-card via-card to-primary-500/5">
         <CardBody className="p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -372,11 +372,9 @@ export function AicteComplianceModule({ role }: { role: Role }) {
           {/* Strengths & Deficiencies Section */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <Card className="border-border/60">
-              <div className="border-b border-border/40 pb-3 px-5 pt-5">
-                <div className="flex items-center gap-2">
-                  <Fi name="check" className="h-4 w-4 text-emerald-500" />
-                  <h3 className="font-semibold text-foreground">Institutional Strengths</h3>
-                </div>
+              <div className="flex items-center gap-2 border-b border-border/40 px-5 pt-5 pb-3">
+                <Fi name="check" className="h-4 w-4 text-emerald-500" />
+                <h3 className="font-semibold text-foreground">Institutional Strengths</h3>
               </div>
               <CardBody className="p-4">
                 <ul className="space-y-2.5 text-sm text-muted-foreground">
@@ -391,11 +389,9 @@ export function AicteComplianceModule({ role }: { role: Role }) {
             </Card>
 
             <Card className="border-border/60">
-              <div className="border-b border-border/40 pb-3 px-5 pt-5">
-                <div className="flex items-center gap-2">
-                  <Fi name="alert-triangle" className="h-4 w-4 text-amber-500" />
-                  <h3 className="font-semibold text-foreground">Actionable Observations & Routine Audit</h3>
-                </div>
+              <div className="flex items-center gap-2 border-b border-border/40 px-5 pt-5 pb-3">
+                <Fi name="alert-triangle" className="h-4 w-4 text-amber-500" />
+                <h3 className="font-semibold text-foreground">Actionable Observations & Routine Audit</h3>
               </div>
               <CardBody className="p-4">
                 <ul className="space-y-2.5 text-sm text-muted-foreground">
@@ -412,7 +408,7 @@ export function AicteComplianceModule({ role }: { role: Role }) {
 
           {/* Detailed Norms Breakdown Table */}
           <Card className="border-border/60">
-            <div className="border-b border-border/40 px-5 pt-5">
+            <div className="border-b border-border/40 px-5 pt-5 pb-3">
               <h3 className="font-semibold text-foreground">AICTE Regulatory Standards Evaluation</h3>
             </div>
             <div className="divide-y divide-border/40 overflow-hidden">
@@ -497,15 +493,13 @@ export function AicteComplianceModule({ role }: { role: Role }) {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredDepartments.map((dept, i) => (
               <Card key={i} className="border-border/60 transition-shadow hover:shadow-sm">
-                <div className="border-b border-border/40 pb-3 px-5 pt-5">
-                  <div className="flex items-start justify-between gap-2">
-                    <h4 className="font-semibold text-foreground">{dept.department}</h4>
-                    <Badge
-                      tone={dept.status === "Compliant" ? "teal" : "amber"}
-                    >
-                      {dept.status}
-                    </Badge>
-                  </div>
+                <div className="flex items-start justify-between gap-2 border-b border-border/40 px-5 pt-5 pb-3">
+                  <h4 className="font-semibold text-foreground">{dept.department}</h4>
+                  <Badge
+                    tone={dept.status === "Compliant" ? "teal" : "amber"}
+                  >
+                    {dept.status}
+                  </Badge>
                 </div>
                 <CardBody className="space-y-3 p-4 text-xs">
                   <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted/40 p-2.5">
@@ -598,16 +592,14 @@ export function AicteComplianceModule({ role }: { role: Role }) {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {data.committees.map((comm) => (
               <Card key={comm.id} className="border-border/60">
-                <div className="border-b border-border/40 pb-3 px-5 pt-5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h4 className="font-semibold text-foreground">{comm.name}</h4>
-                      <span className="text-xs text-muted-foreground">{comm.id}</span>
-                    </div>
-                    <Badge tone="teal">
-                      {comm.status}
-                    </Badge>
+                <div className="flex items-start justify-between gap-2 border-b border-border/40 px-5 pt-5 pb-3">
+                  <div>
+                    <h4 className="font-semibold text-foreground">{comm.name}</h4>
+                    <span className="text-xs text-muted-foreground">{comm.id}</span>
                   </div>
+                  <Badge tone="teal">
+                    {comm.status}
+                  </Badge>
                 </div>
                 <CardBody className="space-y-2.5 p-4 text-xs">
                   <p className="line-clamp-2 text-muted-foreground">{comm.mandate}</p>
@@ -740,16 +732,14 @@ export function AicteComplianceModule({ role }: { role: Role }) {
       {showAddActionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <Card className="w-full max-w-md border-border/80 shadow-2xl">
-            <div className="border-b border-border/40 pb-3 px-5 pt-5">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-foreground">Log AICTE Compliance Action</h3>
-                <button
-                  onClick={() => setShowAddActionModal(false)}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  ✕
-                </button>
-              </div>
+            <div className="flex items-center justify-between border-b border-border/40 px-5 pt-5 pb-3">
+              <h3 className="font-semibold text-foreground">Log AICTE Compliance Action</h3>
+              <button
+                onClick={() => setShowAddActionModal(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                ✕
+              </button>
             </div>
             <form onSubmit={handleSubmitAction}>
               <CardBody className="space-y-4 p-5 text-xs">
@@ -855,7 +845,7 @@ export function AicteComplianceModule({ role }: { role: Role }) {
                   size="sm"
                   disabled={addActionMutation.isPending}
                 >
-                  {addActionMutation.isPending ? <Spinner /> : "Save Action"}
+                  {addActionMutation.isPending ? <Spinner className="size-3.5" /> : "Save Action"}
                 </Button>
               </div>
             </form>

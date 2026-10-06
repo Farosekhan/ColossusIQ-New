@@ -12,7 +12,8 @@ import { COURSE_LIBRARY } from "./course-library";
 import { TOPIC_EXTRA } from "./course-library-extra";
 import type { CourseUnit, LearningCourse } from "./course-state";
 import { eventCounts, recordFacultyEvent, type FacultyEvent } from "./faculty-activity";
-import { getStore } from "@/lib/data";
+import { getStore, dataBackend } from "@/lib/data";
+import { db } from "@/lib/data/postgres/db";
 import { memoryState } from "@/lib/data/memory";
 import { collegeIndex, collegeStream } from "./records";
 import type { MockResult } from "./router";
@@ -244,7 +245,7 @@ export interface ClassSummary {
   readers: string[];
 }
 /** Raw demo state (memory backend only) — tests inspect it directly. */
-export const summaries = memoryState.summaries;
+export const summaries = dataBackend() === "memory" ? memoryState.summaries : [];
 
 /* ───────────────────────────── skill booster ───────────────────────────── */
 const TASKS: Array<{ id: string; title: string; detail: string; event: FacultyEvent; target: number; points: number; module: string }> = [
@@ -528,11 +529,23 @@ export async function dispatchTeaching(method: string, segs: string[], rawBody: 
     return err(404, "not_found", "Not found.");
   }
 
-  if (area === "events" && method === "POST") {
-    const p = z.object({ kind: z.literal("smartboard_session") }).strict().safeParse(rawBody);
-    if (!p.success) return err(422, "validation", "Unknown event.");
-    await recordFacultyEvent(session.sub, p.data.kind, 1, inCollege ? session.college : null);
-    return ok({ ok: true });
+  if (area === "events") {
+    if (method === "POST") {
+      const p = z
+        .object({
+          kind: z.literal("smartboard_session"),
+        })
+        .strict()
+        .safeParse(rawBody);
+      if (!p.success) return err(422, "validation", "Unknown event.");
+      await recordFacultyEvent(session.sub, p.data.kind, 1, inCollege ? session.college : null);
+      return ok({ ok: true, kind: p.data.kind });
+    }
+    if (method === "DELETE") {
+      const kind = id as FacultyEvent;
+      // Note: faculty_activity_events is an append-only audit ledger in PostgreSQL (protected by trigger).
+      return ok({ ok: true, kind, immutable: true });
+    }
   }
 
   if (area === "booster") {
@@ -550,4 +563,4 @@ export async function dispatchTeaching(method: string, segs: string[], rawBody: 
   return err(404, "not_found", "Not found.");
 }
 
-export const _teachingTest = { summaries: memoryState.summaries, outlines: memoryState.outlines, TASKS, TRACKS };
+export const _teachingTest = { TASKS, TRACKS };

@@ -298,7 +298,7 @@ export function EarlyWarningModule({ role }: { role: Role }) {
           </div>
 
           {/* Search Box */}
-          <div className="relative min-w-[190px] sm:min-w-[220px]">
+          <div className="relative min-w-47.5 sm:min-w-55">
             <input
               type="text"
               placeholder="Search student or roll no..."
@@ -534,7 +534,7 @@ export function EarlyWarningModule({ role }: { role: Role }) {
                           </Badge>
                         </td>
 
-                        <td className="px-4 py-3 max-w-[260px]">
+                        <td className="px-4 py-3 max-w-65">
                           <div className="flex flex-wrap gap-1">
                             {st.signals.map((sig) => (
                               <span
@@ -745,7 +745,7 @@ export function EarlyWarningModule({ role }: { role: Role }) {
                             {item.status}
                           </Badge>
                         </td>
-                        <td className="px-4 py-3 text-ink-2 max-w-[240px] truncate" title={item.notes}>
+                        <td className="px-4 py-3 text-ink-2 max-w-60 truncate" title={item.notes}>
                           {item.notes || "—"}
                         </td>
                       </tr>

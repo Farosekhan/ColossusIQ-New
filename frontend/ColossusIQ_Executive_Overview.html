@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ColossusIQ.ai — Higher-Education OS Executive Overview</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #1a202c;
+    background: #ffffff;
+    font-size: 8.5pt;
+    line-height: 1.4;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* ─── PAGE CONTAINER ───────────────────────────────── */
+  .page {
+    width: 210mm;
+    height: 297mm;
+    padding: 11mm 13mm 10mm 13mm;
+    page-break-after: always;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    overflow: hidden;
+    background: #ffffff;
+  }
+
+  /* ─── HEADER ─────────────────────────────────────────── */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+    border-bottom: 2px solid #e2e8f0;
+  }
+
+  .logo {
+    font-size: 22pt;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    line-height: 1;
+    color: #1a202c;
+  }
+
+  .logo span.accent {
+    color: #e05a00;   /* Orange accent matching sample ColossusIQ style */
+  }
+
+  .header-sub {
+    font-size: 7.8pt;
+    color: #64748b;
+    margin-top: 3px;
+    font-weight: 400;
+  }
+
+  .header-right {
+    text-align: right;
+    font-size: 7.8pt;
+    color: #64748b;
+    line-height: 1.5;
+  }
+
+  .header-right a {
+    color: #e05a00;
+    text-decoration: none;
+  }
+
+  /* ─── TWO COLUMN LAYOUT ─────────────────────────────── */
+  .layout {
+    display: grid;
+    grid-template-columns: 65% 33%;
+    gap: 14px;
+    flex: 1;
+    margin-top: 4px;
+  }
+
+  .col-left {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .col-right {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  /* ─── SECTION HEADINGS ──────────────────────────────── */
+  .section-heading {
+    font-size: 9.5pt;
+    font-weight: 700;
+    color: #1a202c;
+    border-bottom: 1.5px solid #e05a00;
+    padding-bottom: 3px;
+    margin-bottom: 5px;
+  }
+
+  /* ─── EXECUTIVE SUMMARY ─────────────────────────────── */
+  .exec-summary {
+    font-size: 8.3pt;
+    line-height: 1.45;
+    color: #2d3748;
+  }
+
+  .exec-summary strong {
+    color: #1a202c;
+  }
+
+  /* ─── PROBLEM CARDS ─────────────────────────────────── */
+  .problems-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+  }
+
+  .problem-card {
+    border: 1px solid #e2e8f0;
+    border-left: 3px solid #2d3748;
+    padding: 5px 7px;
+    background: #ffffff;
+  }
+
+  .problem-card .card-title {
+    font-weight: 700;
+    font-size: 8pt;
+    color: #1a202c;
+    margin-bottom: 2px;
+  }
+
+  .problem-card .card-desc {
+    font-size: 7.8pt;
+    color: #4a5568;
+    line-height: 1.3;
+  }
+
+  /* ─── BENEFIT / GENERIC CARDS ────────────────────────── */
+  .benefit-card {
+    border: 1px solid #e2e8f0;
+    padding: 5px 7px;
+    background: #ffffff;
+  }
+
+  .benefit-card .card-title {
+    font-weight: 700;
+    font-size: 8pt;
+    color: #1a202c;
+    margin-bottom: 2px;
+  }
+
+  .benefit-card .card-desc {
+    font-size: 7.8pt;
+    color: #4a5568;
+    line-height: 1.3;
+  }
+
+  /* ─── DATA TABLES ────────────────────────────────────── */
+  table.dt {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 7.5pt;
+  }
+
+  table.dt thead th {
+    background: #2d3748;
+    color: #ffffff;
+    text-align: left;
+    padding: 4px 6px;
+    font-weight: 600;
+    font-size: 7.4pt;
+  }
+
+  table.dt tbody tr td {
+    padding: 4px 6px;
+    border-bottom: 1px solid #e2e8f0;
+    vertical-align: top;
+    line-height: 1.3;
+    color: #2d3748;
+  }
+
+  table.dt tbody tr:nth-child(even) td {
+    background: #f7fafc;
+  }
+
+  table.dt tbody td.key {
+    font-weight: 700;
+    color: #1a202c;
+    width: 25%;
+  }
+
+  table.dt tbody td.impact {
+    color: #2b6cb0;
+    font-weight: 500;
+    width: 30%;
+  }
+
+  /* ─── SIDEBAR: STAT BOXES ────────────────────────────── */
+  .stat-box {
+    border: 1px solid #e2e8f0;
+    padding: 8px 6px;
+    text-align: center;
+    background: #ffffff;
+    margin-bottom: 5px;
+  }
+
+  .stat-number {
+    font-size: 26pt;
+    font-weight: 800;
+    color: #1a202c;
+    line-height: 1;
+    margin-bottom: 2px;
+  }
+
+  .stat-label {
+    font-size: 7.8pt;
+    color: #4a5568;
+    line-height: 1.25;
+  }
+
+  /* ─── SIDEBAR: SECTION BLOCKS ─────────────────────────── */
+  .sidebar-section {
+    margin-bottom: 7px;
+  }
+
+  .sidebar-heading {
+    font-size: 9pt;
+    font-weight: 700;
+    color: #1a202c;
+    border-bottom: 1.5px solid #e05a00;
+    padding-bottom: 3px;
+    margin-bottom: 5px;
+  }
+
+  /* bullet list */
+  .blist {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .blist li {
+    font-size: 7.8pt;
+    color: #2d3748;
+    line-height: 1.35;
+    padding-left: 12px;
+    position: relative;
+    margin-bottom: 3.5px;
+  }
+
+  .blist li::before {
+    content: "●";
+    color: #e05a00;
+    position: absolute;
+    left: 0;
+    font-size: 7pt;
+    top: 1px;
+  }
+
+  /* ─── SIDEBAR: CALLOUT BOX ────────────────────────────── */
+  .callout-box {
+    border: 1px solid #e2e8f0;
+    border-left: 3px solid #e05a00;
+    padding: 6px 8px;
+    background: #fffaf5;
+    margin-top: 0;
+  }
+
+  .callout-box .cb-title {
+    font-weight: 700;
+    font-size: 8pt;
+    color: #e05a00;
+    margin-bottom: 3px;
+  }
+
+  .callout-box .cb-body {
+    font-size: 7.8pt;
+    color: #2d3748;
+    line-height: 1.35;
+  }
+
+  /* ─── WORKFLOW / NUMBERED STEPS ────────────────────────── */
+  .workflow-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 4.5px;
+    font-size: 7.8pt;
+    line-height: 1.3;
+    color: #2d3748;
+  }
+
+  .wf-num {
+    min-width: 16px;
+    height: 16px;
+    background: #2d3748;
+    color: #ffffff;
+    border-radius: 50%;
+    font-size: 6.5pt;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* ─── 3-STEP BANNER ──────────────────────────────────── */
+  .steps-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 5px;
+    margin-top: 4px;
+  }
+
+  .step-col {
+    border: 1px solid #e2e8f0;
+    padding: 6px;
+  }
+
+  .step-col .step-label {
+    font-size: 6.5pt;
+    font-weight: 700;
+    color: #e05a00;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 2px;
+  }
+
+  .step-col .step-name {
+    font-size: 8.5pt;
+    font-weight: 700;
+    color: #1a202c;
+    margin-bottom: 4px;
+  }
+
+  .step-col ul.blist li {
+    font-size: 7.5pt;
+    margin-bottom: 2.5px;
+  }
+
+  /* ─── QUOTE BLOCK ─────────────────────────────────────── */
+  .quote-block {
+    border-left: 3px solid #e05a00;
+    padding: 5px 7px;
+    background: #fffaf5;
+    font-style: italic;
+    font-size: 7.8pt;
+    color: #2d3748;
+    line-height: 1.35;
+    margin-bottom: 5px;
+  }
+
+  .quote-block .attribution {
+    font-style: normal;
+    font-weight: 600;
+    font-size: 7.2pt;
+    color: #718096;
+    margin-top: 3px;
+  }
+
+  /* ─── FOOTER ─────────────────────────────────────────── */
+  .footer {
+    border-top: 1px solid #e2e8f0;
+    padding-top: 4px;
+    margin-top: auto;
+    display: flex;
+    justify-content: space-between;
+    font-size: 7pt;
+    color: #718096;
+  }
+
+  .footer strong {
+    color: #1a202c;
+  }
+
+  /* ─── GENERIC UTILS ────────────────────────────────────── */
+  .small-section-label {
+    font-size: 7.8pt;
+    font-weight: 700;
+    color: #4a5568;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 3px;
+  }
+
+  .check-green {
+    color: #2f855a;
+    font-weight: 600;
+  }
+
+  .formula-box {
+    background: #ebf4ff;
+    border: 1px solid #bee3f8;
+    border-left: 3px solid #2b6cb0;
+    padding: 5px 7px;
+    font-size: 7.5pt;
+    color: #1a365d;
+    font-weight: 600;
+    line-height: 1.35;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 1: EXECUTIVE OVERVIEW, PROBLEMS, TECH STACK & ROLES
+     ═══════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div>
+      <div class="logo">ColossusIQ<span class="accent">.ai</span></div>
+      <div class="header-sub">Higher-Education OS — Executive Overview | Infilabs Private Limited | October 2026</div>
+    </div>
+    <div class="header-right">
+      <a href="https://www.colossusiq.ai">www.colossusiq.ai</a><br>
+      Infilabs Private Limited · Trichy, India
+    </div>
+  </div>
+
+  <!-- 2-COLUMN BODY -->
+  <div class="layout">
+
+    <!-- LEFT COLUMN -->
+    <div class="col-left">
+
+      <!-- Executive Summary -->
+      <div>
+        <div class="section-heading">Executive Summary</div>
+        <p class="exec-summary">
+          <strong>ColossusIQ.ai</strong> is an enterprise-grade, AI-native Higher-Education Operating System purpose-built for universities, engineering colleges, medical institutes, autonomous colleges, arts &amp; science institutions, management schools, and polytechnics. It unifies <strong>8 role-governed portals</strong>, <strong>multi-college tenancy</strong> under a single university, AI course authoring, handwritten answer evaluation, cryptographic HMAC-signed certificates, and a placement readiness engine — all in one auditable, role-isolated platform. Built on <strong>Next.js 16 &amp; PostgreSQL 15+ Row-Level Security</strong>, it replaces fragmented legacy software and drives institutional accreditation excellence across NAAC, AICTE, NMC, NBA, and UGC frameworks.
+        </p>
+      </div>
+
+      <!-- Problems -->
+      <div>
+        <div class="small-section-label">The Problem Every Higher-Education Institution Faces</div>
+        <div class="problems-grid">
+          <div class="problem-card">
+            <div class="card-title">Faculty Workload &amp; Syllabus Burden</div>
+            <div class="card-desc">Faculty spend 15+ hours per week manually drafting lesson notes, question papers, and grading handwritten sheets instead of active teaching.</div>
+          </div>
+          <div class="problem-card">
+            <div class="card-title">Placement &amp; Employability Blind Spots</div>
+            <div class="card-desc">No unified, real-time metric connects student coursework, mock interview skills, aptitude scores, and verified certificates to recruiter eligibility.</div>
+          </div>
+          <div class="problem-card">
+            <div class="card-title">Multi-College &amp; Multi-Stream Chaos</div>
+            <div class="card-desc">Colleges running engineering, medical, arts &amp; management under disparate rules, paper logbooks, and disconnected software without governance.</div>
+          </div>
+          <div class="problem-card">
+            <div class="card-title">Accreditation &amp; Inspection Scramble</div>
+            <div class="card-desc">Scattered spreadsheets and paper registers create high-risk compliance blind spots during NAAC, AICTE, and NMC regulatory inspections.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Technology Stack -->
+      <div>
+        <div class="section-heading">Technology Stack &amp; Architecture</div>
+        <table class="dt">
+          <thead>
+            <tr>
+              <th style="width:24%;">Layer</th>
+              <th style="width:44%;">Technology &amp; Architecture</th>
+              <th style="width:32%;">Institutional Impact</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="key">Frontend</td>
+              <td>Next.js 16 (App Router, Turbopack) · React 19 · TypeScript (Strict) · Tailwind CSS v4 · TanStack Query · Recharts</td>
+              <td class="impact">Lightning-fast, zero download required — runs on any browser.</td>
+            </tr>
+            <tr>
+              <td class="key">Database &amp; Isolation</td>
+              <td>PostgreSQL 15+ with Row-Level Security (RLS) via <em>app_set_context</em> · Prisma ORM · Argon2 password hashing</td>
+              <td class="impact">Strict multi-college data isolation — records can never leak across colleges.</td>
+            </tr>
+            <tr>
+              <td class="key">AI Agent Mesh</td>
+              <td>30 Specialized Agents: Mentor, Academic Tutor, Faculty Copilot, OCR Rubric Evaluator, Mock Interviewer &amp; more</td>
+              <td class="impact">Curriculum-grounded AI with mandatory human-in-the-loop oversight.</td>
+            </tr>
+            <tr>
+              <td class="key">Cryptographic Trust</td>
+              <td>HMAC-SHA256 signed certificates with public verification at /verify/CIQ-YYYY-XXXXXXXX</td>
+              <td class="impact">Tamper-proof digital credentials instantly verified by employers.</td>
+            </tr>
+            <tr>
+              <td class="key">Data Sovereignty</td>
+              <td>Indian Cloud (Mumbai) hosting · DPDP Act 2023 compliant · AES-256 + TLS 1.3 · On-premise option available</td>
+              <td class="impact">Student data never leaves India; bank-grade security guaranteed.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Role Portals -->
+      <div>
+        <div class="section-heading">Who Uses It — 8 Dedicated Role Portals</div>
+        <table class="dt">
+          <thead>
+            <tr>
+              <th style="width:22%;">Role</th>
+              <th style="width:48%;">Key Features &amp; Capabilities</th>
+              <th style="width:30%;">Primary Benefit</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="key">University Super Admin</td>
+              <td>Multi-college onboarding, status control (Active / Suspended / Onboarding), module group toggles, cross-college BI analytics &amp; audit log</td>
+              <td class="impact">Centralised governance across all affiliated colleges.</td>
+            </tr>
+            <tr>
+              <td class="key">College Principal</td>
+              <td>College command center, admissions pipeline CRM, staff &amp; user RBAC management, public website CMS, NAAC/AICTE readiness scorecards</td>
+              <td class="impact">Autonomous college control and inspection readiness at all times.</td>
+            </tr>
+            <tr>
+              <td class="key">Head of Department</td>
+              <td>Department pass rates, faculty workload &amp; AI adoption tracking, skill intelligence vs industry demand, course publication approvals</td>
+              <td class="impact">Proactive department management and curriculum oversight.</td>
+            </tr>
+            <tr>
+              <td class="key">Faculty</td>
+              <td>AI Teaching Copilot, Teaching Studio (slides &amp; handouts), Question Paper Generator, OCR handwritten evaluation pipeline</td>
+              <td class="impact">Saves 10+ hours/week — reclaims time for student mentoring.</td>
+            </tr>
+            <tr>
+              <td class="key">Placement Officer</td>
+              <td>Placement Readiness Board (100-pt formula), drive &amp; job management, student shortlisting, formula-safe CSV export</td>
+              <td class="impact">Maximizes campus placement conversions and recruiter efficiency.</td>
+            </tr>
+            <tr>
+              <td class="key">Incubation Head</td>
+              <td>Startup pipeline (Idea → Validation → MVP → Pitch), venture tracking, mentor network, funding readiness scorecards</td>
+              <td class="impact">Fosters student entrepreneurship and institutional innovation.</td>
+            </tr>
+            <tr>
+              <td class="key">Student</td>
+              <td>24/7 AI Mentor, sequential lesson courses, timed quizzes, AI mock interview, ATS resume builder, digital student passport</td>
+              <td class="impact">Personalised learning and verified pathway to top careers.</td>
+            </tr>
+            <tr>
+              <td class="key">Recruiter</td>
+              <td>Verified talent search by skills &amp; readiness scores, candidate shortlisting, interview scheduling</td>
+              <td class="impact">Discovers pre-assessed, high-calibre candidates with zero friction.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- RIGHT SIDEBAR -->
+    <div class="col-right">
+
+      <!-- Key Highlights - stat boxes -->
+      <div class="sidebar-section">
+        <div class="sidebar-heading">Key Highlights</div>
+        <div class="stat-box">
+          <div class="stat-number">8</div>
+          <div class="stat-label">Role Portals<br>Admin to Student</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number">5</div>
+          <div class="stat-label">Academic Streams<br>Engg · Med · Arts · Mgmt · Poly</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number">30</div>
+          <div class="stat-label">Specialized AI Agents<br>Curriculum-Grounded</div>
+        </div>
+        <div class="stat-box">
+          <div style="font-size: 18pt; font-weight: 800; color: #1a202c; line-height: 1;">All-in-One</div>
+          <div class="stat-label">Learning · Assessment · Placement</div>
+        </div>
+      </div>
+
+      <!-- Why ColossusIQ -->
+      <div class="sidebar-section">
+        <div class="sidebar-heading">Why ColossusIQ.ai?</div>
+        <ul class="blist">
+          <li>Built for Indian Higher Education: Anna Univ, AICTE, NMC CBME, UGC CBCS &amp; DOTE frameworks natively supported.</li>
+          <li>Single University, Multi-College: One instance runs any number of affiliated colleges with strict database-level isolation.</li>
+          <li>Quality Control Built-In: AI content must be reviewed by faculty and HOD before reaching students.</li>
+          <li>Cryptographic Trust: Every certificate carries an HMAC-SHA256 signature with instant web verification.</li>
+          <li>Placement and KPI data ready for regulatory audits and board meetings.</li>
+        </ul>
+      </div>
+
+      <!-- Callout -->
+      <div class="callout-box">
+        <div class="cb-title">DPDP Act 2023 Compliant</div>
+        <div class="cb-body">100% data residency in India. Student data never sold, shared, or transferred internationally. Role-based access controls enforced at every layer.</div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <span><strong>Infilabs Private Limited</strong> | www.colossusiq.ai | Higher-Education OS v1.0</span>
+    <span>Executive Overview · October 2026</span>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 2: ACADEMIC MODULES, AI COURSE STUDIO & FACULTY TOOLS
+     ═══════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <div class="header">
+    <div>
+      <div class="logo">ColossusIQ<span class="accent">.ai</span></div>
+      <div class="header-sub">Complete Academic &amp; Faculty Module Overview — What Your Institution Gets</div>
+    </div>
+    <div class="header-right">
+      <a href="https://www.colossusiq.ai">www.colossusiq.ai</a><br>
+      Infilabs Private Limited · Trichy, India
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="col-left">
+
+      <!-- AI Course & Learning Modules -->
+      <div>
+        <div class="section-heading">AI Course Studio &amp; Student Learning Modules</div>
+        <table class="dt">
+          <thead>
+            <tr>
+              <th style="width:25%;">Module</th>
+              <th style="width:43%;">What It Does</th>
+              <th style="width:32%;">Impact</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="key">AI Course Studio</td>
+              <td>4-step authoring from a course title or pasted Anna University syllabus: AI builds units, 30+ lessons, course outcomes, and a 30-question final assessment with a publish lock.</td>
+              <td class="impact">Cuts curriculum creation from 4 weeks to under 30 minutes — reviewed by faculty before release.</td>
+            </tr>
+            <tr>
+              <td class="key">My Courses (Student)</td>
+              <td>Sequential lesson progression with Key Concepts, Worked Examples, "Watch Out" error panels, Practice recap checklist, and curated YouTube/NPTEL media embeds.</td>
+              <td class="impact">Mastery-based learning; final assessment unlocks only after 100% lesson completion.</td>
+            </tr>
+            <tr>
+              <td class="key">AI Quiz Builder</td>
+              <td>Generates department MCQs from course content, flags uncertain items for mandatory review, sets attempt limits, cooldowns, pass marks, and certificate triggers.</td>
+              <td class="impact">Prevents publishing ungrounded questions; tracks department-wide pass rate trends.</td>
+            </tr>
+            <tr>
+              <td class="key">My Quizzes (Secure)</td>
+              <td>Timed exam player with anti-malpractice safeguards; server-side marking keeps the answer key fully protected; maximum 3 attempts per quiz.</td>
+              <td class="impact">Cheating-resistant, credible assessment with instant server analytics.</td>
+            </tr>
+            <tr>
+              <td class="key">Certificates</td>
+              <td>Automated mark-based certificate issuance graded O ≥ 90, A+ ≥ 80, A ≥ 70, B ≥ 60, C ≥ pass mark — with HMAC-SHA256 signature and public /verify link.</td>
+              <td class="impact">Tamper-proof digital credentials recognized at /verify/CIQ-... by hiring partners.</td>
+            </tr>
+            <tr>
+              <td class="key">Assignments</td>
+              <td>Create and distribute assignments; track active, overdue, due-soon, and needs-review submissions per class and department.</td>
+              <td class="impact">Deadlines and grading kept under control without paper or email.</td>
+            </tr>
+            <tr>
+              <td class="key">CBCS &amp; Electives</td>
+              <td>Choice-Based Credit System tracker for Core, Allied, Skill-Enhancement and Open Elective credits with automated UGC/NAAC credit audit reports.</td>
+              <td class="impact">Seamless credit compliance for Arts, Science, and Management streams.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Faculty Modules -->
+      <div>
+        <div class="section-heading">Faculty Tools — Teaching Studio &amp; AI Copilot</div>
+        <table class="dt">
+          <thead>
+            <tr>
+              <th style="width:25%;">Module</th>
+              <th style="width:43%;">How It Works</th>
+              <th style="width:32%;">Time Saved</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="key">Teaching Studio</td>
+              <td>Enter any topic: AI generates topic basics, a timed lecture outline, a semester roadmap, smart-board slides, infographic handout, and a post-class summary to share.</td>
+              <td class="impact">2–3 hrs/lecture: Fully class-ready pack generated in 1 click.</td>
+            </tr>
+            <tr>
+              <td class="key">Question Paper Generator</td>
+              <td>Creates blueprint-aligned exam papers mapped to Course Outcomes (COs) and Bloom's Taxonomy levels from Remembering to Creating.</td>
+              <td class="impact">4–5 hrs/exam: Multi-set balanced papers in seconds.</td>
+            </tr>
+            <tr>
+              <td class="key">Handwritten Evaluation</td>
+              <td>5-stage AI pipeline: Image Enhancement → OCR → Question Segmentation → Rubric-Based Semantic Scoring → Constructive Feedback generation.</td>
+              <td class="impact">70% of grading time: AI proposes scores with confidence ratings for faculty override.</td>
+            </tr>
+            <tr>
+              <td class="key">AI Evaluation Review</td>
+              <td>Faculty audit desk displaying AI evidence, highlighted missing concepts, and score adjustment sliders — every override is audit-logged with reason.</td>
+              <td class="impact">100% faculty final authority guaranteed; no mark publishes without approval.</td>
+            </tr>
+            <tr>
+              <td class="key">Class Notes</td>
+              <td>One-click distribution of class summaries, downloadable infographic handouts, homework prompts, and next-class reading lists directly to students.</td>
+              <td class="impact">30 min/day: Replaces fragmented WhatsApp forwards with an organized student hub.</td>
+            </tr>
+            <tr>
+              <td class="key">Faculty Skill Booster</td>
+              <td>Gamified professional development: auto-logs teaching milestones from platform activity, short skill tracks, micro-certifications, and UGC-aligned badges.</td>
+              <td class="impact">Continuous faculty career development without additional paperwork.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Assessment Modules -->
+      <div>
+        <div class="section-heading">Assessment &amp; Competitive Exam Suite</div>
+        <table class="dt">
+          <thead>
+            <tr>
+              <th style="width:25%;">Module</th>
+              <th style="width:43%;">Key Functionality</th>
+              <th style="width:32%;">Outcome</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="key">Mock Tests &amp; Exam Prep</td>
+              <td>Adaptive topic-wise tests with AI evaluation, confidence ratings, syllabus coverage countdowns, weak-area remediation, and last-minute revision packs.</td>
+              <td class="impact">Eliminates exam anxiety; improves semester pass rates.</td>
+            </tr>
+            <tr>
+              <td class="key">Viva Simulator</td>
+              <td>Voice/text simulated external examiner for project, subject, and technical viva with adaptive follow-up questions and per-answer feedback.</td>
+              <td class="impact">Prepares students for university practicals and project defense.</td>
+            </tr>
+            <tr>
+              <td class="key">Competitive Exams</td>
+              <td>Specialized preparation engines for GATE, UGC-NET, CAT, UPSC, SSC, Banking, Railway, and TNPSC with institution-specific question banks.</td>
+              <td class="impact">Higher competitive exam qualification rates institution-wide.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- RIGHT SIDEBAR -->
+    <div class="col-right">
+
+      <!-- How a Course Goes Live -->
+      <div class="sidebar-section">
+        <div class="sidebar-heading">How a Course Goes Live</div>
+        <div class="workflow-item">
+          <div class="wf-num">1</div>
+          <span><strong>Create</strong> manually or generate with AI from a title or pasted syllabus</span>
+        </div>
+        <div class="workflow-item">
+          <div class="wf-num">2</div>
+          <span><strong>Review</strong> content, lesson notes, quiz settings and media pins</span>
+        </div>
+        <div class="workflow-item">
+          <div class="wf-num">3</div>
+          <span><strong>Resolve flags</strong> — questions marked "review" must be approved before publishing</span>
+        </div>
+        <div class="workflow-item">
+          <div class="wf-num">4</div>
+          <span><strong>Send to HOD/Principal</strong> for institutional sign-off</span>
+        </div>
+        <div class="workflow-item">
+          <div class="wf-num">5</div>
+          <span><strong>Principal approves</strong> — only then the course becomes visible to students</span>
+        </div>
+        <div class="workflow-item">
+          <div class="wf-num">6</div>
+          <span><strong>Students access</strong> the course; certificate auto-issues on passing the final assessment</span>
+        </div>
+      </div>
+
+      <!-- Inside Every Lesson -->
+      <div class="sidebar-section">
+        <div class="sidebar-heading">Inside Every Lesson</div>
+        <ul class="blist">
+          <li><strong>Key Concepts:</strong> Clear explanation, concept maps, and definition cards.</li>
+          <li><strong>Worked Examples:</strong> Step-by-step calculations, code walk-throughs, or clinical scenarios.</li>
+          <li><strong>"Watch Out" Panels:</strong> Highlights common exam traps and misconceptions.</li>
+          <li><strong>Practice &amp; Recap:</strong> Self-test checklists and model answer breakdowns.</li>
+          <li><strong>Curated Media:</strong> YouTube embeds (nocookie) + NPTEL and SWAYAM verified links.</li>
+        </ul>
+      </div>
+
+      <!-- Key Platform Facts -->
+      <div class="sidebar-section">
+        <div class="sidebar-heading">Key Platform Facts</div>
+        <ul class="blist">
+          <li>Role-based dashboards for admin, staff, and students</li>
+          <li>Bulk student onboarding from Excel template</li>
+          <li>Notices and resources targeted by department</li>
+          <li>Question Bank with Bloom level tagging</li>
+          <li>Academic Calendar with semester scheduling</li>
+        </ul>
+      </div>
+
+      <div class="callout-box">
+        <div class="cb-title">AI Oversight Notice</div>
+        <div class="cb-body">AI drafts lessons and questions. Faculty review and approve everything before publishing. Questions flagged "review" cannot be published until resolved.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="footer">
+    <span><strong>Infilabs Private Limited</strong> | www.colossusiq.ai | Higher-Education OS v1.0</span>
+    <span>Executive Overview · October 2026</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 3: CAREER SUITE, PLACEMENT ENGINE & CLINICAL MODULES
+     ═══════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <div class="header">
+    <div>
+      <div class="logo">ColossusIQ<span class="accent">.ai</span></div>
+      <div class="header-sub">Career Suite, Placement Readiness Engine &amp; Clinical Modules</div>
+    </div>
+    <div class="header-right">
+      <a href="https://www.colossusiq.ai">www.colossusiq.ai</a><br>
+      Infilabs Private Limited · Trichy, India
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="col-left">
+
+      <!-- Career & Placement -->
+      <div>
+        <div class="section-heading">Career Suite &amp; Placement Readiness Engine</div>
+        <table class="dt">
+          <thead>
+            <tr>
+              <th style="width:25%;">Module</th>
+              <th style="width:43%;">What It Does</th>
+              <th style="width:32%;">Impact</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="key">Placement Readiness Board</td>
+              <td>Real-time cohort ledger scoring every student out of 100 across quiz average, certificates, aptitude, mock interview, and ATS resume score. Roll numbers masked. CSV sanitized against formula injection.</td>
+              <td class="impact">Placement officers shortlist job-ready students in seconds with zero data risk.</td>
+            </tr>
+            <tr>
+              <td class="key">Placement Readiness (Student)</td>
+              <td>Personal cockpit showing composite 100-pt score, status badge (Placement Ready / Almost Ready / Needs Work), and an actionable checklist of missing items.</td>
+              <td class="impact">Students know exactly which certificates or mock scores are needed to become eligible.</td>
+            </tr>
+            <tr>
+              <td class="key">AI Mock Interview</td>
+              <td>Interactive conversational interviewer across Technical, HR, and Behavioral modes. Dynamically adapts questions to answers. Outputs a dimensioned scorecard (0–100).</td>
+              <td class="impact">Students practice unlimited realistic interviews before high-stakes campus drives.</td>
+            </tr>
+            <tr>
+              <td class="key">ATS Resume Builder</td>
+              <td>Builds role-specific resumes, parses uploaded PDFs, scores ATS compatibility (0–100), detects missing domain keywords, and suggests structural improvements.</td>
+              <td class="impact">Dramatically improves student shortlist rates with tier-1 enterprise recruiters.</td>
+            </tr>
+            <tr>
+              <td class="key">Career Planner &amp; Job Prep</td>
+              <td>Maps current student profile against target role: identifies skill gaps, generates a learning roadmap, and prepares aptitude, coding and interview content.</td>
+              <td class="impact">Students graduate with clear, verified career plans aligned to real industry roles.</td>
+            </tr>
+            <tr>
+              <td class="key">Placement Drives &amp; Jobs</td>
+              <td>End-to-end recruitment drive management: eligibility rules, job matching to verified student passports, student opt-ins, offer tracking, and employer relationship history.</td>
+              <td class="impact">Complete digitization of TPO operations without error-prone spreadsheets.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Clinical & Hospital Suite -->
+      <div>
+        <div class="section-heading">Clinical &amp; Hospital Suite (Medical, Dental &amp; Allied Health Colleges)</div>
+        <table class="dt">
+          <thead>
+            <tr>
+              <th style="width:25%;">Medical Module</th>
+              <th style="width:43%;">NMC / Council CBME Specifications</th>
+              <th style="width:32%;">Compliance Impact</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="key">Clinical Rotations</td>
+              <td>Full CRUD rotation scheduler mapping students to clinical phases and departments (General Medicine, Surgery, OBG, Paediatrics, Orthopaedics) with supervisor sign-off.</td>
+              <td class="impact">Tracks clinical attendance and certified competencies — zero manual registers.</td>
+            </tr>
+            <tr>
+              <td class="key">Competency Logbook (CBME)</td>
+              <td>NMC competency tracking across Knows (K), Knows How (KH), Shows How (SH), and Performs (P) levels with faculty digital sign-offs and pending alert system.</td>
+              <td class="impact">100% compliant with NMC CBME curriculum norms; inspection-ready logbooks always.</td>
+            </tr>
+            <tr>
+              <td class="key">OSCE &amp; Skills Lab</td>
+              <td>Objective Structured Clinical Examination station manager, checklist scoring rubrics, mannequin lab scheduling, and procedure mastery progress tracking.</td>
+              <td class="impact">Standardizes clinical skill evaluation and enhances patient safety readiness.</td>
+            </tr>
+            <tr>
+              <td class="key">Teaching Hospital Dashboard</td>
+              <td>Real-time tracking of bed occupancy, OPD/IPD patient load, surgical volume, and clinical teaching material available for MBBS and postgraduate teaching.</td>
+              <td class="impact">Guarantees mandatory clinical material norms required for NMC annual renewals.</td>
+            </tr>
+            <tr>
+              <td class="key">NMC Council Compliance</td>
+              <td>Automated scorecard tracking faculty-to-student ratios, resident doctor strengths, biometric attendance records, and infrastructure against council requirements.</td>
+              <td class="impact">Eliminates risk of regulatory notices or seat reductions during surprise NMC visits.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Project & Innovation -->
+      <div>
+        <div class="section-heading">Project Hub, Innovation &amp; Campus Life</div>
+        <table class="dt">
+          <thead>
+            <tr>
+              <th style="width:25%;">Module</th>
+              <th style="width:43%;">Capabilities</th>
+              <th style="width:32%;">Institutional Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="key">Project Hub &amp; Idea Generator</td>
+              <td>Idea → Team Finder → Architecture Blueprints → AI Code Review → Faculty Sign-off → Portfolio listing for final year and capstone projects.</td>
+              <td class="impact">High-quality, industry-grade final year projects with structured AI guidance.</td>
+            </tr>
+            <tr>
+              <td class="key">Incubation Pipeline</td>
+              <td>Venture lifecycle from Problem Discovery → Business Model Canvas → MVP Planning → Investor Pitch → Funding Readiness Scorecard.</td>
+              <td class="impact">Structured student startup incubation and institutional patent output.</td>
+            </tr>
+            <tr>
+              <td class="key">AI Event Generator</td>
+              <td>AI generates full symposium/hackathon agendas, itemized budgets, promotion copy, and registration forms from a single topic and capacity input.</td>
+              <td class="impact">Streamlines campus tech fests, cultural events, and national competitions.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- RIGHT SIDEBAR -->
+    <div class="col-right">
+
+      <!-- Placement Formula -->
+      <div class="sidebar-section">
+        <div class="sidebar-heading">Placement Readiness Formula</div>
+        <ul class="blist">
+          <li><strong>Quiz Performance (35%):</strong> Department MCQ average across all attempted quizzes.</li>
+          <li><strong>Certifications (20%):</strong> Verified course certificates earned (4 certificates = full 20 pts).</li>
+          <li><strong>Aptitude Score (15%):</strong> Quantitative, logical and verbal reasoning test scores.</li>
+          <li><strong>AI Mock Interview (15%):</strong> Dynamic voice / technical interview scorecard.</li>
+          <li><strong>ATS Resume Score (15%):</strong> Structure, keywords, and role alignment audit.</li>
+        </ul>
+        <div class="formula-box">
+          ✔ Placement Ready = Score ≥ 70 AND Quiz Avg ≥ 60% AND ≥ 2 Certificates AND Mock Interview ≥ 50
+        </div>
+      </div>
+
+      <!-- Medical Specialization -->
+      <div class="sidebar-section">
+        <div class="sidebar-heading">Medical Stream Specialization</div>
+        <ul class="blist">
+          <li>CBME Framework: NMC guidelines integrated into student logbooks.</li>
+          <li>K / KH / SH / P Tracking: Clear separation between theoretical knowledge and certified procedural skills.</li>
+          <li>CRMI Internship Log: Mandatory rotation postings with faculty sign-offs.</li>
+          <li>Clinical modules dynamically hidden in engineering and arts colleges.</li>
+          <li>Entrance score field auto-relabels as "NEET score (out of 720)" for medical colleges.</li>
+        </ul>
+      </div>
+
+      <!-- Quote -->
+      <div class="sidebar-section">
+        <div class="sidebar-heading">What Placement Officers Say</div>
+        <div class="quote-block">
+          "The Placement Readiness Board gave us total transparency. Instead of guessing who was interview-ready, we filtered by score ≥ 70 and closed 92% of placements in Phase 1."
+          <div class="attribution">— Placement Director, Tier-1 Engineering College</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="footer">
+    <span><strong>Infilabs Private Limited</strong> | www.colossusiq.ai | Higher-Education OS v1.0</span>
+    <span>Executive Overview · October 2026</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 4: GOVERNANCE, SECURITY, BENEFITS & GETTING STARTED
+     ═══════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <div class="header">
+    <div>
+      <div class="logo">ColossusIQ<span class="accent">.ai</span></div>
+      <div class="header-sub">Multi-College Governance, Enterprise Security &amp; Getting Started</div>
+    </div>
+    <div class="header-right">
+      <a href="https://www.colossusiq.ai">www.colossusiq.ai</a><br>
+      Infilabs Private Limited · Trichy, India
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="col-left">
+
+      <!-- Governance -->
+      <div>
+        <div class="section-heading">Multi-College Administration &amp; Governance</div>
+        <table class="dt">
+          <thead>
+            <tr>
+              <th style="width:25%;">Capability</th>
+              <th style="width:43%;">What It Does</th>
+              <th style="width:32%;">Impact</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="key">College Lifecycle Management</td>
+              <td>University Super Admin onboards colleges (COL-XXXX), sets status (Onboarding, Active, Suspended), and assigns capacity. Suspended colleges are immediately locked out.</td>
+              <td class="impact">Centralized university control with instant session revocation.</td>
+            </tr>
+            <tr>
+              <td class="key">Dynamic Module Toggling</td>
+              <td>Enable or disable module groups per college (Career, Placement, Incubation, Admissions, Recruiter) with strict API 403 and route 404 enforcement.</td>
+              <td class="impact">Tailors platform features precisely to college type and accreditation stage.</td>
+            </tr>
+            <tr>
+              <td class="key">Student Admissions CRM</td>
+              <td>Full funnel: Enquiry → Application → Document Verification → Shortlist → Offer → Fee → Enrolment. Public /apply portal for each college. Stage timeline on detail view.</td>
+              <td class="impact">Boosts admission conversion rates and streamlines certificate verification.</td>
+            </tr>
+            <tr>
+              <td class="key">Staff &amp; User RBAC</td>
+              <td>Teaching and non-teaching staff records, role assignments, department mappings, phone/email masking on list views, and strong delete confirmation guards.</td>
+              <td class="impact">Zero unauthorized data access; strict institutional hierarchy enforced.</td>
+            </tr>
+            <tr>
+              <td class="key">NAAC &amp; AICTE Compliance</td>
+              <td>Automated scorecards tracking 7 NAAC criteria (Curriculum, Teaching-Learning, Research, Infrastructure, Student Support, Governance, Values) and AICTE mandatory disclosure norms.</td>
+              <td class="impact">Inspection-ready compliance bundles with auto-compiled evidence.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Security -->
+      <div>
+        <div class="section-heading">Enterprise Security &amp; Data Privacy Architecture</div>
+        <table class="dt">
+          <thead>
+            <tr>
+              <th style="width:25%;">Security Layer</th>
+              <th style="width:43%;">Implementation</th>
+              <th style="width:32%;">Compliance &amp; Assurance</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="key">Database Isolation (RLS)</td>
+              <td>PostgreSQL Row-Level Security via app_set_context isolates every query to the session's college ID at the database kernel level.</td>
+              <td class="impact">Architectural guarantee — college data cannot leak even under application bugs.</td>
+            </tr>
+            <tr>
+              <td class="key">Authentication</td>
+              <td>Multi-Factor Authentication (MFA), Argon2 password hashing, secure HTTP-only session cookies, and per-request CSP nonces.</td>
+              <td class="impact">Bank-grade protection against credential stuffing and session hijacking.</td>
+            </tr>
+            <tr>
+              <td class="key">Immutable Audit Log</td>
+              <td>Append-only audit trail for all security events, grade overrides, certificate issuances, role grants, and configuration changes — accessible to admins and principals.</td>
+              <td class="impact">Full forensic visibility required for ISO 27001 and government audit bodies.</td>
+            </tr>
+            <tr>
+              <td class="key">Data Sovereignty &amp; DPDP</td>
+              <td>Strictly hosted in Indian data centers (Mumbai). 100% compliant with the Digital Personal Data Protection (DPDP) Act 2023. No international data transfer.</td>
+              <td class="impact">Student privacy legally protected under Indian law from Day 1.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Benefits Grid -->
+      <div>
+        <div class="section-heading">Benefits for Your Institution</div>
+        <div class="problems-grid">
+          <div class="benefit-card">
+            <div class="card-title">All-In-One Unified Ecosystem</div>
+            <div class="card-desc">Replaces 6+ disjointed tools (LMS, SIS, Quiz portal, Placement tracker, CMS, Feedback) with a single institutional login.</div>
+          </div>
+          <div class="benefit-card">
+            <div class="card-title">Human-Governed AI Safety</div>
+            <div class="card-desc">AI acts as a copilot only. Faculty and leadership hold final authority on all course content, assessment scores, and publication decisions.</div>
+          </div>
+          <div class="benefit-card">
+            <div class="card-title">Multi-College Cost Efficiency</div>
+            <div class="card-desc">A single deployment runs all affiliated colleges, eliminating per-college software licensing, maintenance, and server overhead.</div>
+          </div>
+          <div class="benefit-card">
+            <div class="card-title">Audit &amp; Inspection Readiness</div>
+            <div class="card-desc">One-click compliance reporting for NAAC, NBA, AICTE, and NMC with instant traceable evidence and digital signatures.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3-Step Getting Started -->
+      <div>
+        <div class="section-heading">How to Get Started — 3 Steps</div>
+        <div class="steps-grid">
+          <div class="step-col">
+            <div class="step-label">STEP 1</div>
+            <div class="step-name">Enquire</div>
+            <ul class="blist">
+              <li>Submit the institutional enquiry form at www.colossusiq.ai</li>
+              <li>Discuss your departments, streams and goals</li>
+              <li>Configure your public college portal</li>
+            </ul>
+          </div>
+          <div class="step-col">
+            <div class="step-label">STEP 2</div>
+            <div class="step-name">Set Up</div>
+            <ul class="blist">
+              <li>Add departments and faculty accounts</li>
+              <li>Bulk upload students from Excel template</li>
+              <li>Create or AI-generate your first courses</li>
+            </ul>
+          </div>
+          <div class="step-col">
+            <div class="step-label">STEP 3</div>
+            <div class="step-name">Launch</div>
+            <ul class="blist">
+              <li>Approve and publish courses to students</li>
+              <li>Activate placement readiness tracking</li>
+              <li>Track institutional KPIs and placements</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT SIDEBAR -->
+    <div class="col-right">
+
+      <!-- Reports -->
+      <div class="sidebar-section">
+        <div class="sidebar-heading">Reports You Get</div>
+        <ul class="blist">
+          <li>Student KPI report with Excel export</li>
+          <li>Placement readiness distribution by department</li>
+          <li>Comprehensive learner progress report</li>
+          <li>Staff and faculty login activity history</li>
+          <li>Quiz and assignment completion status</li>
+          <li>Department-level placement analytics</li>
+          <li>Admission funnel and conversion report</li>
+        </ul>
+        <div class="callout-box" style="margin-top:5px;">
+          <div class="cb-body">Reports can be filtered by academic year and department — ready for compliance reviews, board meetings, and recruiter sharing.</div>
+        </div>
+      </div>
+
+      <!-- Contact Us -->
+      <div class="sidebar-section">
+        <div class="sidebar-heading">Contact Us</div>
+        <ul class="blist">
+          <li><a href="https://www.colossusiq.ai" style="color:#e05a00;">www.colossusiq.ai</a></li>
+          <li>Infilabs Private Limited</li>
+          <li>Trichy, Tamil Nadu, India</li>
+          <li>Founder: Saravanan Balakrishnan</li>
+        </ul>
+      </div>
+
+      <!-- Request a Demo -->
+      <div class="callout-box">
+        <div class="cb-title">Request a Demo</div>
+        <div class="cb-body">See ColossusIQ.ai in action for your institution. We offer a live walkthrough for your leadership, deans, and HODs — tailored to your streams and goals.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="footer">
+    <span><strong>Infilabs Private Limited</strong> | Founder: Saravanan Balakrishnan | October 2026</span>
+    <span>Higher-Education OS v1.0 · www.colossusiq.ai</span>
+  </div>
+
+</div>
+
+</body>
+</html>

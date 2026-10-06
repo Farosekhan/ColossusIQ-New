@@ -1,4 +1,4 @@
-﻿import { cleanText } from "@/lib/security/sanitize";
+import { cleanText } from "@/lib/security/sanitize";
 
 export interface FacultyRecord {
   id: string;
@@ -27,19 +27,14 @@ export interface FacultyInput {
 }
 
 const INITIAL_FACULTY: FacultyRecord[] = [
-  { id: "fac-1", name: "Dr. Joseph Kumar",       designation: "Professor",           department: "CSE", load: 18, development: 95, ai: "Medium",   email: "joseph.k@campus.edu",  createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
-  { id: "fac-2", name: "Mr. Ananya Menon",        designation: "Professor",           department: "CSE", load: 14, development: 62, ai: "Starting", email: "ananya.m@campus.edu",  createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
-  { id: "fac-3", name: "Mr. Manoj Khan",          designation: "Professor",           department: "CSE", load: 13, development: 40, ai: "Starting", email: "manoj.k@campus.edu",   createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
-  { id: "fac-4", name: "Mr. Deepika Raman",       designation: "Assistant Professor", department: "CSE", load: 14, development: 28, ai: "High",     email: "deepika.r@campus.edu", createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
-  { id: "fac-5", name: "Prof. Imran Pillai",      designation: "Professor",           department: "CSE", load: 12, development: 45, ai: "Medium",   email: "imran.p@campus.edu",   createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
-  { id: "fac-6", name: "Dr. Revathi Srinivasan",  designation: "Assistant Professor", department: "CSE", load: 19, development: 94, ai: "Starting", email: "revathi.s@campus.edu", createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
-  { id: "fac-7", name: "Dr. Gokul Iyer",          designation: "Assistant Professor", department: "CSE", load: 14, development: 64, ai: "Medium",   email: "gokul.i@campus.edu",   createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
-  { id: "fac-8", name: "Dr. Shreya Krishnan",     designation: "Professor",           department: "CSE", load: 18, development: 63, ai: "Medium",   email: "shreya.k@campus.edu",  createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
-  { id: "fac-9", name: "Prof. Varun Varma",       designation: "Assistant Professor", department: "CSE", load: 19, development: 88, ai: "Starting", email: "varun.v@campus.edu",   createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
+  { id: "fac-1", name: "Dr. Joseph Kumar", designation: "Professor", department: "CSE", load: 18, development: 95, ai: "Medium", email: "joseph.k@campus.edu", createdAt: "2026-08-01T09:00:00Z", updatedAt: "2026-08-01T09:00:00Z" },
 ];
 
 let facultyStore: FacultyRecord[] = [...INITIAL_FACULTY];
-let nextFacultySeq = 10;
+let nextFacultySeq = 2;
+
+import { dataBackend } from "@/lib/data";
+import { db } from "@/lib/data/postgres/db";
 
 export async function getFacultyList(opts?: {
   collegeId?: string | null;
@@ -47,6 +42,70 @@ export async function getFacultyList(opts?: {
   designation?: string;
   ai?: string;
 }): Promise<FacultyRecord[]> {
+  if (dataBackend() === "postgres") {
+    const t = db();
+    const collegePublicId = opts?.collegeId && opts.collegeId !== "all" ? opts.collegeId : undefined;
+    const staffRows = await t.staff.findMany({
+      where: {
+        ...(collegePublicId ? { college: { publicId: collegePublicId } } : {}),
+        status: "Active",
+      },
+      include: {
+        department: { select: { name: true } },
+        designation: { select: { name: true } },
+        college: { select: { publicId: true } },
+      },
+      orderBy: { fullName: "asc" },
+    });
+
+    let list: FacultyRecord[] = staffRows.map((s) => {
+      const desName = s.designation.name;
+      const validDes: FacultyRecord["designation"] =
+        desName.includes("Associate")
+          ? "Associate Professor"
+          : desName.includes("Assistant")
+          ? "Assistant Professor"
+          : "Professor";
+      const exp = s.experienceYears ?? 5;
+      const load = 12 + (exp % 8);
+      const development = Math.min(100, 50 + exp * 4);
+      const ai: FacultyRecord["ai"] = exp > 10 ? "High" : exp > 4 ? "Medium" : "Starting";
+
+      return {
+        id: s.publicId,
+        name: s.fullName,
+        designation: validDes,
+        department: s.department.name,
+        email: s.email,
+        phone: s.phone,
+        load,
+        development,
+        ai,
+        collegeId: s.college.publicId,
+        createdAt: s.createdAt.toISOString(),
+        updatedAt: s.updatedAt.toISOString(),
+      };
+    });
+
+    if (opts?.designation && opts.designation !== "all") {
+      list = list.filter((f) => f.designation.toLowerCase() === opts.designation!.toLowerCase());
+    }
+    if (opts?.ai && opts.ai !== "all") {
+      list = list.filter((f) => f.ai.toLowerCase() === opts.ai!.toLowerCase());
+    }
+    if (opts?.q) {
+      const needle = opts.q.trim().toLowerCase();
+      list = list.filter(
+        (f) =>
+          f.name.toLowerCase().includes(needle) ||
+          f.designation.toLowerCase().includes(needle) ||
+          f.department.toLowerCase().includes(needle) ||
+          (f.email ?? "").toLowerCase().includes(needle)
+      );
+    }
+    return list;
+  }
+
   let list = [...facultyStore];
   if (opts?.collegeId && opts.collegeId !== "all") {
     list = list.filter((f) => !f.collegeId || f.collegeId === opts.collegeId);
@@ -71,6 +130,38 @@ export async function getFacultyList(opts?: {
 }
 
 export async function getFacultyById(id: string): Promise<FacultyRecord | null> {
+  if (dataBackend() === "postgres") {
+    const s = await db().staff.findFirst({
+      where: { OR: [{ publicId: id }, { id: id }] },
+      include: {
+        department: { select: { name: true } },
+        designation: { select: { name: true } },
+        college: { select: { publicId: true } },
+      },
+    });
+    if (!s) return null;
+    const desName = s.designation.name;
+    const validDes: FacultyRecord["designation"] =
+      desName.includes("Associate")
+        ? "Associate Professor"
+        : desName.includes("Assistant")
+        ? "Assistant Professor"
+        : "Professor";
+    return {
+      id: s.publicId,
+      name: s.fullName,
+      designation: validDes,
+      department: s.department.name,
+      email: s.email,
+      phone: s.phone,
+      load: 16,
+      development: 75,
+      ai: "Medium",
+      collegeId: s.college.publicId,
+      createdAt: s.createdAt.toISOString(),
+      updatedAt: s.updatedAt.toISOString(),
+    };
+  }
   const found = facultyStore.find((f) => f.id === id);
   return found ? { ...found } : null;
 }
@@ -79,6 +170,46 @@ export async function createFaculty(
   input: FacultyInput,
   collegeId?: string | null
 ): Promise<FacultyRecord> {
+  if (dataBackend() === "postgres") {
+    const { getStore } = await import("@/lib/data");
+    const { RESOURCES } = await import("@/config/resources");
+    const effectiveCollege = collegeId && collegeId !== "all" ? collegeId : "COL-1001";
+    const rec = await getStore().records.create(
+      RESOURCES.staff!,
+      {
+        fullName: cleanText(input.name, 120).trim(),
+        email: input.email ? cleanText(input.email, 120).trim() : `${input.name.toLowerCase().replace(/[^a-z0-9]/g, "")}@ait.edu.in`,
+        phone: input.phone ? cleanText(input.phone, 20).trim() : "9840012345",
+        qualification: "Ph.D",
+        department: cleanText(input.department || "Computer Science & Engineering", 80).trim(),
+        designation: input.designation || "Assistant Professor",
+        staffType: "Teaching",
+        employment: "Permanent",
+        joiningDate: new Date().toISOString().slice(0, 10),
+        experienceYears: 6,
+        status: "Active",
+        platformAccess: true,
+        notes: `Load: ${input.load || 16}, AI: ${input.ai || "Medium"}`,
+      },
+      effectiveCollege
+    );
+
+    return {
+      id: rec.id,
+      name: String(rec.fullName),
+      designation: (rec.designation as any) || "Assistant Professor",
+      department: String(rec.department),
+      email: rec.email ? String(rec.email) : undefined,
+      phone: rec.phone ? String(rec.phone) : undefined,
+      load: input.load || 16,
+      development: input.development || 75,
+      ai: input.ai || "Medium",
+      collegeId: rec.collegeId,
+      createdAt: rec.createdAt,
+      updatedAt: rec.updatedAt,
+    };
+  }
+
   const now = new Date().toISOString();
   const id = `fac-${Date.now()}-${nextFacultySeq++}`;
   const validDesignations = ["Professor", "Associate Professor", "Assistant Professor"] as const;
@@ -113,6 +244,38 @@ export async function updateFaculty(
   id: string,
   data: Partial<FacultyInput>
 ): Promise<FacultyRecord | null> {
+  if (dataBackend() === "postgres") {
+    const { getStore } = await import("@/lib/data");
+    const { RESOURCES } = await import("@/config/resources");
+    const existing = await getStore().records.get(RESOURCES.staff!, id);
+    if (!existing) return null;
+
+    const patch: Record<string, any> = { ...existing };
+    if (data.name !== undefined) patch.fullName = cleanText(data.name, 120).trim();
+    if (data.email !== undefined) patch.email = cleanText(data.email, 120).trim();
+    if (data.phone !== undefined) patch.phone = cleanText(data.phone, 20).trim();
+    if (data.designation !== undefined) patch.designation = data.designation;
+    if (data.department !== undefined) patch.department = cleanText(data.department, 80).trim();
+
+    const updated = await getStore().records.update(RESOURCES.staff!, id, patch, existing.version);
+    if (!updated || updated === "stale") return null;
+
+    return {
+      id: updated.id,
+      name: String(updated.fullName),
+      designation: (updated.designation as any) || "Assistant Professor",
+      department: String(updated.department),
+      email: updated.email ? String(updated.email) : undefined,
+      phone: updated.phone ? String(updated.phone) : undefined,
+      load: data.load ?? 16,
+      development: data.development ?? 75,
+      ai: data.ai ?? "Medium",
+      collegeId: updated.collegeId,
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
+    };
+  }
+
   const index = facultyStore.findIndex((f) => f.id === id);
   if (index === -1) return null;
 
@@ -151,6 +314,12 @@ export async function updateFaculty(
 }
 
 export async function deleteFaculty(id: string): Promise<boolean> {
+  if (dataBackend() === "postgres") {
+    const { getStore } = await import("@/lib/data");
+    const { RESOURCES } = await import("@/config/resources");
+    return getStore().records.delete(RESOURCES.staff!, id);
+  }
+
   const index = facultyStore.findIndex((f) => f.id === id);
   if (index === -1) return false;
   facultyStore.splice(index, 1);

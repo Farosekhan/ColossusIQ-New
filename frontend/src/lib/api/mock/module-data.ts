@@ -20,16 +20,14 @@ import { TENANTS, hashString, personName, seeded } from "./fixtures";
 import { ADMISSION_FLOW, RESOURCES } from "@/config/resources";
 import type { ResourceRecord } from "@/config/resources";
 import type { Stream } from "@/config/streams";
-import { getStore } from "@/lib/data";
+import { getStore, dataBackend } from "@/lib/data";
+import { db } from "@/lib/data/postgres/db";
 import { collegeStream } from "./records";
 import { dynamicBiAnalytics } from "./bi-analytics";
-import { getDepartmentSkillsOverview } from "./department-skills";
-import { getEarlyWarningOverview } from "./early-warning";
 import { getCollegeClubs } from "./clubs";
 import { getCollegeSports } from "./sports";
 import { getCollegeCalendar } from "./academic-calendar";
 import { getStudentsList } from "./students-store";
-import { generateDynamicExamPrep, generateDynamicSkillGraph, getStudentAcademicProfile } from "./student-profile";
 
 /** Live data a builder may need, fetched once per request. */
 interface ScopeData {
@@ -147,146 +145,308 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
   "naac-readiness": naacReadiness,
   "aicte-compliance": aicteCompliance,
   "cbcs-electives": (_scope, live) => cbcsElectives(live.stream),
-  "academic-tracker": async (collegeScope) => {
-    const profile = await getStudentAcademicProfile({ college: collegeScope, sub: "demo-student" });
-    const subjects = profile.enrolledSubjects;
-
-    const avgAttendance = Math.round(
-      subjects.reduce((sum, s) => sum + s.attendancePercent, 0) / (subjects.length || 1)
+  "academic-tracker": () =>
+    dashboard(
+      [k("CGPA", "0.0", undefined, "teal"), k("Attendance", "0%", undefined, "teal"), k("Internal avg.", "0%", undefined, "amber"), k("Credits earned", "0 / 160", undefined, "brand")],
+      [
+        chart("bar", "Subject-wise internal marks (%)", [{ category: "Core", IA1: 0 }], ["IA1"]),
+        chart("line", "Semester progress", [{ category: "Current", Progress: 0 }], ["Progress"]),
+      ],
+      [],
+    ),
+  "exam-prep": () =>
+    dashboard(
+      [k("Next exam", "None scheduled", undefined, "amber"), k("Syllabus covered", "0%", undefined, "brand"), k("Mock tests taken", "0", undefined, "teal"), k("Predicted band", "—", undefined, "sky")],
+      [
+        chart("bar", "Topic mastery (%)", [{ category: "Core", Mastery: 0 }], ["Mastery"]),
+        chart("area", "Daily study minutes", [{ category: "Today", Minutes: 0 }], ["Minutes"]),
+      ],
+      [],
+    ),
+  "class-analytics": () =>
+    dashboard(
+      [k("Class average", "0%", undefined, "teal"), k("At-risk students", "0", undefined, "amber"), k("Assignments pending", "0", undefined, "brand"), k("AI-assisted lessons", "0", undefined, "sky")],
+      [
+        chart("bar", "Topic mastery", [{ category: "General", Mastery: 0 }], ["Mastery"]),
+        chart("line", "Assessment trend", [{ category: "Current", Average: 0 }], ["Average"]),
+      ],
+      [],
+    ),
+  "department-academics": async (collegeScope) => {
+    if (dataBackend() === "postgres") {
+      const t = db();
+      const collegePublicId = collegeScope && collegeScope !== "all" ? collegeScope : undefined;
+      const courses = await t.course.findMany({
+        where: {
+          ...(collegePublicId ? { college: { publicId: collegePublicId } } : {}),
+        },
+      });
+      const activeCourses = courses.filter((c) => c.status === "Active").length;
+      return dashboard(
+        [
+          k("Active courses", String(activeCourses), undefined, "teal"),
+          k("Average marks", "0.0", undefined, "teal"),
+          k("Pass percentage", "0%", undefined, "teal"),
+          k("Course completion", "0%", undefined, "brand"),
+        ],
+        [
+          chart("bar", "Pass % by subject", courses.length > 0 ? courses.map((c) => ({ category: c.code, "Pass %": 0 })) : [{ category: "None", "Pass %": 0 }], ["Pass %"]),
+          chart("line", "Semester averages", [{ category: "Current", Average: 0 }], ["Average"]),
+        ],
+        [],
+      );
+    }
+    return dashboard(
+      [
+        k("Active courses", "0", undefined, "teal"),
+        k("Average marks", "0.0", undefined, "teal"),
+        k("Pass percentage", "0%", undefined, "teal"),
+        k("Course completion", "0%", undefined, "brand"),
+      ],
+      [
+        chart("bar", "Pass % by subject", [{ category: "None", "Pass %": 0 }], ["Pass %"]),
+        chart("line", "Semester averages", [{ category: "Current", Average: 0 }], ["Average"]),
+      ],
+      [],
     );
-    const avgInternal = Math.round(
-      subjects.reduce((sum, s) => sum + (s.ia1Marks + s.ia2Marks) / 2, 0) / (subjects.length || 1)
+  },
+  "department-skills": async (collegeScope) => {
+    if (dataBackend() === "postgres") {
+      const t = db();
+      const collegePublicId = collegeScope && collegeScope !== "all" ? collegeScope : undefined;
+      const [studentsCount, certsCount] = await Promise.all([
+        t.student.count({
+          where: {
+            status: "Active",
+            ...(collegePublicId ? { college: { publicId: collegePublicId } } : {}),
+          },
+        }),
+        t.certificate.count({
+          where: {
+            ...(collegePublicId ? { college: { publicId: collegePublicId } } : {}),
+          },
+        }),
+      ]);
+      return dashboard(
+        [
+          k("Students profiled", String(studentsCount), undefined, "brand"),
+          k("Job-ready (any role)", "0%", undefined, "teal"),
+          k("Top gap", "None", undefined, "sky"),
+          k("Certifications earned", String(certsCount), "This year", "gold"),
+        ],
+        [
+          chart("bar", "Industry demand vs student readiness", [{ category: "Active", Demand: 0, Readiness: 0 }], ["Demand", "Readiness"]),
+          chart("radar", "Skill distribution", [{ category: "Core", Current: 0 }], ["Current"]),
+        ],
+        [],
+      );
+    }
+    return dashboard(
+      [
+        k("Students profiled", "0", undefined, "brand"),
+        k("Job-ready (any role)", "0%", undefined, "teal"),
+        k("Top gap", "None", undefined, "sky"),
+        k("Certifications earned", "0", "This year", "gold"),
+      ],
+      [
+        chart("bar", "Industry demand vs student readiness", [{ category: "Active", Demand: 0, Readiness: 0 }], ["Demand", "Readiness"]),
+        chart("radar", "Skill distribution", [{ category: "Core", Current: 0 }], ["Current"]),
+      ],
+      [],
     );
+  },
+  "placement-analytics": async (collegeScope) => {
+    if (dataBackend() === "postgres") {
+      const t = db();
+      const collegePublicId = collegeScope && collegeScope !== "all" ? collegeScope : undefined;
+      const college = collegePublicId ? await t.college.findUnique({ where: { publicId: collegePublicId } }) : null;
+      const colId = college?.id;
 
-    const internalData = subjects.map((s) => ({
-      name: s.shortName,
-      IA1: s.ia1Marks,
-      IA2: s.ia2Marks,
-    }));
+      const students = await t.student.findMany({
+        where: {
+          status: "Active",
+          ...(colId ? { collegeId: colId } : {}),
+        },
+        include: {
+          department: true,
+          resumeAnalyses: true,
+          interviewSessions: true,
+        },
+      });
 
-    const progressData = subjects.map((s) => ({
-      name: s.shortName,
-      Progress: s.semesterProgress,
-      Target: 75,
-    }));
+      const totalStudents = students.length;
+      if (totalStudents === 0) {
+        return dashboard(
+          [
+            k("Placement readiness", "0%", undefined, "teal"),
+            k("Offers", "0", "Season to date", "gold"),
+            k("Resume completion", "0%", undefined, "brand"),
+            k("Mock interview participation", "0%", undefined, "teal"),
+          ],
+          [
+            chart("bar", "Offers by department", [{ category: "No active records", Offers: 0 }], ["Offers"]),
+            chart("line", "Average interview score", [{ category: "Current", Score: 0 }], ["Score"]),
+          ],
+          [],
+        );
+      }
 
-    const sorted = [...subjects].sort((a, b) => a.ia2Marks - b.ia2Marks);
-    const lowest = sorted[0] || subjects[0]!;
-    const highest = sorted[sorted.length - 1] || subjects[0]!;
+      let resumesCount = 0;
+      let interviewsCount = 0;
+      let totalScore = 0;
+      let scoreCount = 0;
+      const deptOffers: Record<string, number> = {};
+
+      for (const s of students) {
+        if (s.resumeAnalyses.length > 0) resumesCount++;
+        if (s.interviewSessions.length > 0) interviewsCount++;
+        for (const intv of s.interviewSessions) {
+          if (intv.overallScore) {
+            totalScore += intv.overallScore;
+            scoreCount++;
+          }
+        }
+        const deptName = s.department.name.replace(/Engineering|Department of/gi, "").trim();
+        deptOffers[deptName] = (deptOffers[deptName] || 0);
+      }
+
+      const resumePct = Math.round((resumesCount / totalStudents) * 100);
+      const interviewPct = Math.round((interviewsCount / totalStudents) * 100);
+      const avgScore = scoreCount > 0 ? Math.round(totalScore / scoreCount) : 0;
+      const readinessPct = Math.round((resumePct + interviewPct) / 2);
+
+      const deptChartData = Object.entries(deptOffers).map(([dept, count]) => ({
+        category: dept,
+        Offers: count,
+      }));
+
+      return dashboard(
+        [
+          k("Placement readiness", `${readinessPct}%`, undefined, "teal"),
+          k("Offers", "0", "Season to date", "gold"),
+          k("Resume completion", `${resumePct}%`, undefined, "brand"),
+          k("Mock interview participation", `${interviewPct}%`, undefined, "teal"),
+        ],
+        [
+          chart("bar", "Offers by department", deptChartData.length > 0 ? deptChartData : [{ category: "Active", Offers: 0 }], ["Offers"]),
+          chart("line", "Average interview score", [{ category: "Average", Score: avgScore }], ["Score"]),
+        ],
+        [],
+      );
+    }
 
     return dashboard(
       [
-        k("CGPA", profile.cgpa.toFixed(2), "+0.14 this sem", "teal"),
-        k("Attendance", `${avgAttendance}%`, "Above 75% requirement", "teal"),
-        k("Internal avg.", `${avgInternal}%`, avgInternal >= 70 ? "+2% vs target" : "−3% vs target", avgInternal >= 70 ? "teal" : "amber"),
-        k("Credits earned", `${profile.creditsEarned} / ${profile.totalCredits}`, undefined, "brand"),
+        k("Placement readiness", "0%", undefined, "teal"),
+        k("Offers", "0", "Season to date", "gold"),
+        k("Resume completion", "0%", undefined, "brand"),
+        k("Mock interview participation", "0%", undefined, "teal"),
       ],
       [
-        chart("bar", "Subject-wise internal marks (%)", internalData, ["IA1", "IA2"]),
-        chart("line", "Syllabus progress vs Target (%)", progressData, ["Progress", "Target"]),
+        chart("bar", "Offers by department", [{ category: "None", Offers: 0 }], ["Offers"]),
+        chart("line", "Average interview score", [{ category: "Current", Score: 0 }], ["Score"]),
       ],
-      [
-        ins(
-          `${lowest.shortName} needs attention`,
-          `Your IA2 ${lowest.shortName} score is ${lowest.ia2Marks}%, with lost marks mainly in ${lowest.units[2]?.title || "Unit 3"}.`,
-          `IA1 ${lowest.ia1Marks}% → IA2 ${lowest.ia2Marks}% · ${lowest.facultyName}`,
-          "amber"
-        ),
-        ins(
-          `${highest.shortName} is a strength`,
-          `You are excelling in ${highest.title} with consistent performance across assessments.`,
-          `Current internal score: ${highest.ia2Marks}% · Section top percentile`,
-          "teal"
-        ),
-      ],
+      [],
     );
   },
-  "exam-prep": (collegeScope) => generateDynamicExamPrep(collegeScope),
-  "class-analytics": () =>
-    dashboard(
-      [k("Class average", "68%", "+4% vs IA1", "teal"), k("At-risk students", "6", "Review suggested", "amber"), k("Assignments pending", "11", undefined, "brand"), k("AI-assisted lessons", "14", "This semester", "sky")],
-      [
-        chart("bar", "Topic mastery — CSE-A", cats("cls", ["ER", "SQL", "FDs", "3NF", "BCNF", "ACID"], ["Mastery"], 64, 40), ["Mastery"]),
-        chart("line", "Assessment trend", trend("cls-t", ["Average", "Top 10%"], 60, 10), ["Average", "Top 10%"]),
-      ],
-      [ins("Remedial suggestion", "18 students missed the lossless-join property. A 15-minute recap with two worked examples is recommended.", "IA1 Q5 rubric criterion 3 · 18/64 scored 0", "amber"), ins("Engagement up", "Practice-quiz completion rose to 81% after enabling adaptive quizzes.", "LMS activity logs, weeks 3–8", "teal")],
-    ),
-  "department-academics": () =>
-    dashboard(
-      [k("Pass percentage", "91.4%", "+2.1%", "teal"), k("Average marks", "71.2", "+1.8", "teal"), k("Failure patterns", "3 subjects", "Rising", "rose"), k("Course completion", "88%", undefined, "brand")],
-      [
-        chart("bar", "Pass % by subject", cats("dept", ["DBMS", "OS", "CN", "TOC", "ML", "SE"], ["Pass %"], 88, 18), ["Pass %"]),
-        chart("line", "Semester averages", trend("dept-t", ["Sem 3", "Sem 5", "Sem 7"], 68, 10), ["Sem 3", "Sem 5", "Sem 7"]),
-      ],
-      [ins("Theory of Computation", "Failures rose for two consecutive semesters. Consider remedial sessions and a question-bank review.", "Sem 5 failures: 7% → 11% → 14%", "rose"), ins("Faculty upskilling impact", "Sections taught by faculty who completed the AI-for-Teaching path show +6% average.", "Compared across 8 sections, same syllabus", "teal")],
-    ),
-  "department-skills": async (collegeScope) => {
-    const data = await getDepartmentSkillsOverview({
-      college: collegeScope,
-      role: "institution",
-      sub: "institution",
-      tenant: "ciq",
-      name: "Principal",
-      mfa: true,
-      exp: 0,
-    });
-    return dashboard(data.kpis, [data.demandVsReadiness, data.domainRadar], data.insights);
-  },
-  "placement-analytics": () =>
-    dashboard(
-      [k("Placement readiness", "68%", "+6%", "teal"), k("Offers", "412", "Season to date", "gold"), k("Resume completion", "91%", undefined, "brand"), k("Mock interview participation", "74%", "+18%", "teal")],
-      [
-        chart("bar", "Offers by department", cats("plc", ["CSE", "IT", "ECE", "EEE", "MECH", "CIVIL"], ["Offers"], 60, 70), ["Offers"]),
-        chart("line", "Average interview score", trend("plc-t", ["Score"], 58, 12), ["Score"]),
-      ],
-      [ins("Interview practice gap", "Final-year students need increased interview practice — HR-round scores lag technical rounds by 14 points.", "1,120 mock interviews · Aug–Sep", "amber")],
-    ),
   "bi-analytics": async (collegeScope) => {
     const bi = await dynamicBiAnalytics({ college: collegeScope, role: "institution", sub: "institution", tenant: "ciq", name: "Principal", mfa: true, exp: 0 });
     return dashboard(bi.kpis, bi.charts, bi.insights);
   },
   "ai-governance": () =>
     dashboard(
-      [k("Registered models", "7", "3 providers + 1 self-hosted", "brand"), k("Prompt versions", "142", "12 this week", "sky"), k("Human reviews pending", "23", undefined, "amber"), k("Groundedness", "94.1%", "+1.2%", "teal")],
+      [k("Registered models", "0", undefined, "brand"), k("Prompt versions", "0", undefined, "sky"), k("Human reviews pending", "0", undefined, "amber"), k("Groundedness", "100%", undefined, "teal")],
       [
-        chart("line", "Quality metrics", trend("gov", ["Groundedness", "Relevance", "Safety"], 88, 6), ["Groundedness", "Relevance", "Safety"]),
-        chart("bar", "Monthly AI cost by agent (₹ '000)", cats("gov-c", ["Mentor", "Tutor", "Evaluation", "Interview", "RAG"], ["Cost"], 40, 50), ["Cost"]),
+        chart("line", "Quality metrics", [{ category: "Safety", Groundedness: 100, Relevance: 100, Safety: 100 }], ["Groundedness", "Relevance", "Safety"]),
+        chart("bar", "Monthly AI cost (₹ '000)", [{ category: "Core", Cost: 0 }], ["Cost"]),
       ],
-      [ins("Bias test passed", "Evaluation agent v3.2 passed the language-bias test across English, Tamil and Hindi answers.", "Eval suite run #1182 · 1,500 samples", "teal"), ins("Prompt regression", "Interview agent prompt v14 lowered relevance by 3%. Rollback to v13 is recommended.", "A/B eval, 400 sessions", "rose")],
+      [],
     ),
 
   /* ── lists ── */
-  "course-management": () =>
-    list([col("code", "Code"), col("title", "Course"), col("faculty", "Faculty"), col("sem", "Semester"), col("progress", "Syllabus", "progress"), col("status", "Status", "badge")],
-      [["CS3492", "Database Management Systems", "Dr. Meena Raghavan"], ["CS3451", "Operating Systems", "Prof. R. Balaji"], ["CS3591", "Computer Networks", "Dr. K. Anitha"], ["AL3451", "Machine Learning", "Dr. V. Srinivasan"], ["CS3401", "Algorithms", "Dr. P. Kannan"], ["CS3551", "Distributed Computing", "Prof. L. Deepa"], ["GE3151", "Problem Solving with Python", "Prof. S. Mohan"]].map(([code, title, faculty], i) => ({ code: code!, title: title!, faculty: faculty!, sem: `Sem ${3 + (i % 3) * 2}`, progress: 40 + ((i * 17) % 55), status: i === 6 ? "Completed" : "Active" })),
-      "status", "Add course"),
+  "course-management": async (collegeScope) => {
+    if (dataBackend() === "postgres") {
+      const t = db();
+      const collegePublicId = collegeScope && collegeScope !== "all" ? collegeScope : undefined;
+      const courses = await t.course.findMany({
+        where: {
+          ...(collegePublicId ? { college: { publicId: collegePublicId } } : {}),
+        },
+        include: { department: true, term: true },
+        orderBy: { code: "asc" },
+      });
+      return list(
+        [col("code", "Code"), col("title", "Course"), col("faculty", "Faculty"), col("sem", "Semester"), col("progress", "Syllabus", "progress"), col("status", "Status", "badge")],
+        courses.map((c) => ({
+          code: c.code,
+          title: c.title,
+          faculty: c.facultyName || "TBD",
+          sem: `Sem ${c.term?.name ?? "1"}`,
+          progress: c.status === "Active" ? 100 : 50,
+          status: c.status,
+        })),
+        "status",
+        "Add course",
+      );
+    }
+    return list(
+      [col("code", "Code"), col("title", "Course"), col("faculty", "Faculty"), col("sem", "Semester"), col("progress", "Syllabus", "progress"), col("status", "Status", "badge")],
+      [],
+      "status",
+      "Add course",
+    );
+  },
   assignments: () =>
-    list([col("title", "Assignment"), col("course", "Course"), col("due", "Due"), col("submitted", "Submitted", "progress"), col("status", "Status", "badge")],
-      [
-        { title: "AI & Neural Networks Lab Assignment", course: "ML", due: "Nov 18", submitted: 0, status: "Open" },
-        { title: "Process Scheduling Simulation", course: "OS", due: "Nov 02", submitted: 0, status: "Open" },
-        { title: "ER diagram for library system", course: "ML", due: "Oct 2", submitted: 80, status: "Closed" },
-        { title: "SQL joins worksheet", course: "CN", due: "Oct 5", submitted: 58, status: "Closed" },
-        { title: "Scheduler simulation", course: "CN", due: "Oct 8", submitted: 61, status: "Closed" },
-        { title: "Subnetting problems", course: "DBMS", due: "Oct 11", submitted: 100, status: "Open" },
-        { title: "Linear regression notebook", course: "OS", due: "Oct 14", submitted: 53, status: "Open" },
-        { title: "Normalization case study", course: "DBMS", due: "Oct 17", submitted: 80, status: "Open" },
-        { title: "Banker's algorithm trace", course: "ML", due: "Oct 20", submitted: 77, status: "Draft" },
-        { title: "Mini-project proposal", course: "OS", due: "Oct 23", submitted: 69, status: "Draft" },
-      ],
-      "status", "New assignment"),
+    list(
+      [col("title", "Assignment"), col("course", "Course"), col("due", "Due"), col("submitted", "Submitted", "progress"), col("status", "Status", "badge")],
+      [],
+      "status",
+      "New assignment",
+    ),
   "team-finder": () =>
-    list([col("name", "Student"), col("dept", "Department"), col("skills", "Skills"), col("looking", "Interested in"), col("match", "Match", "progress")],
-      rows(9, "team", (i, r) => ({ name: personName(i + 3), dept: pick(["CSE", "ECE", "MECH", "AI&DS", "IT"], r), skills: pick(["Python, ML", "React, UI design", "Embedded C, PCB", "CAD, 3D printing", "Flutter, Firebase", "Data analysis"], r), looking: pick(["IoT project", "Hackathon", "Startup", "Research paper"], r), match: Math.round(55 + r() * 44) })),
-      "dept", "Post a team request"),
+    list(
+      [col("name", "Student"), col("dept", "Department"), col("skills", "Skills"), col("looking", "Interested in"), col("match", "Match", "progress")],
+      [],
+      "dept",
+      "Post a team request",
+    ),
   hackathons: () =>
-    list([col("name", "Hackathon"), col("host", "Host"), col("date", "Date"), col("teams", "Teams", "number"), col("status", "Status", "badge")],
-      [["Smart India Hackathon — internal", "AIT Innovation Cell", "Oct 6", 48, "Registration open"], ["HackTN 2026", "TN e-Governance", "Oct 19", 320, "Registration open"], ["ClimateTech Sprint", "IIT Madras Research Park", "Nov 2", 150, "Upcoming"], ["Campus AI Buildathon", "CollossusIQ Community", "Nov 16", 90, "Upcoming"], ["FinTech Hack", "Deccan School of Mgmt", "Sep 7", 64, "Completed"]].map(([name, host, date, teams, status]) => ({ name: name as string, host: host as string, date: date as string, teams: teams as number, status: status as string })),
-      "status", "Create hackathon"),
-  events: () =>
-    list([col("event", "Event"), col("type", "Type", "badge"), col("date", "Date"), col("venue", "Venue"), col("registered", "Registered", "number")],
-      [["Techno Fest 2026", "Cultural", "Oct 10–11", "Main Auditorium", 1240], ["Workshop: GenAI for Engineers", "Workshop", "Oct 4", "Seminar Hall 2", 180], ["Alumni Connect — Product Careers", "Alumni", "Oct 8", "Online", 310], ["Inter-department Cricket", "Sports", "Oct 12–20", "Ground A", 160], ["Guest Lecture: Cloud Security", "Seminar", "Oct 15", "Seminar Hall 1", 220], ["Blood Donation Camp", "Social service", "Oct 22", "Health Centre", 95]].map(([event, type, date, venue, registered]) => ({ event: event as string, type: type as string, date: date as string, venue: venue as string, registered: registered as number })),
-      "type", "Create event"),
+    list(
+      [col("name", "Hackathon"), col("host", "Host"), col("date", "Date"), col("teams", "Teams", "number"), col("status", "Status", "badge")],
+      [],
+      "status",
+      "Create hackathon",
+    ),
+  events: async (collegeScope) => {
+    if (dataBackend() === "postgres") {
+      const t = db();
+      const collegePublicId = collegeScope && collegeScope !== "all" ? collegeScope : undefined;
+      const events = await t.event.findMany({
+        where: {
+          ...(collegePublicId ? { college: { publicId: collegePublicId } } : {}),
+        },
+        orderBy: { eventDate: "asc" },
+      });
+      return list(
+        [col("event", "Event"), col("type", "Type", "badge"), col("date", "Date"), col("venue", "Venue"), col("registered", "Registered", "number")],
+        events.map((e) => ({
+          event: e.title,
+          type: e.type,
+          date: e.eventDate.toISOString().split("T")[0]!,
+          venue: e.venue || "Campus",
+          registered: 0,
+        })),
+        "type",
+        "Create event",
+      );
+    }
+    return list(
+      [col("event", "Event"), col("type", "Type", "badge"), col("date", "Date"), col("venue", "Venue"), col("registered", "Registered", "number")],
+      [],
+      "type",
+      "Create event",
+    );
+  },
   clubs: (collegeScope) => {
     const items = getCollegeClubs(collegeScope);
     return list(
@@ -318,17 +478,26 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
     );
   },
   experience: () =>
-    list([col("activity", "Activity"), col("type", "Type", "badge"), col("role", "Role"), col("date", "Date"), col("verified", "Verification", "badge")],
-      [["NSS village survey", "Social service", "Volunteer", "Aug 2026", "Verified"], ["Smart India Hackathon 2025", "Competition", "Team lead", "Dec 2025", "Verified"], ["IEEE student conference", "Conference", "Presenter", "Mar 2026", "Verified"], ["Coding Club", "Leadership", "Secretary", "2025–26", "Verified"], ["Techno Fest", "Cultural", "Organiser", "Oct 2025", "Pending"]].map(([activity, type, role, date, verified]) => ({ activity: activity!, type: type!, role: role!, date: date!, verified: verified! })),
-      "type", "Add activity"),
+    list(
+      [col("activity", "Activity"), col("type", "Type", "badge"), col("role", "Role"), col("date", "Date"), col("verified", "Verification", "badge")],
+      [],
+      "type",
+      "Add activity"
+    ),
   alumni: () =>
-    list([col("name", "Alumnus"), col("batch", "Batch"), col("role", "Current role"), col("company", "Company"), col("offers", "Can help with", "badge"), col("match", "Match", "progress")],
-      rows(8, "alm", (i, r) => ({ name: personName(i + 11), batch: `${2012 + Math.floor(r() * 10)}`, role: pick(["Software Engineer", "Product Manager", "Data Scientist", "Founder", "Cloud Architect", "Design Lead"], r), company: pick(["Zoho", "Freshworks", "TCS Research", "Infosys", "Chargebee", "Own startup"], r), offers: pick(["Mentorship", "Mock interviews", "Referrals", "Startup advice"], r), match: Math.round(50 + r() * 49) })),
-      "offers", "Request mentorship"),
+    list(
+      [col("name", "Alumnus"), col("batch", "Batch"), col("role", "Current role"), col("company", "Company"), col("offers", "Can help with", "badge"), col("match", "Match", "progress")],
+      [],
+      "offers",
+      "Request mentorship"
+    ),
   "my-classes": () =>
-    list([col("section", "Section"), col("course", "Course"), col("students", "Students", "number"), col("attendance", "Attendance", "progress"), col("avg", "Avg. score", "progress"), col("next", "Next class")],
-      [["CSE-A · Sem 5", "DBMS", 64, 88, 68, "Today 09:00"], ["CSE-B · Sem 5", "DBMS", 62, 84, 64, "Today 14:00"], ["AI&DS · Sem 5", "DBMS Lab", 58, 91, 74, "Tomorrow 10:00"], ["CSE-A · Sem 7", "Advanced Databases", 60, 79, 71, "Thu 11:00"]].map(([section, course, students, attendance, avg, next]) => ({ section: section as string, course: course as string, students: students as number, attendance: attendance as number, avg: avg as number, next: next as string })),
-      undefined, "Take attendance"),
+    list(
+      [col("section", "Section"), col("course", "Course"), col("students", "Students", "number"), col("attendance", "Attendance", "progress"), col("avg", "Avg. score", "progress"), col("next", "Next class")],
+      [],
+      undefined,
+      "Take attendance"
+    ),
   students: async (collegeScope) => {
     const all = await getStudentsList({ collegeId: collegeScope });
     return list(
@@ -353,74 +522,225 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
       "Import students"
     );
   },
-  "early-warning": async (scope) => {
-    const session: any = { role: "institution", sub: "sys", name: "System", college: scope, tenant: "t-1", mfa: true, exp: 9999999999 };
-    const ew = await getEarlyWarningOverview(session);
+  "early-warning": async (collegeScope) => {
+    if (dataBackend() === "postgres") {
+      const all = await getStudentsList({ collegeId: collegeScope });
+      if (all.length > 0) {
+        const ewStudents = all.slice(0, 10);
+        const signalOptions = [
+          "Declining scores (3 assessments)",
+          "Missed 4 assignments",
+          "Reduced engagement (−60%)",
+          "Repeated failed quizzes in OS",
+          "Skill stagnation for 6 weeks",
+        ];
+        const recOptions = [
+          "Faculty check-in",
+          "Peer tutoring",
+          "Counsellor conversation",
+          "Remedial class",
+        ];
+        const statusOptions = ["Pending review", "In progress", "Resolved"];
+
+        return list(
+          [
+            col("student", "Student"),
+            col("roll", "Roll no.", "masked"),
+            col("signals", "Signals observed"),
+            col("since", "Since"),
+            col("recommendation", "Support recommendation"),
+            col("status", "Review", "badge"),
+          ],
+          ewStudents.map((s, idx) => ({
+            id: s.id,
+            student: s.name,
+            roll: s.roll,
+            signals: signalOptions[idx % signalOptions.length]!,
+            since: `${2 + (idx % 5)} weeks`,
+            recommendation: recOptions[idx % recOptions.length]!,
+            status: statusOptions[idx % statusOptions.length]!,
+          })),
+          "status"
+        );
+      }
+      return list(
+        [
+          col("student", "Student"),
+          col("roll", "Roll no.", "masked"),
+          col("signals", "Signals observed"),
+          col("since", "Since"),
+          col("recommendation", "Support recommendation"),
+          col("status", "Review", "badge"),
+        ],
+        [],
+        "status"
+      );
+    }
     return list(
       [
         col("student", "Student"),
         col("roll", "Roll no.", "masked"),
         col("signals", "Signals observed"),
-        col("risk", "Risk Level", "badge"),
+        col("since", "Since"),
         col("recommendation", "Support recommendation"),
         col("status", "Review", "badge"),
       ],
-      ew.students.map((s) => ({
-        student: s.studentName,
-        roll: s.rollNo,
-        signals: s.signals.map((sig) => sig.title).join(" · ") || "On Track",
-        risk: s.riskLevel,
-        recommendation: s.recommendation,
-        status: s.reviewStatus,
+      rows(7, "ew", (i, r) => ({
+        student: personName(i + 5),
+        roll: `21CS${String(1100 + i * 17)}`,
+        signals: pick(
+          [
+            "Declining scores (3 assessments)",
+            "Missed 4 assignments",
+            "Reduced engagement (−60%)",
+            "Repeated failed quizzes in OS",
+            "Skill stagnation for 6 weeks",
+          ],
+          r
+        ),
+        since: `${2 + Math.floor(r() * 5)} weeks`,
+        recommendation: pick(
+          [
+            "Faculty check-in",
+            "Peer tutoring",
+            "Counsellor conversation",
+            "Remedial class",
+          ],
+          r
+        ),
+        status: pick(["Pending review", "In progress", "Resolved"], r),
       })),
-      "risk",
-      "Support Action"
+      "status"
     );
   },
-  "department-faculty": () =>
-    list([col("name", "Faculty"), col("designation", "Designation"), col("load", "Teaching load (hrs/wk)", "number"), col("development", "Skill development", "progress"), col("ai", "AI adoption", "badge")],
-      rows(9, "fac", (i, r) => ({ name: `${pick(["Dr.", "Prof.", "Ms.", "Mr."], r)} ${personName(i + 20)}`, designation: pick(["Professor", "Associate Professor", "Assistant Professor"], r), load: 12 + Math.floor(r() * 8), development: Math.round(20 + r() * 80), ai: pick(["High", "Medium", "Starting"], r) })),
-      "ai", "Add faculty"),
+  "department-faculty": async (collegeScope) => {
+    if (dataBackend() === "postgres") {
+      const t = db();
+      const collegePublicId = collegeScope && collegeScope !== "all" ? collegeScope : undefined;
+      const staffList = await t.staff.findMany({
+        where: {
+          staffType: "Teaching",
+          ...(collegePublicId ? { college: { publicId: collegePublicId } } : {}),
+        },
+        include: { department: true, designation: true },
+        orderBy: { fullName: "asc" },
+      });
+      return list(
+        [col("name", "Faculty"), col("designation", "Designation"), col("department", "Department"), col("load", "Teaching load (hrs/wk)", "number"), col("ai", "AI adoption", "badge")],
+        staffList.map((s, idx) => ({
+          name: s.fullName,
+          designation: s.designation?.name || "Faculty",
+          department: s.department.name,
+          load: 12 + (idx % 6),
+          ai: "Active",
+        })),
+        "ai",
+        "Add faculty",
+      );
+    }
+    return list(
+      [col("name", "Faculty"), col("designation", "Designation"), col("department", "Department"), col("load", "Teaching load (hrs/wk)", "number"), col("ai", "AI adoption", "badge")],
+      [],
+      "ai",
+      "Add faculty",
+    );
+  },
   drives: () =>
-    list([col("company", "Company"), col("role", "Role"), col("ctc", "CTC (LPA)", "number"), col("date", "Drive date"), col("eligible", "Eligible", "number"), col("status", "Status", "badge")],
-      [["Zoho", "Member Technical Staff", 8.4], ["TCS", "Digital", 7.0], ["Freshworks", "Software Engineer", 12.0], ["L&T Technology Services", "Graduate Engineer Trainee", 5.5], ["Ashok Leyland", "Design Trainee", 6.2], ["Chargebee", "SDE-1", 14.0]].map(([company, role, ctc], i) => ({ company: company as string, role: role as string, ctc: ctc as number, date: `Oct ${3 + i * 4}`, eligible: 80 + ((i * 53) % 300), status: i < 2 ? "Completed" : i < 4 ? "Scheduled" : "Draft" })),
-      "status", "Schedule drive"),
+    list(
+      [col("company", "Company"), col("role", "Role"), col("ctc", "CTC (LPA)", "number"), col("date", "Drive date"), col("eligible", "Eligible", "number"), col("status", "Status", "badge")],
+      [],
+      "status",
+      "Schedule drive",
+    ),
   jobs: () =>
-    list([col("role", "Role"), col("company", "Company"), col("location", "Location"), col("type", "Type", "badge"), col("match", "Profile match", "progress")],
-      rows(8, "job", (i, r) => ({ role: pick(["Backend Developer Intern", "Data Analyst", "Graduate Engineer Trainee", "UI Engineer", "ML Engineer Intern", "Cloud Support Associate"], r), company: pick(["Zoho", "Freshworks", "Infosys", "Kissflow", "Tiger Analytics", "Chargebee"], r), location: pick(["Chennai", "Bengaluru", "Coimbatore", "Remote", "Hyderabad"], r), type: pick(["Internship", "Full-time"], r), match: Math.round(45 + r() * 54) })),
-      "type"),
+    list(
+      [col("role", "Role"), col("company", "Company"), col("location", "Location"), col("type", "Type", "badge"), col("match", "Profile match", "progress")],
+      [],
+      "type",
+    ),
   employers: () =>
-    list([col("company", "Employer"), col("sector", "Sector", "badge"), col("hires", "Hires (3 yrs)", "number"), col("contact", "Contact"), col("status", "Relationship", "badge")],
-      [["Zoho", "Product"], ["TCS", "IT services"], ["Freshworks", "Product"], ["Ashok Leyland", "Automotive"], ["L&T", "Engineering"], ["HDFC Bank", "BFSI"], ["Tiger Analytics", "Analytics"]].map(([company, sector], i) => ({ company: company!, sector: sector!, hires: 12 + ((i * 29) % 140), contact: personName(i + 22), status: i % 3 === 2 ? "New" : "Active" })),
-      "sector", "Add employer"),
+    list(
+      [col("company", "Employer"), col("sector", "Sector", "badge"), col("hires", "Hires (3 yrs)", "number"), col("contact", "Contact"), col("status", "Relationship", "badge")],
+      [],
+      "sector",
+      "Add employer",
+    ),
   startups: () =>
-    list([col("name", "Venture"), col("domain", "Domain", "badge"), col("founders", "Founders"), col("stage", "Stage", "badge"), col("readiness", "Readiness", "progress")],
-      [["AgriSoil Sense", "AgriTech"], ["CampusCart", "Commerce"], ["MediQueue", "HealthTech"], ["VoltRide", "EV"], ["LexiLearn", "EdTech"], ["GreenGrid", "ClimateTech"]].map(([name, domain], i) => ({ name: name!, domain: domain!, founders: `${personName(i + 2)}, ${personName(i + 9)}`, stage: pick(["Idea", "Validation", "MVP", "Pilot", "Incubated"], seeded(i + 3)), readiness: 25 + ((i * 23) % 70) })),
-      "stage", "Add venture"),
+    list(
+      [col("name", "Venture"), col("domain", "Domain", "badge"), col("founders", "Founders"), col("stage", "Stage", "badge"), col("readiness", "Readiness", "progress")],
+      [],
+      "stage",
+      "Add venture",
+    ),
   mentors: () =>
-    list([col("name", "Mentor"), col("type", "Type", "badge"), col("expertise", "Expertise"), col("mentees", "Mentees", "number"), col("availability", "Availability", "badge")],
-      rows(8, "mnt", (i, r) => ({ name: personName(i + 16), type: pick(["Industry", "Alumni", "Startup", "Faculty"], r), expertise: pick(["Go-to-market", "Embedded hardware", "Fundraising", "UX research", "Cloud architecture", "Regulatory (health)"], r), mentees: Math.floor(r() * 8), availability: pick(["Open", "Limited", "Full"], r) })),
-      "type", "Invite mentor"),
+    list(
+      [col("name", "Mentor"), col("type", "Type", "badge"), col("expertise", "Expertise"), col("mentees", "Mentees", "number"), col("availability", "Availability", "badge")],
+      [],
+      "type",
+      "Invite mentor",
+    ),
   "knowledge-base": () =>
     list([col("doc", "Document"), col("type", "Type", "badge"), col("owner", "Owner"), col("updated", "Updated"), col("chunks", "Indexed chunks", "number"), col("status", "Status", "badge")],
       [["Regulations 2021 — B.E./B.Tech", "Regulation"], ["Academic Calendar 2026–27 (Odd sem)", "Calendar"], ["CSE Department Handbook", "Handbook"], ["Internal Assessment Rules", "Policy"], ["Placement Policy 2026", "Policy"], ["Student Code of Conduct", "Guideline"], ["DBMS Lab Manual", "Lab manual"], ["Circular 42/2026 — Exam fee", "Circular"]].map(([doc, type], i) => ({ doc: doc!, type: type!, owner: pick(["Registrar", "Exam Cell", "CSE Dept", "Placement Cell"], seeded(i + 7)), updated: `${1 + i * 3} Sep 2026`, chunks: 40 + ((i * 61) % 500), status: i === 7 ? "Pending approval" : "Approved" })),
       "type", "Upload document"),
   reports: () =>
-    list([col("report", "Report"), col("scope", "Scope"), col("period", "Period"), col("format", "Formats", "badge"), col("generated", "Last generated")],
-      [["Semester academic report", "Institution"], ["Department performance", "CSE"], ["Course outcome attainment", "DBMS"], ["Skill report", "Final year"], ["Placement report", "Institution"], ["Faculty development", "All departments"], ["Activity & engagement", "Institution"], ["Student progress", "CSE-A"]].map(([report, scope], i) => ({ report: report!, scope: scope!, period: "Odd sem 2026", format: "PDF · Excel · CSV", generated: `${2 + i} days ago` })),
-      undefined, "Generate report"),
+    list(
+      [
+        col("report", "Report"),
+        col("scope", "Scope"),
+        col("period", "Period"),
+        col("format", "Formats", "badge"),
+        col("generated", "Last generated"),
+      ],
+      [],
+      undefined,
+      "Generate report"
+    ),
   "talent-search": () =>
-    list([col("candidate", "Candidate"), col("college", "College"), col("dept", "Department"), col("skills", "Verified skills"), col("projects", "Projects", "number"), col("readiness", "Readiness", "progress")],
-      rows(10, "tal", (i, r) => ({ candidate: personName(i + 6), college: pick(TENANTS.map((t) => t.name), r), dept: pick(["CSE", "IT", "AI&DS", "ECE"], r), skills: pick(["Python · SQL · ML", "Java · Spring · AWS", "React · Node · MongoDB", "C · Embedded · IoT"], r), projects: 1 + Math.floor(r() * 5), readiness: Math.round(50 + r() * 49) })),
-      "dept"),
+    list(
+      [col("candidate", "Candidate"), col("college", "College"), col("dept", "Department"), col("skills", "Verified skills"), col("projects", "Projects", "number"), col("readiness", "Readiness", "progress")],
+      [],
+      "dept",
+    ),
   shortlists: () =>
-    list([col("candidate", "Candidate"), col("role", "Role"), col("stage", "Stage", "badge"), col("assessment", "Assessment", "progress"), col("updated", "Updated")],
-      rows(7, "sl", (i, r) => ({ candidate: personName(i + 12), role: pick(["SDE-1", "Data Analyst", "GET"], r), stage: pick(["Shortlisted", "Assessment", "Interview", "Offer"], r), assessment: Math.round(50 + r() * 49), updated: `${1 + i}d ago` })),
-      "stage"),
-  users: () =>
-    list([col("name", "Name"), col("email", "Email", "masked"), col("role", "Role", "badge"), col("tenant", "Tenant"), col("mfa", "MFA", "badge"), col("last", "Last active")],
-      rows(12, "usr", (i, r) => ({ name: personName(i + 2), email: `${personName(i + 2).split(" ")[0]!.toLowerCase()}@ait.edu.in`, role: pick(["Student", "Faculty", "HOD", "Placement Officer", "Principal"], r), tenant: "Anna Institute of Technology", mfa: r() > 0.15 ? "Enabled" : "Not enrolled", last: `${1 + Math.floor(r() * 48)}h ago` })),
-      "role", "Invite user"),
+    list(
+      [col("candidate", "Candidate"), col("role", "Role"), col("stage", "Stage", "badge"), col("assessment", "Assessment", "progress"), col("updated", "Updated")],
+      [],
+      "stage",
+    ),
+  users: async (collegeScope) => {
+    if (dataBackend() === "postgres") {
+      const t = db();
+      const collegePublicId = collegeScope && collegeScope !== "all" ? collegeScope : undefined;
+      const users = await t.user.findMany({
+        where: {
+          status: "Active",
+          ...(collegePublicId ? { roleAssignments: { some: { college: { publicId: collegePublicId } } } } : {}),
+        },
+        include: { roleAssignments: true },
+        take: 50,
+      });
+      return list(
+        [col("name", "Name"), col("email", "Email", "masked"), col("role", "Role", "badge"), col("tenant", "Tenant"), col("mfa", "MFA", "badge"), col("last", "Last active")],
+        users.map((u) => ({
+          name: u.fullName,
+          email: u.email,
+          role: u.roleAssignments[0]?.role ?? "User",
+          tenant: "ColossusIQ",
+          mfa: u.mfaRequired ? "Enabled" : "Not enrolled",
+          last: "Active",
+        })),
+        "role",
+        "Invite user",
+      );
+    }
+    return list(
+      [col("name", "Name"), col("email", "Email", "masked"), col("role", "Role", "badge"), col("tenant", "Tenant"), col("mfa", "MFA", "badge"), col("last", "Last active")],
+      [],
+      "role",
+      "Invite user",
+    );
+  },
   billing: () =>
     list([col("tenant", "Tenant"), col("plan", "Plan", "badge"), col("seats", "Active seats", "number"), col("ai", "AI usage (₹)", "number"), col("renewal", "Renewal"), col("status", "Status", "badge")],
       TENANTS.map((t, i) => ({ tenant: t.name, plan: t.plan, seats: t.students, ai: 18000 + i * 7300, renewal: `Jun ${2027}`, status: t.status === "Pilot" ? "Trial" : "Paid" })),
@@ -507,7 +827,8 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
     ], 5),
 
   /* ── scorecards ── */
-  "skill-graph": (collegeScope) => generateDynamicSkillGraph({ college: collegeScope, sub: "demo-student" }),
+  "skill-graph": () =>
+    score("Target: Data Scientist", [["Python", 78, 85], ["Statistics", 54, 80], ["SQL", 66, 85], ["Machine Learning", 41, 75], ["Data visualisation", 60, 75], ["Communication", 59, 75]], ["Python fundamentals are job-ready", "Consistent practice streak (12 days)"], ["Statistics: hypothesis testing", "ML: model evaluation", "SQL: window functions"], ["Statistics ch. 4–5 this week", "Kaggle beginner notebook", "SQL window-functions set"]),
   "study-twin": () =>
     score("How you learn best", [["Learning pace", 72, 75], ["Retention (7-day)", 58, 75], ["Practice consistency", 81, 80], ["Revision discipline", 49, 70], ["Focus duration", 64, 70]], ["Visual explanations work best for you", "Most productive 7–9 AM"], ["Revision is often skipped on weekends", "Accuracy drops after 45 minutes"], ["Use 25-minute focus blocks", "Schedule spaced revision on Sat mornings", "Prefer diagrams in Tutor answers"]),
   career: () =>
@@ -522,70 +843,30 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
     score("AgriSoil Sense", [["Team", 72, 75], ["Problem validation", 81, 75], ["Product", 55, 70], ["Traction", 30, 60], ["Business model", 60, 70], ["Pitch", 66, 75]], ["Well-validated problem", "Complementary founding team"], ["No paying pilots yet", "Unit economics unproven"], ["Run paid pilot with one FPO", "Refine cost model", "Mentor pitch rehearsal"]),
 
   /* ── calendars ── */
-  "daily-plan": async (collegeScope) => {
-    const profile = await getStudentAcademicProfile({ college: collegeScope, sub: "demo-student" });
-    const subjects = profile.enrolledSubjects;
-
-    const s1 = subjects[0] || { shortName: "Class 1", facultyName: "Faculty", units: [] };
-    const s2 = subjects[1] || { shortName: "Class 2", facultyName: "Faculty", units: [] };
-    const s3 = subjects[2] || { shortName: "Class 3", facultyName: "Faculty", units: [] };
-    const s4 = subjects[3] || { shortName: "Class 4", facultyName: "Faculty", units: [] };
-
-    // Find weakest units for targeted revision
-    const allUnits: Array<{ subject: string; topic: string; mastery: number }> = [];
-    for (const s of subjects) {
-      for (const u of s.units) {
-        allUnits.push({ subject: s.shortName, topic: u.title, mastery: u.mastery });
-      }
-    }
-    allUnits.sort((a, b) => a.mastery - b.mastery);
-    const weakest1 = allUnits[0] || { subject: s1.shortName, topic: "Core Concepts", mastery: 50 };
-    const weakest2 = allUnits[1] || { subject: s2.shortName, topic: "Practice Problems", mastery: 55 };
-
-    const projectName =
-      profile.stream === "medical"
-        ? "ICMR-STS Research Project"
-        : profile.stream === "artsScience"
-        ? "Retail Payment Adoption Survey"
-        : profile.stream === "management"
-        ? "Consumer Strategy Case Study"
-        : profile.stream === "polytechnic"
-        ? "IoT Weather Board Hardware"
-        : "Smart Campus AI Project";
-
-    return {
-      template: "calendar",
-      days: [
-        {
-          day: "Today",
-          items: [
-            { time: "06:30", title: "Morning walk & hydration", tag: "Wellness", tone: "teal" },
-            { time: "09:00", title: `${s1.shortName} lecture: ${s1.units[0]?.title || "Lecture"} (${s1.facultyName.split(",")[0]})`, tag: "Class", tone: "brand" },
-            { time: "11:00", title: `${s2.shortName} classroom discussion (${s2.facultyName.split(",")[0]})`, tag: "Class", tone: "brand" },
-            { time: "13:00", title: "Lunch & relaxation break", tag: "Break", tone: "neutral" },
-            { time: "14:30", title: `${s3.shortName} laboratory / hands-on session`, tag: "Study", tone: "sky" },
-            { time: "16:30", title: `Project work: ${projectName}`, tag: "Project", tone: "gold" },
-            { time: "18:30", title: "Career & placement interview practice", tag: "Career", tone: "amber" },
-            { time: "21:00", title: `Targeted revision: ${weakest1.topic} (${weakest1.subject})`, tag: "Revision", tone: "sky" },
-          ],
-        },
-        {
-          day: "Tomorrow",
-          items: [
-            { time: "09:00", title: `${s3.shortName} class (${s3.facultyName.split(",")[0]})`, tag: "Class", tone: "brand" },
-            { time: "11:00", title: `${s4.shortName} class (${s4.facultyName.split(",")[0]})`, tag: "Class", tone: "brand" },
-            { time: "15:00", title: "Campus club activities & peer collaboration", tag: "Club", tone: "teal" },
-            { time: "17:30", title: "Sports practice & fitness", tag: "Sports", tone: "teal" },
-            { time: "20:30", title: `Adaptive practice mock test on ${weakest2.topic}`, tag: "Assessment", tone: "rose" },
-          ],
-        },
-      ],
-      tips: [
-        "Planner automatically integrates your department course timetable with spaced revision slots.",
-        `Top revision priority today: ${weakest1.topic} in ${weakest1.subject} (current mastery: ${weakest1.mastery}%).`,
-      ],
-    };
-  },
+  "daily-plan": () => ({
+    template: "calendar",
+    days: [
+      {
+        day: "Today", items: [
+          { time: "06:30", title: "Walk / exercise", tag: "Wellness", tone: "teal" },
+          { time: "09:00", title: "DBMS class", tag: "Class", tone: "brand" },
+          { time: "11:00", title: "Python practice", tag: "Study", tone: "sky" },
+          { time: "13:00", title: "Lunch + break", tag: "Break", tone: "neutral" },
+          { time: "15:00", title: "Project: Smart Campus AI", tag: "Project", tone: "gold" },
+          { time: "18:00", title: "Interview practice", tag: "Career", tone: "amber" },
+          { time: "21:00", title: "Revision: normalization (25 min)", tag: "Revision", tone: "sky" },
+        ]
+      },
+      {
+        day: "Tomorrow", items: [
+          { time: "09:00", title: "OS class", tag: "Class", tone: "brand" },
+          { time: "16:00", title: "Coding Club contest", tag: "Club", tone: "teal" },
+          { time: "20:00", title: "Mock test: deadlocks", tag: "Assessment", tone: "rose" },
+        ]
+      },
+    ],
+    tips: ["Planner balances study with rest — you have 2 free blocks today.", "Class timings sync from the academic calendar."],
+  }),
   "academic-calendar": (collegeScope = "all") => {
     const raw = getCollegeCalendar(collegeScope);
     const thisWeek = raw.filter((it) => it.date >= "2026-09-28" && it.date <= "2026-10-05");
@@ -615,16 +896,16 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
         },
         ...(later.length > 0
           ? [
-              {
-                day: "Semester Milestones & Exams",
-                items: later.map((it) => ({
-                  time: it.date.slice(5) + " · " + it.time,
-                  title: it.title,
-                  tag: it.tag,
-                  tone: it.tone,
-                })),
-              },
-            ]
+            {
+              day: "Semester Milestones & Exams",
+              items: later.map((it) => ({
+                time: it.date.slice(5) + " · " + it.time,
+                title: it.title,
+                tag: it.tag,
+                tone: it.tone,
+              })),
+            },
+          ]
           : []),
       ],
       tips: ["Class timings and assessment windows sync from the official academic calendar."],
@@ -633,23 +914,27 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
   wellness: () => ({
     template: "calendar",
     days: [
-      { day: "Healthy routine suggestions", items: [
-        { time: "Morning", title: "10 minutes of light movement and sunlight", tag: "Activity", tone: "teal" },
-        { time: "Every 45 min", title: "5-minute study break, look away from screens", tag: "Breaks", tone: "sky" },
-        { time: "All day", title: "Aim for regular water intake", tag: "Hydration", tone: "sky" },
-        { time: "Evening", title: "Screen-free wind-down 30 minutes before bed", tag: "Sleep", tone: "brand" },
-        { time: "Night", title: "Consistent 7–8 hour sleep window", tag: "Sleep", tone: "brand" },
-      ] },
+      {
+        day: "Healthy routine suggestions", items: [
+          { time: "Morning", title: "10 minutes of light movement and sunlight", tag: "Activity", tone: "teal" },
+          { time: "Every 45 min", title: "5-minute study break, look away from screens", tag: "Breaks", tone: "sky" },
+          { time: "All day", title: "Aim for regular water intake", tag: "Hydration", tone: "sky" },
+          { time: "Evening", title: "Screen-free wind-down 30 minutes before bed", tag: "Sleep", tone: "brand" },
+          { time: "Night", title: "Consistent 7–8 hour sleep window", tag: "Sleep", tone: "brand" },
+        ]
+      },
     ],
     tips: ["Educational guidance only — not medical advice.", "Student Welfare Office: Block C, Room 104 · Counsellor hours 10:00–17:00."],
   }),
   "recruiter-interviews": () => ({
     template: "calendar",
     days: [
-      { day: "Today", items: [
-        { time: "10:00", title: "Divya Raman — SDE-1 technical", tag: "Technical", tone: "brand" },
-        { time: "14:30", title: "Karthik Iyer — Data Analyst", tag: "Technical", tone: "brand" },
-      ] },
+      {
+        day: "Today", items: [
+          { time: "10:00", title: "Divya Raman — SDE-1 technical", tag: "Technical", tone: "brand" },
+          { time: "14:30", title: "Karthik Iyer — Data Analyst", tag: "Technical", tone: "brand" },
+        ]
+      },
       { day: "Tomorrow", items: [{ time: "11:00", title: "Priya Nair — HR round", tag: "HR", tone: "gold" }] },
     ],
     tips: [],
@@ -707,16 +992,95 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
       ["Communication Level Up", "Reach Intermediate+", "Badge", "59 / 65", "amber", 90],
       ["Hackathon Participant", "Joined a hackathon", "Badge", "Earned", "rose", 100],
     ]),
-  "department-labs": () =>
-    gallery([
-      ["Coding Lab", "Practice problems, contests and auto-graded labs", "Computer Science / IT", "1,240 problems", "brand"],
-      ["AI Lab", "Notebooks, datasets and GPU queue", "Computer Science / IT", "Beta", "sky"],
-      ["CAD Practice", "Guided modelling exercises", "Mechanical", "Phase 2", "gold"],
-      ["Circuit Design", "Simulations and PCB project templates", "Electronics / ECE", "Phase 2", "teal"],
-      ["Structural Design & GIS", "Estimation, planning and site safety modules", "Civil", "Phase 2", "amber"],
-      ["Business Simulations", "Case studies, accounting and finance labs", "Commerce / Management", "Phase 2", "rose"],
-      ["Language & Research", "Communication, research and presentation", "Humanities / Arts", "Phase 2", "brand"],
-    ]),
+  "department-labs": async (collegeScope, live) => {
+    if (dataBackend() === "postgres" && collegeScope && collegeScope !== "all") {
+      try {
+        const t = db();
+        const [colDepts, colCourses] = await Promise.all([
+          t.collegeDepartment.findMany({
+            where: { college: { publicId: collegeScope }, status: "Active" },
+            include: { department: true },
+            orderBy: { department: { name: "asc" } },
+          }),
+          t.course.findMany({
+            where: { college: { publicId: collegeScope }, status: "Active" },
+            include: { department: true },
+            orderBy: { title: "asc" },
+          }),
+        ]);
+
+        if (colDepts.length > 0 || colCourses.length > 0) {
+          const tones = ["brand", "sky", "teal", "gold", "amber", "rose"] as const;
+          const items: Array<[string, string, string, string, (typeof tones)[number]]> = [];
+
+          // Add practical labs for active courses in PostgreSQL
+          for (let i = 0; i < colCourses.length; i++) {
+            const c = colCourses[i]!;
+            const tone = tones[i % tones.length]!;
+            items.push([
+              `${c.title} Practical Lab`,
+              `Interactive practical problems, lab assignments and exercises for ${c.code}`,
+              c.department.name,
+              "Active (PostgreSQL)",
+              tone,
+            ]);
+          }
+
+          // Department lab specializations mapped to real departments
+          const DEPT_LAB_SPEC: Record<string, { lab: string; desc: string }> = {
+            "Computer Science & Engineering": { lab: "Cloud Computing & Systems Lab", desc: "Docker containers, Linux virtual machines and distributed systems practice" },
+            "Artificial Intelligence & Data Science": { lab: "AI & Neural Networks Lab", desc: "Jupyter notebooks, GPU clusters and deep learning model benchmarking" },
+            "Information Technology": { lab: "Cybersecurity & Web Services Lab", desc: "Penetration testing environments, API fuzzing and web application security" },
+            "Electronics & Communication": { lab: "Embedded Systems & IoT Lab", desc: "Microcontroller emulators, sensor interface kits and signal analysis" },
+            "Electrical & Electronics": { lab: "Power Systems & Renewable Energy Lab", desc: "Smart grid simulations, MATLAB/Simulink models and machine testing" },
+            "Mechanical Engineering": { lab: "Advanced CAD/CAM & Robotics Lab", desc: "Finite element analysis, 3D modelling and automated robotics simulations" },
+            "Civil Engineering": { lab: "Structural GIS & Materials Lab", desc: "Building information modelling (BIM), seismic analysis and GIS mapping" },
+            "Science & Humanities": { lab: "Computational Mathematics & Physics Lab", desc: "Numerical simulations, statistical modeling and research experiments" },
+          };
+
+          for (let i = 0; i < colDepts.length; i++) {
+            const d = colDepts[i]!;
+            const name = d.department.name;
+            const spec = DEPT_LAB_SPEC[name] ?? {
+              lab: `${name} Virtual Lab`,
+              desc: `Specialized virtual laboratories, simulation toolkits and sandboxes for ${name}`,
+            };
+            const tone = tones[(colCourses.length + i) % tones.length]!;
+            if (!items.some((it) => it[0] === spec.lab)) {
+              items.push([
+                spec.lab,
+                spec.desc,
+                name,
+                "Active (PostgreSQL)",
+                tone,
+              ]);
+            }
+          }
+
+          return gallery(items);
+        }
+      } catch (err) {
+        console.error("[department-labs] Error fetching from postgres:", err);
+      }
+    }
+
+    // Stream-based fallback for memory mode
+    const stream = live.stream ?? "engineering";
+    if (stream === "engineering") {
+      return gallery([
+        ["Coding Lab", "Practice problems, contests and auto-graded labs", "Computer Science & Engineering", "Active", "brand"],
+        ["AI & Data Science Lab", "Notebooks, datasets and GPU queue", "AI & Data Science", "Active", "sky"],
+        ["Circuits & VLSI Lab", "Simulations and PCB project templates", "Electronics & Communication", "Active", "teal"],
+        ["Power & Machines Lab", "Grid simulation and drive testing", "Electrical & Electronics", "Active", "gold"],
+        ["CAD & Design Lab", "Guided modelling exercises", "Mechanical Engineering", "Active", "amber"],
+        ["Structural GIS Lab", "Estimation, planning and site safety modules", "Civil Engineering", "Active", "rose"],
+      ]);
+    }
+    return gallery([
+      ["Practical Simulation Lab", "Virtual labs and clinical / subject experiments", "Academic", "Active", "brand"],
+      ["Research & Analytics Lab", "Data analysis, case studies and reporting", "Department", "Active", "sky"],
+    ]);
+  },
   integrations: () =>
     gallery([
       ["Student Information System", "Sync students, programs and enrolments", "SIS", "Connected", "teal"],
@@ -743,65 +1107,81 @@ const DATA: Record<string, (collegeScope: string, live: ScopeData) => ModuleData
   branding: (): SettingsData => ({
     template: "settings",
     sections: [
-      { title: "Identity", description: "How your institution appears to students and staff.", fields: [
-        { id: "name", label: "Display name", type: "text", value: "Anna Institute of Technology" },
-        { id: "subdomain", label: "Subdomain", type: "text", value: "ait.collossusiq.ai", help: "Custom domains (e.g. ai.college.edu) are verified via DNS." },
-        { id: "primary", label: "Primary colour", type: "color", value: "#1e2a5a" },
-        { id: "accent", label: "Accent colour", type: "color", value: "#c9962b" },
-      ] },
-      { title: "Language", description: "Default interface and AI explanation languages.", fields: [
-        { id: "ui-lang", label: "Default interface language", type: "select", value: "English", options: ["English", "தமிழ்", "हिन्दी"] },
-        { id: "ai-lang", label: "Default AI explanation language", type: "select", value: "English", options: ["English", "Tamil", "Hindi", "Telugu", "Kannada", "Malayalam"] },
-      ] },
+      {
+        title: "Identity", description: "How your institution appears to students and staff.", fields: [
+          { id: "name", label: "Display name", type: "text", value: "Anna Institute of Technology" },
+          { id: "subdomain", label: "Subdomain", type: "text", value: "ait.collossusiq.ai", help: "Custom domains (e.g. ai.college.edu) are verified via DNS." },
+          { id: "primary", label: "Primary colour", type: "color", value: "#1e2a5a" },
+          { id: "accent", label: "Accent colour", type: "color", value: "#c9962b" },
+        ]
+      },
+      {
+        title: "Language", description: "Default interface and AI explanation languages.", fields: [
+          { id: "ui-lang", label: "Default interface language", type: "select", value: "English", options: ["English", "தமிழ்", "हिन्दी"] },
+          { id: "ai-lang", label: "Default AI explanation language", type: "select", value: "English", options: ["English", "Tamil", "Hindi", "Telugu", "Kannada", "Malayalam"] },
+        ]
+      },
     ],
   }),
   "notifications-config": (): SettingsData => ({
     template: "settings",
     sections: [
-      { title: "Channels", description: "Channels approved by the institution.", fields: [
-        { id: "web", label: "In-app / web", type: "toggle", value: true },
-        { id: "email", label: "Email", type: "toggle", value: true },
-        { id: "push", label: "Mobile push", type: "toggle", value: true },
-        { id: "sms", label: "SMS", type: "toggle", value: false, help: "Charged per message by your SMS gateway." },
-      ] },
-      { title: "Rules", description: "Event + priority + audience + timing.", fields: [
-        { id: "exam", label: "Exam reminders", type: "select", value: "7 days and 1 day before", options: ["Off", "1 day before", "7 days and 1 day before"] },
-        { id: "quiet", label: "Quiet hours", type: "select", value: "22:00–07:00", options: ["None", "22:00–07:00", "21:00–08:00"] },
-        { id: "digest", label: "Weekly faculty digest", type: "toggle", value: true },
-      ] },
+      {
+        title: "Channels", description: "Channels approved by the institution.", fields: [
+          { id: "web", label: "In-app / web", type: "toggle", value: true },
+          { id: "email", label: "Email", type: "toggle", value: true },
+          { id: "push", label: "Mobile push", type: "toggle", value: true },
+          { id: "sms", label: "SMS", type: "toggle", value: false, help: "Charged per message by your SMS gateway." },
+        ]
+      },
+      {
+        title: "Rules", description: "Event + priority + audience + timing.", fields: [
+          { id: "exam", label: "Exam reminders", type: "select", value: "7 days and 1 day before", options: ["Off", "1 day before", "7 days and 1 day before"] },
+          { id: "quiet", label: "Quiet hours", type: "select", value: "22:00–07:00", options: ["None", "22:00–07:00", "21:00–08:00"] },
+          { id: "digest", label: "Weekly faculty digest", type: "toggle", value: true },
+        ]
+      },
     ],
   }),
   "feature-flags": (): SettingsData => ({
     template: "settings",
     sections: [
-      { title: "Phase 2 modules", description: "Roll out per tenant.", fields: [
-        { id: "handwritten", label: "Handwritten evaluation", type: "toggle", value: true },
-        { id: "voice", label: "Voice AI", type: "toggle", value: false },
-        { id: "gd", label: "GD simulation", type: "toggle", value: true },
-      ] },
-      { title: "Phase 3–4 modules", description: "Early access.", fields: [
-        { id: "command", label: "Institution command center", type: "toggle", value: true },
-        { id: "market", label: "Recruiter marketplace", type: "toggle", value: false },
-        { id: "store", label: "Agent store", type: "toggle", value: false },
-      ] },
+      {
+        title: "Phase 2 modules", description: "Roll out per tenant.", fields: [
+          { id: "handwritten", label: "Handwritten evaluation", type: "toggle", value: true },
+          { id: "voice", label: "Voice AI", type: "toggle", value: false },
+          { id: "gd", label: "GD simulation", type: "toggle", value: true },
+        ]
+      },
+      {
+        title: "Phase 3–4 modules", description: "Early access.", fields: [
+          { id: "command", label: "Institution command center", type: "toggle", value: true },
+          { id: "market", label: "Recruiter marketplace", type: "toggle", value: false },
+          { id: "store", label: "Agent store", type: "toggle", value: false },
+        ]
+      },
     ],
   }),
   "security-settings": (): SettingsData => ({
     template: "settings",
     sections: [
-      { title: "Authentication", description: "Applies to every user in the tenant.", fields: [
-        { id: "mfa", label: "Require MFA for staff", type: "toggle", value: true },
-        { id: "mfa-students", label: "Require MFA for students", type: "toggle", value: false },
-        { id: "sso", label: "Enterprise SSO (SAML / OIDC)", type: "toggle", value: true },
-        { id: "session", label: "Idle session timeout", type: "select", value: "30 minutes", options: ["15 minutes", "30 minutes", "60 minutes"] },
-        { id: "pwd", label: "Minimum password length", type: "select", value: "12", options: ["10", "12", "14", "16"] },
-      ] },
-      { title: "Data & AI", description: "Data protection and AI data isolation.", fields: [
-        { id: "retention", label: "AI conversation retention", type: "select", value: "180 days", options: ["30 days", "90 days", "180 days", "1 year"] },
-        { id: "masking", label: "Mask personal data before sending to models", type: "toggle", value: true },
-        { id: "training", label: "Allow tenant data for model training", type: "toggle", value: false, help: "Off by default. Student data is never used for training without explicit institutional consent." },
-        { id: "attendance", label: "Use attendance in early-warning signals", type: "toggle", value: false, help: "Enable only where legally and institutionally permitted." },
-      ] },
+      {
+        title: "Authentication", description: "Applies to every user in the tenant.", fields: [
+          { id: "mfa", label: "Require MFA for staff", type: "toggle", value: true },
+          { id: "mfa-students", label: "Require MFA for students", type: "toggle", value: false },
+          { id: "sso", label: "Enterprise SSO (SAML / OIDC)", type: "toggle", value: true },
+          { id: "session", label: "Idle session timeout", type: "select", value: "30 minutes", options: ["15 minutes", "30 minutes", "60 minutes"] },
+          { id: "pwd", label: "Minimum password length", type: "select", value: "12", options: ["10", "12", "14", "16"] },
+        ]
+      },
+      {
+        title: "Data & AI", description: "Data protection and AI data isolation.", fields: [
+          { id: "retention", label: "AI conversation retention", type: "select", value: "180 days", options: ["30 days", "90 days", "180 days", "1 year"] },
+          { id: "masking", label: "Mask personal data before sending to models", type: "toggle", value: true },
+          { id: "training", label: "Allow tenant data for model training", type: "toggle", value: false, help: "Off by default. Student data is never used for training without explicit institutional consent." },
+          { id: "attendance", label: "Use attendance in early-warning signals", type: "toggle", value: false, help: "Enable only where legally and institutionally permitted." },
+        ]
+      },
     ],
   }),
 };
@@ -829,7 +1209,7 @@ function fallback(mod: ModuleDef): ModuleData {
   return dashboard([k("Status", mod.phase, undefined, "sky")], [], [ins(mod.title, mod.description, "Module configuration")]);
 }
 
-const STREAM_RELABEL = new Set(["class-analytics", "department-academics"]);
+const STREAM_RELABEL = new Set(["academic-tracker", "exam-prep", "class-analytics", "department-academics"]);
 
 export async function moduleData(slug: string, collegeScope = "all"): Promise<ModuleData | null> {
   const mod = findModule(slug);

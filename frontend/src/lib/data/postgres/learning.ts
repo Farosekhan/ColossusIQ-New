@@ -15,7 +15,7 @@ import { collegeByPublic, collegeByUuid, collegePublic, imageRef, lookupId, refO
 const APTITUDE = "Training & Placement";
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n) : s);
 
-/* ── courses ─────────────────────────────────────── */
+/* â”€â”€ courses â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const COURSE_INCLUDE = {
   courseUnits: {
     orderBy: { position: "asc" },
@@ -161,7 +161,6 @@ export const pgCourses: CourseStore = {
   },
   async save(course) {
     const t = db();
-    const published = course.status === "Published";
     const college = await collegeByPublic(course.collegeId);
     if (!college) throw new Error(`Unknown college ${course.collegeId}`);
     let courseRecord = course.courseRecordId
@@ -176,6 +175,7 @@ export const pgCourses: CourseStore = {
     const deptId = await lookupId("departments", college.stream, course.department);
     const tId = await lookupId("terms", college.stream, course.semester);
 
+    const published = course.status === "Published";
     if (!courseRecord) {
       courseRecord = await t.course.create({
         data: {
@@ -247,7 +247,7 @@ export const pgCourses: CourseStore = {
   },
 };
 
-/* ── lesson progress ─────────────────────────────── */
+/* â”€â”€ lesson progress â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 export const pgProgress: ProgressStore = {
   async get(sub, courseId) {
     const st = await studentOf(sub);
@@ -277,7 +277,7 @@ export const pgProgress: ProgressStore = {
   },
 };
 
-/* ── quizzes ─────────────────────────────────────── */
+/* â”€â”€ quizzes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const QUIZ_INCLUDE = {
   quizQuestions: { orderBy: { position: "asc" } },
   department: { select: { name: true } },
@@ -361,7 +361,7 @@ export const pgQuizzes: QuizStore = {
   },
 };
 
-/* ── attempts ────────────────────────────────────── */
+/* â”€â”€ attempts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 export const pgAttempts: AttemptStore = {
   async list({ quizId, studentSub, collegeId }) {
     if (studentSub !== undefined && !isUuid(studentSub)) return [];
@@ -411,7 +411,7 @@ export const pgAttempts: AttemptStore = {
   },
 };
 
-/* ── certificates ────────────────────────────────── */
+/* â”€â”€ certificates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const CERT_INCLUDE = { quiz: { select: { publicId: true } }, student: { select: { userId: true } } } satisfies Prisma.CertificateInclude;
 type CertRow = Prisma.CertificateGetPayload<{ include: typeof CERT_INCLUDE }>;
 
@@ -490,7 +490,7 @@ export const pgCertificates: CertificateStore = {
   },
 };
 
-/* ── placement readiness (view v_placement_readiness) ── */
+/* â”€â”€ placement readiness (view v_placement_readiness) â”€â”€ */
 interface ReadinessRow {
   student_id: string;
   user_id: string;
@@ -524,7 +524,7 @@ export const pgReadiness: ReadinessStore = {
     const st = await studentOf(session.sub);
     if (st) {
       const rows = await db().$queryRaw<ReadinessRow[]>`
-        SELECT v.*, s.user_id FROM v_placement_readiness v JOIN students s ON s.id = v.student_id WHERE v.student_id = ${st.id}::uuid`;
+        SELECT v.*, s.user_id FROM v_placement_readiness v JOIN students s ON s.id = v.student_id WHERE v.student_id = ${st.id}::uuid AND s.status = 'Active'`;
       if (rows[0]) return toReadiness(rows[0]);
     }
     return { studentSub: session.sub, name: session.name, rollNo: "", department: "", collegeId: session.college, quizAverage: 0, certificates: 0, aptitude: 0, interview: 0, resume: 0 };
@@ -533,7 +533,7 @@ export const pgReadiness: ReadinessStore = {
     const c = await collegeByPublic(collegeId);
     if (!c) return [];
     const rows = await db().$queryRaw<ReadinessRow[]>`
-      SELECT v.*, s.user_id FROM v_placement_readiness v JOIN students s ON s.id = v.student_id WHERE v.college_id = ${c.id}::uuid`;
+      SELECT v.*, s.user_id FROM v_placement_readiness v JOIN students s ON s.id = v.student_id WHERE v.college_id = ${c.id}::uuid AND s.status = 'Active'`;
     return Promise.all(rows.map(toReadiness));
   },
 };
