@@ -21,7 +21,6 @@ import {
   Button,
   Card,
   CardBody,
-  CardHeader,
   EmptyState,
   Progress,
   Spinner,
@@ -219,14 +218,14 @@ export function AicteComplianceModule({ role }: { role: Role }) {
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   AICTE Regulatory & Approval Tracking
                 </span>
-                <Badge tone="primary" variant="subtle">
+                <Badge tone="brand">
                   PID: {data.college.pid}
                 </Badge>
-                <Badge tone="neutral" variant="subtle">
+                <Badge tone="neutral">
                   AY {data.academicYear}
                 </Badge>
                 <Badge
-                  tone={data.overallStatus === "Compliant" ? "good" : data.overallStatus === "Action Required" ? "warn" : "bad"}
+                  tone={data.overallStatus === "Compliant" ? "teal" : data.overallStatus === "Action Required" ? "amber" : "rose"}
                 >
                   {data.overallStatus} ({data.overallScore}%)
                 </Badge>
@@ -241,14 +240,14 @@ export function AicteComplianceModule({ role }: { role: Role }) {
 
             <div className="flex flex-wrap items-center gap-2">
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={handleRefresh}
                 disabled={isRefreshing}
                 className="gap-1.5"
               >
                 {isRefreshing ? (
-                  <Spinner size="sm" className="h-3.5 w-3.5" />
+                  <Spinner className="h-3.5 w-3.5" />
                 ) : (
                   <Fi name="rotate-cw" className="h-3.5 w-3.5" />
                 )}
@@ -256,7 +255,7 @@ export function AicteComplianceModule({ role }: { role: Role }) {
               </Button>
 
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={handleExportCsv}
                 className="gap-1.5"
@@ -285,20 +284,20 @@ export function AicteComplianceModule({ role }: { role: Role }) {
             <CardBody className="p-5">
               <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
                 <span>{kpi.label}</span>
-                {kpi.tone === "good" ? (
+                {kpi.tone === "teal" ? (
                   <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
-                ) : kpi.tone === "warn" ? (
+                ) : kpi.tone === "amber" ? (
                   <span className="flex h-2 w-2 rounded-full bg-amber-500" />
-                ) : kpi.tone === "bad" ? (
+                ) : kpi.tone === "rose" ? (
                   <span className="flex h-2 w-2 rounded-full bg-rose-500" />
                 ) : null}
               </div>
               <div className="mt-2 text-2xl font-bold tracking-tight text-foreground">
                 {kpi.value}
               </div>
-              {kpi.change && (
+              {kpi.delta && (
                 <div className="mt-1 text-xs text-muted-foreground">
-                  {kpi.change}
+                  {kpi.delta}
                 </div>
               )}
             </CardBody>
@@ -373,12 +372,12 @@ export function AicteComplianceModule({ role }: { role: Role }) {
           {/* Strengths & Deficiencies Section */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <Card className="border-border/60">
-              <CardHeader className="border-b border-border/40 pb-3">
+              <div className="border-b border-border/40 pb-3 px-5 pt-5">
                 <div className="flex items-center gap-2">
                   <Fi name="check" className="h-4 w-4 text-emerald-500" />
                   <h3 className="font-semibold text-foreground">Institutional Strengths</h3>
                 </div>
-              </CardHeader>
+              </div>
               <CardBody className="p-4">
                 <ul className="space-y-2.5 text-sm text-muted-foreground">
                   {data.strengths.map((str, i) => (
@@ -392,12 +391,12 @@ export function AicteComplianceModule({ role }: { role: Role }) {
             </Card>
 
             <Card className="border-border/60">
-              <CardHeader className="border-b border-border/40 pb-3">
+              <div className="border-b border-border/40 pb-3 px-5 pt-5">
                 <div className="flex items-center gap-2">
                   <Fi name="alert-triangle" className="h-4 w-4 text-amber-500" />
                   <h3 className="font-semibold text-foreground">Actionable Observations & Routine Audit</h3>
                 </div>
-              </CardHeader>
+              </div>
               <CardBody className="p-4">
                 <ul className="space-y-2.5 text-sm text-muted-foreground">
                   {data.deficiencies.map((def, i) => (
@@ -413,9 +412,9 @@ export function AicteComplianceModule({ role }: { role: Role }) {
 
           {/* Detailed Norms Breakdown Table */}
           <Card className="border-border/60">
-            <CardHeader className="border-b border-border/40">
+            <div className="border-b border-border/40 px-5 pt-5">
               <h3 className="font-semibold text-foreground">AICTE Regulatory Standards Evaluation</h3>
-            </CardHeader>
+            </div>
             <div className="divide-y divide-border/40 overflow-hidden">
               {data.norms.map((norm) => (
                 <div key={norm.id} className="p-4 transition-colors hover:bg-muted/30">
@@ -424,8 +423,7 @@ export function AicteComplianceModule({ role }: { role: Role }) {
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-foreground">{norm.name}</span>
                         <Badge
-                          tone={norm.status === "Compliant" ? "good" : norm.status === "Needs Attention" ? "warn" : "bad"}
-                          variant="subtle"
+                          tone={norm.status === "Compliant" ? "teal" : norm.status === "Needs Attention" ? "amber" : "rose"}
                         >
                           {norm.status}
                         </Badge>
@@ -449,7 +447,7 @@ export function AicteComplianceModule({ role }: { role: Role }) {
                       <div className="w-24 sm:w-full">
                         <Progress
                           value={norm.score}
-                          tone={norm.score >= 85 ? "good" : norm.score >= 70 ? "warn" : "bad"}
+                          tone={norm.score >= 85 ? "teal" : norm.score >= 70 ? "amber" : "rose"}
                         />
                       </div>
                     </div>
@@ -499,17 +497,16 @@ export function AicteComplianceModule({ role }: { role: Role }) {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredDepartments.map((dept, i) => (
               <Card key={i} className="border-border/60 transition-shadow hover:shadow-sm">
-                <CardHeader className="border-b border-border/40 pb-3">
+                <div className="border-b border-border/40 pb-3 px-5 pt-5">
                   <div className="flex items-start justify-between gap-2">
                     <h4 className="font-semibold text-foreground">{dept.department}</h4>
                     <Badge
-                      tone={dept.status === "Compliant" ? "good" : "warn"}
-                      variant="subtle"
+                      tone={dept.status === "Compliant" ? "teal" : "amber"}
                     >
                       {dept.status}
                     </Badge>
                   </div>
-                </CardHeader>
+                </div>
                 <CardBody className="space-y-3 p-4 text-xs">
                   <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted/40 p-2.5">
                     <div>
@@ -551,7 +548,7 @@ export function AicteComplianceModule({ role }: { role: Role }) {
               body="Try clearing your search query or selecting All Departments."
               action={
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={() => {
                     setSelectedDept("All Departments");
@@ -577,7 +574,7 @@ export function AicteComplianceModule({ role }: { role: Role }) {
                   <div className="flex items-center gap-2">
                     <Fi name="globe" className="h-4 w-4 text-primary-600 dark:text-primary-400" />
                     <h4 className="font-semibold text-foreground">AICTE Mandatory Public Disclosure Portal</h4>
-                    <Badge tone="good" variant="subtle">Online & Active</Badge>
+                    <Badge tone="teal">Online & Active</Badge>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Publicly accessible regulatory disclosures containing approved programmes, faculty profiles, grievance mechanism, and fee structure.
@@ -601,17 +598,17 @@ export function AicteComplianceModule({ role }: { role: Role }) {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {data.committees.map((comm) => (
               <Card key={comm.id} className="border-border/60">
-                <CardHeader className="border-b border-border/40 pb-3">
+                <div className="border-b border-border/40 pb-3 px-5 pt-5">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <h4 className="font-semibold text-foreground">{comm.name}</h4>
                       <span className="text-xs text-muted-foreground">{comm.id}</span>
                     </div>
-                    <Badge tone="good" variant="subtle">
+                    <Badge tone="teal">
                       {comm.status}
                     </Badge>
                   </div>
-                </CardHeader>
+                </div>
                 <CardBody className="space-y-2.5 p-4 text-xs">
                   <p className="line-clamp-2 text-muted-foreground">{comm.mandate}</p>
 
@@ -682,8 +679,7 @@ export function AicteComplianceModule({ role }: { role: Role }) {
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-foreground">{act.title}</span>
                         <Badge
-                          tone={act.priority === "High" ? "bad" : act.priority === "Medium" ? "warn" : "neutral"}
-                          variant="subtle"
+                          tone={act.priority === "High" ? "rose" : act.priority === "Medium" ? "amber" : "neutral"}
                         >
                           {act.priority} Priority
                         </Badge>
@@ -744,7 +740,7 @@ export function AicteComplianceModule({ role }: { role: Role }) {
       {showAddActionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <Card className="w-full max-w-md border-border/80 shadow-2xl">
-            <CardHeader className="border-b border-border/40 pb-3">
+            <div className="border-b border-border/40 pb-3 px-5 pt-5">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-foreground">Log AICTE Compliance Action</h3>
                 <button
@@ -754,7 +750,7 @@ export function AicteComplianceModule({ role }: { role: Role }) {
                   ✕
                 </button>
               </div>
-            </CardHeader>
+            </div>
             <form onSubmit={handleSubmitAction}>
               <CardBody className="space-y-4 p-5 text-xs">
                 {formError && (
@@ -848,7 +844,7 @@ export function AicteComplianceModule({ role }: { role: Role }) {
               <div className="flex items-center justify-end gap-2 border-t border-border/40 p-4">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={() => setShowAddActionModal(false)}
                 >
@@ -859,7 +855,7 @@ export function AicteComplianceModule({ role }: { role: Role }) {
                   size="sm"
                   disabled={addActionMutation.isPending}
                 >
-                  {addActionMutation.isPending ? <Spinner size="sm" /> : "Save Action"}
+                  {addActionMutation.isPending ? <Spinner /> : "Save Action"}
                 </Button>
               </div>
             </form>

@@ -161,6 +161,7 @@ export const pgCourses: CourseStore = {
   },
   async save(course) {
     const t = db();
+    const published = course.status === "Published";
     const college = await collegeByPublic(course.collegeId);
     if (!college) throw new Error(`Unknown college ${course.collegeId}`);
     let courseRecord = course.courseRecordId

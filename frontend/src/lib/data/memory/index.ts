@@ -275,9 +275,9 @@ export const memoryStore: DataStore = {
           if (course.department) found.department = course.department;
           if (course.semester) found.semester = course.semester;
           if (course.credits) found.credits = course.credits;
-          if (course.createdByName) {
-            found.faculty = course.createdByName;
-            found.createdBy = course.createdByName;
+          if (course.createdBy) {
+            found.faculty = course.createdBy;
+            found.createdBy = course.createdBy;
           }
           found.status = course.status === "Published" ? "Active" : "Draft";
           if (course.summary) found.description = course.summary;
@@ -294,8 +294,8 @@ export const memoryStore: DataStore = {
             semester: course.semester || 1,
             credits: course.credits || 3,
             courseType: "Theory",
-            faculty: course.createdByName || "Staff",
-            createdBy: course.createdByName || "Staff",
+            faculty: course.createdBy || "Staff",
+            createdBy: course.createdBy || "Staff",
             status: course.status === "Published" ? "Active" : "Draft",
             description: course.summary || "",
             createdAt: new Date().toISOString(),

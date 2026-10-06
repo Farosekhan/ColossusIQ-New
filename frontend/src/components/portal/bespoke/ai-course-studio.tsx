@@ -226,7 +226,7 @@ function NewCourse({ ctx, go }: { ctx: LearningContext; go: (q: string) => void 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
 
   const create = useMutation({
-    mutationFn: () => apiFetch("/api/v1/learning-courses/generate", StaffCourseDetail, { method: "POST", body: { ...form, syllabus: form.mode === "syllabus" ? form.syllabus : undefined } }),
+    mutationFn: () => apiFetch("/api/v1/learning-courses/generate", StaffCourseDetail, { method: "POST", timeoutMs: 150_000, body: { ...form, syllabus: form.mode === "syllabus" ? form.syllabus : undefined } }),
     onSuccess: (c) => {
       qc.setQueryData(["studio-course", c.id], c);
       qc.invalidateQueries({ queryKey: ["studio-courses"] });
@@ -322,7 +322,7 @@ function NewCourse({ ctx, go }: { ctx: LearningContext; go: (q: string) => void 
               </p>
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
-              <AiLabel />
+              {create.isPending ? <p role="status" className="text-sm text-ink-3">AI is drafting your chapters, lessons and 30 questions — this can take up to a minute. Please keep this page open.</p> : <AiLabel />}
               <Button type="submit" size="lg" disabled={!valid || create.isPending}>
                 {create.isPending ? <Spinner /> : <Fi name="sparkles" />} Generate course & continue <Fi name="arrow-right" />
               </Button>
@@ -773,7 +773,7 @@ function AssessmentStep({ course: c, onBack, onNext }: { course: StaffCourseDeta
     onError: (e) => setError(e instanceof ApiError ? e.message : "Could not save."),
   });
   const regenerate = useMutation({
-    mutationFn: () => apiFetch(`/api/v1/learning-courses/${c.id}/quiz/regenerate`, StaffCourseDetail, { method: "POST" }),
+    mutationFn: () => apiFetch(`/api/v1/learning-courses/${c.id}/quiz/regenerate`, StaffCourseDetail, { method: "POST", timeoutMs: 120_000 }),
     onSuccess: store,
     onError: (e) => setError(e instanceof ApiError ? e.message : "Could not regenerate."),
   });

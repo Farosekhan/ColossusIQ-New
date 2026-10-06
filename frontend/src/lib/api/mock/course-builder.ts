@@ -12,7 +12,10 @@ import { audit } from "./audit";
 import { libraryFor } from "./course-library";
 import { TOPIC_EXTRA, type TopicExtra } from "./course-library-extra";
 import { allLessons, completedLessons, courseCompleted, type CourseUnit, type LearningCourse, type Lesson } from "./course-state";
-import { getStore } from "@/lib/data";
+import { aiQuestions, planChapters, writeChapters, type AiTopic, type ChapterContent, type ChapterPlan, type CourseBrief } from "./course-ai";
+import { geminiEnabled } from "@/lib/ai/gemini";
+import { rateLimit } from "./rate-limit";
+import { getStore, withRequestContext } from "@/lib/data";
 import { recordFacultyEvent } from "./faculty-activity";
 import { bankFor, templateQuestions, type BankQuestion } from "./learning-content";
 import { courseCode, newId, shuffleOptions, type Quiz } from "./learning";
@@ -314,6 +317,177 @@ export function buildUnits(input: { title: string; department: string; mode: "ti
   return { curated: false, units: renumber(outline(ctx, chapters)) };
 }
 
+/* ───────────────────────────── AI drafting (Gemini) ─────────────────────────── */
+/** A chapter the model could not write: the same generic draft the templates produce. */
+function templateChapter(ctx: GenCtx, ch: ChapterPlan, mode: "title" | "syllabus"): CourseUnit {
+  if (mode === "syllabus") {
+    const lessons = ch.topics.map((t) => ({ ...conceptsLesson(ctx, t, []), title: t }));
+    return { title: ch.title, lessons: [...lessons, practiceLesson(ctx, ch.title, ch.topics.map((t) => `Explain ${t} in your own words.`))] };
+  }
+  return { title: ch.title, part: ch.part, lessons: [conceptsLesson(ctx, ch.title, []), practiceLesson(ctx, ch.title, [])] };
+}
+
+function aiChapter(ctx: GenCtx, ch: ChapterPlan, c: ChapterContent, mode: "title" | "syllabus", part: string | undefined): CourseUnit {
+  const extra = (t: AiTopic): TopicExtra => ({ intro: t.intro, terms: t.terms, example: c.example, mistakes: c.mistakes, practice: c.practice });
+  const lead = c.topics[0]!;
+  if (mode === "syllabus") {
+    // Syllabus topics keep their own lesson names; one worked example and one practice lesson close the unit.
+    const concepts = c.topics.map((t) => ({ ...conceptsLesson(ctx, t.title, t.keyPoints, extra(t)), title: t.title }));
+    return { title: ch.title, lessons: [...concepts, exampleLesson(ctx, ch.title, extra(lead)), practiceLesson(ctx, ch.title, c.topics.flatMap((t) => t.keyPoints).slice(0, 4), extra(lead))] };
+  }
+  return {
+    title: ch.title,
+    part,
+    lessons: [conceptsLesson(ctx, ch.title, lead.keyPoints, extra(lead)), exampleLesson(ctx, ch.title, extra(lead)), practiceLesson(ctx, ch.title, lead.keyPoints.slice(0, 4), extra(lead))],
+  };
+}
+
+/**
+ * Drafts the course with Gemini: chapter outline (or the faculty's syllabus units) → each chapter's lessons.
+ * Returns null when AI is off or nothing usable came back, so the caller uses the built-in templates;
+ * a single failed chapter is templated on its own.
+ */
+async function buildUnitsAi(input: { title: string; department: string; level: string; mode: "title" | "syllabus"; syllabus?: string }, stream: Stream): Promise<CourseUnit[] | null> {
+  if (!geminiEnabled()) return null;
+  const brief: CourseBrief = { title: input.title, department: input.department, level: input.level, streamLabel: stream };
+  let plan: ChapterPlan[] | null;
+  if (input.mode === "syllabus") {
+    plan = parseSyllabus(input.syllabus ?? "")
+      .slice(0, 12)
+      .map((u) => ({ title: u.title, topics: u.lessons.slice(0, 6) }));
+    if (!plan.length) return null;
+  } else {
+    plan = await planChapters(brief);
+  }
+  if (!plan) return null;
+  const content = await writeChapters(brief, plan, input.mode === "syllabus" ? input.syllabus : undefined);
+  if (content.every((c) => c === null)) return null;
+
+  const ctx: GenCtx = { course: input.title, department: input.department, stream, next: () => "L0" };
+  const parts = new Map<string, string>();
+  const chapters = plan.map((ch, i) => {
+    const c = content[i];
+    let part: string | undefined;
+    if (ch.part) {
+      if (!parts.has(ch.part)) parts.set(ch.part, `Part ${ROMAN[parts.size] ?? parts.size + 1} · ${ch.part}`);
+      part = parts.get(ch.part);
+    }
+    return c ? aiChapter(ctx, ch, c, input.mode, part) : templateChapter(ctx, { ...ch, part }, input.mode);
+  });
+  return renumber(outline(ctx, chapters));
+}
+
+/** What the question writer reads: each chapter's key points and terms, as the students see them. */
+function courseDigest(units: CourseUnit[]): string {
+  return units
+    .filter((u) => !isFrame(u))
+    .map((u) => {
+      const points = u.lessons.filter((l) => (l.layout ?? "concepts") === "concepts").flatMap((l) => l.keyPoints).slice(0, 6);
+      const terms = u.lessons.flatMap((l) => l.terms ?? []).slice(0, 6);
+      return [`## ${u.title}`, ...points.map((p) => `- ${p}`), ...terms.map((t) => `- Term: ${t.term} — ${t.meaning}`)].join("\n");
+    })
+    .join("\n\n")
+    .slice(0, 14_000);
+}
+
+/**
+ * The final assessment: Gemini-written questions grounded in the lessons (every one flagged "review", so a person
+ * confirms the answer key before publishing), topped up by the rule-based questions. Falls back to those alone.
+ */
+export async function buildQuestions(units: CourseUnit[], department: string, brief?: CourseBrief, n = FINAL_QUIZ_SIZE): Promise<Question[]> {
+  if (brief && geminiEnabled()) {
+    const ai = await aiQuestions(brief, courseDigest(units), n);
+    if (ai) {
+      const picked: Question[] = ai.slice(0, n).map((q) => ({ ...shuffleOptions(q), review: true }));
+      return picked.length >= n ? picked : shuffle([...picked, ...courseQuestions(units, department, n - picked.length)]);
+    }
+  }
+  return courseQuestions(units, department, n);
+}
+
+/* ───────────────────────────── AI before the transaction ─────────────────────────── */
+/*
+ * In postgres mode every request runs inside one database transaction with a 30 s limit, and a Gemini call can take
+ * longer than that. So the route calls prefetchCourseAi() BEFORE opening the transaction: it does the slow AI work,
+ * parks the result here, and createCourse() / the regenerate handler pick it up (once) inside the request.
+ */
+interface Prepared {
+  at: number;
+  units: CourseUnit[] | null;
+  questions: Question[] | null;
+}
+const prepared = new Map<string, Prepared>();
+const PREPARED_TTL_MS = 10 * 60_000;
+
+const prepKey = (who: string, i: { title: string; department: string; level: string; mode: string; syllabus?: string }) =>
+  JSON.stringify([who, i.title, i.department, i.level, i.mode, i.syllabus ?? ""]);
+const regenKey = (who: string, courseId: string, version: number) => JSON.stringify([who, "regen", courseId, version]);
+
+function takePrepared(key: string): Prepared | undefined {
+  const p = prepared.get(key);
+  prepared.delete(key);
+  return p && Date.now() - p.at < PREPARED_TTL_MS ? p : undefined;
+}
+function park(key: string, p: Omit<Prepared, "at">) {
+  const now = Date.now();
+  for (const [k, v] of prepared) if (now - v.at >= PREPARED_TTL_MS) prepared.delete(k);
+  prepared.set(key, { ...p, at: now });
+}
+
+/**
+ * Runs the Gemini steps for POST learning-courses/generate and .../quiz/regenerate ahead of the request's database
+ * transaction. Returns an error result (429) to send back, or null to carry on. Anything it skips (AI off, invalid
+ * input, no access) is handled normally by dispatchCourses.
+ */
+export async function prefetchCourseAi(method: string, segs: string[], rawBody: unknown, session: SessionPayload): Promise<MockResult | null> {
+  if (method !== "POST" || segs[0] !== "learning-courses" || !geminiEnabled() || !STAFF.has(session.role)) return null;
+  const who = session.sub ?? session.name;
+  const limited = () => {
+    const rl = rateLimit(`course-ai:${who}`, 15, 3_600_000);
+    return rl.ok ? null : err(429, "rate_limited", `You have generated several AI drafts recently. Try again in ${Math.ceil(rl.retryAfter / 60)} minute(s).`);
+  };
+
+  if (segs[1] === "generate") {
+    const p = GenerateBody.safeParse(rawBody);
+    if (!p.success || session.college === ALL_COLLEGES) return null;
+    const stream = await withRequestContext({ scope: session.college, sub: session.sub, readOnly: true }, () => collegeStream(session.college));
+    if (!stream) return null;
+    const d = p.data;
+    if (!streamOptions("department", stream).includes(d.department) || !streamOptions("semester", stream).includes(d.semester)) return null;
+    if (d.mode === "syllabus" && parseSyllabus(d.syllabus ?? "").reduce((n, u) => n + u.lessons.length, 0) < 3) return null;
+    const blocked = limited();
+    if (blocked) return blocked;
+    const input = { ...d, title: cleanText(d.title, 100), faculty: cleanText(d.faculty, 80) };
+    const units = await buildUnitsAi(input, stream);
+    const questions = units ? await aiOnlyQuestions(units, input, stream) : null;
+    park(prepKey(who, input), { units, questions });
+    return null;
+  }
+
+  if (segs[2] === "quiz" && segs[3] === "regenerate" && ID.test(segs[1] ?? "")) {
+    const course = await withRequestContext({ scope: session.college, sub: session.sub, readOnly: true }, async () => {
+      const c = await getStore().courses.get(segs[1]!);
+      return c && (session.college === ALL_COLLEGES || c.collegeId === session.college) && c.status === "Draft" ? c : undefined;
+    });
+    if (!course) return null;
+    const blocked = limited();
+    if (blocked) return blocked;
+    const stream = session.college === ALL_COLLEGES ? course.department : ((await withRequestContext({ scope: session.college, sub: session.sub, readOnly: true }, () => collegeStream(session.college))) ?? course.department);
+    const questions = await aiOnlyQuestions(course.units, course, stream);
+    park(regenKey(who, course.id, course.version), { units: null, questions });
+    return null;
+  }
+  return null;
+}
+
+/** AI questions topped up by the rule-based ones, or null when the model gave nothing usable. */
+async function aiOnlyQuestions(units: CourseUnit[], c: { title: string; department: string; level: string }, stream: string): Promise<Question[] | null> {
+  const ai = await aiQuestions({ title: c.title, department: c.department, level: c.level, streamLabel: stream }, courseDigest(units), FINAL_QUIZ_SIZE);
+  if (!ai) return null;
+  const picked: Question[] = ai.slice(0, FINAL_QUIZ_SIZE).map((q) => ({ ...shuffleOptions(q), review: true }));
+  return picked.length >= FINAL_QUIZ_SIZE ? picked : shuffle([...picked, ...courseQuestions(units, c.department, FINAL_QUIZ_SIZE - picked.length)]);
+}
+
 /* ───────────────────────────── final assessment ─────────────────────────── */
 /**
  * Builds the final assessment from what students actually read:
@@ -425,6 +599,7 @@ export async function ensureCourseSeed() {
         stream,
         { name: "HOD (sample course)", sub: null },
         new Date(Date.now() - 12 * 86_400_000).toISOString(),
+        false, // sample courses use the hand-checked templates, never the AI
       );
       quiz.questions = quiz.questions.map((q) => ({ ...q, review: false }));
       quiz.status = "Published";
@@ -443,8 +618,12 @@ async function createCourse(
   stream: Stream,
   author: { name: string; sub: string | null },
   at = new Date().toISOString(),
+  useAi = true,
 ): Promise<{ course: LearningCourse; quiz: Quiz }> {
-  const { units, curated } = buildUnits(input, stream);
+  // In postgres mode the route runs the AI step before the database transaction opens (see prefetchCourseAi).
+  const pre = useAi ? takePrepared(prepKey(author.sub ?? author.name, input)) : undefined;
+  const aiUnits = pre ? pre.units : useAi ? await buildUnitsAi(input, stream) : null;
+  const { units, curated } = aiUnits ? { units: aiUnits, curated: false } : buildUnits(input, stream);
   const id = `LC-${newId("X").slice(2)}`;
   const quizId = newId("QZ");
   const lessonCount = units.reduce((s, u) => s + u.lessons.length, 0);
@@ -460,7 +639,7 @@ async function createCourse(
     faculty: input.faculty,
     source: input.mode,
     syllabus: input.mode === "syllabus" ? (input.syllabus ?? "").slice(0, 6000) : "",
-    summary: `${input.title} for ${input.department} students: ${lessonCount} lessons in ${units.filter((u) => u.title !== "Getting started" && u.title !== "Course revision").length} chapters, followed by a ${FINAL_QUIZ_SIZE}-question final assessment and a mark-based certificate.${curated ? "" : " Generated from a generic outline — review and enrich each lesson before publishing."}`,
+    summary: `${input.title} for ${input.department} students: ${lessonCount} lessons in ${units.filter((u) => u.title !== "Getting started" && u.title !== "Course revision").length} chapters, followed by a ${FINAL_QUIZ_SIZE}-question final assessment and a mark-based certificate.${curated ? "" : aiUnits ? " Drafted by AI from the course title and syllabus — check the facts in each lesson and the assessment before publishing." : " Generated from a generic outline — review and enrich each lesson before publishing."}`,
     units,
     outcomes: outcomesFor(units, input.level, input.title),
     finalQuizId: quizId,
@@ -482,7 +661,7 @@ async function createCourse(
     durationMin: 45,
     certificateEnabled: true,
     status: "Draft",
-    questions: courseQuestions(units, input.department),
+    questions: pre ? (pre.questions ?? courseQuestions(units, input.department)) : await buildQuestions(units, input.department, !useAi ? undefined : { title: input.title, department: input.department, level: input.level, streamLabel: stream }),
     courseId: id,
     createdBy: author.name,
     createdAt: at,
@@ -784,7 +963,8 @@ export async function dispatchCourses(method: string, segs: string[], rawBody: u
 
   if (sub1 === "quiz" && sub2 === "regenerate" && method === "POST") {
     if (course.status !== "Draft") return err(409, "published", "Move the course back to draft first.");
-    quiz.questions = courseQuestions(course.units, course.department);
+    const pre = takePrepared(regenKey(session.sub ?? session.name, course.id, course.version));
+    quiz.questions = pre ? (pre.questions ?? courseQuestions(course.units, course.department)) : await buildQuestions(course.units, course.department, { title: course.title, department: course.department, level: course.level, streamLabel: stream ?? course.department });
     course.version++;
     await store.quizzes.save(quiz);
     await store.courses.save(course);
