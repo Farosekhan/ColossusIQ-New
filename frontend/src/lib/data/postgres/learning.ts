@@ -15,7 +15,7 @@ import { collegeByPublic, collegeByUuid, collegePublic, imageRef, lookupId, refO
 const APTITUDE = "Training & Placement";
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n) : s);
 
-/* ── courses ─────────────────────────────────────── */
+/* â”€â”€ courses â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const COURSE_INCLUDE = {
   courseUnits: {
     orderBy: { position: "asc" },
@@ -247,7 +247,7 @@ export const pgCourses: CourseStore = {
   },
 };
 
-/* ── lesson progress ─────────────────────────────── */
+/* â”€â”€ lesson progress â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 export const pgProgress: ProgressStore = {
   async get(sub, courseId) {
     const st = await studentOf(sub);
@@ -277,7 +277,7 @@ export const pgProgress: ProgressStore = {
   },
 };
 
-/* ── quizzes ─────────────────────────────────────── */
+/* â”€â”€ quizzes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const QUIZ_INCLUDE = {
   quizQuestions: { orderBy: { position: "asc" } },
   department: { select: { name: true } },
@@ -361,7 +361,7 @@ export const pgQuizzes: QuizStore = {
   },
 };
 
-/* ── attempts ────────────────────────────────────── */
+/* â”€â”€ attempts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 export const pgAttempts: AttemptStore = {
   async list({ quizId, studentSub, collegeId }) {
     if (studentSub !== undefined && !isUuid(studentSub)) return [];
@@ -411,7 +411,7 @@ export const pgAttempts: AttemptStore = {
   },
 };
 
-/* ── certificates ────────────────────────────────── */
+/* â”€â”€ certificates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const CERT_INCLUDE = { quiz: { select: { publicId: true } }, student: { select: { userId: true } } } satisfies Prisma.CertificateInclude;
 type CertRow = Prisma.CertificateGetPayload<{ include: typeof CERT_INCLUDE }>;
 
@@ -490,7 +490,7 @@ export const pgCertificates: CertificateStore = {
   },
 };
 
-/* ── placement readiness (view v_placement_readiness) ── */
+/* â”€â”€ placement readiness (view v_placement_readiness) â”€â”€ */
 interface ReadinessRow {
   student_id: string;
   user_id: string;

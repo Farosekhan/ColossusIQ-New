@@ -55,7 +55,7 @@ type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 export async function apiFetch<S extends z.ZodTypeAny>(
   path: string,
   schema: S,
-  options: { method?: Method; body?: unknown; signal?: AbortSignal } = {},
+  options: { method?: Method; body?: unknown; signal?: AbortSignal; timeoutMs?: number } = {},
 ): Promise<z.infer<S>> {
   if (!path.startsWith("/api/v1/")) throw new Error("API paths must start with /api/v1/");
   const method = options.method ?? "GET";
@@ -64,7 +64,7 @@ export async function apiFetch<S extends z.ZodTypeAny>(
   if (method !== "GET") headers[CSRF_HEADER] = await getCsrfToken();
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? TIMEOUT_MS);
   options.signal?.addEventListener("abort", () => controller.abort());
 
   let res: Response;

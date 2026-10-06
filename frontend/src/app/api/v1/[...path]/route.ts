@@ -13,6 +13,7 @@ import {
 } from "@/lib/auth/session";
 import { ROLES } from "@/lib/auth/roles";
 import { dispatch } from "@/lib/api/mock/router";
+import { prefetchCourseAi } from "@/lib/api/mock/course-builder";
 import { rateLimit } from "@/lib/api/mock/rate-limit";
 import { RESOURCES, recordSchema } from "@/config/resources";
 import { collegeName, createRecord, enabledGroups, getCollege, isCollegeActive, listColleges } from "@/lib/api/mock/records";
@@ -235,6 +236,9 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
   // Everything below requires a session.
   const session = await verifySession(req.cookies.get(SESSION_COOKIE)?.value);
   if (!session) return error(401, "unauthenticated", "Please sign in.");
+  // Slow AI drafting (AI Course Studio) runs here, before the request's database transaction opens and its 30 s clock starts.
+  const early = await prefetchCourseAi(method, segs, body, session);
+  if (early) return json(early.body, early.status);
   try {
     return await withRequestContext({ scope: session.college, sub: session.sub }, () => handleSession(req, method, segs, route, body, session));
   } catch (e) {
