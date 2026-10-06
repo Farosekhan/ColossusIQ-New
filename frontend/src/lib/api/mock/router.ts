@@ -39,6 +39,8 @@ import { dispatchTeaching } from "./teaching";
 import { dispatchAssignments } from "./assignments";
 import { dispatchKnowledge } from "./knowledge-base";
 import { dispatchQuestionAi } from "./question-ai";
+import { dispatchMentor, mentorChat } from "./mentor";
+import { ChatBodySchema } from "@/lib/api/mentor-schemas";
 import { audit, recentAudit } from "./audit";
 import { createStudent, deleteStudent, getStudentsList, importStudents, updateStudent } from "./students-store";
 import { createFaculty, deleteFaculty, getFacultyList, updateFaculty } from "./faculty-store";
@@ -56,7 +58,7 @@ const notFound = () => err(404, "not_found", "Resource not found.");
 const forbidden = () => err(403, "forbidden", "You do not have permission to perform this action.");
 
 /* ── request body schemas (server-side validation) ── */
-const ChatBody = z.object({ agent: z.string().max(40).regex(/^[a-z-]+$/), message: z.string().min(1).max(2000) });
+const ChatBody = ChatBodySchema;
 const GenerateBody = z.object({
   module: z.string().max(60).regex(/^[a-z-]+$/),
   inputs: z.record(z.string().max(40), z.string().max(4000)).refine((o) => Object.keys(o).length <= 12),
@@ -223,6 +225,7 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
   if (segs[0] === "teaching") return dispatchTeaching(method, segs, rawBody, session);
   if (segs[0] === "assignments") return dispatchAssignments(method, segs, rawBody, session);
   if (segs[0] === "knowledge") return dispatchKnowledge(method, segs, rawBody, session);
+  if (segs[0] === "mentor") return dispatchMentor(method, segs, session);
   if (LEARNING_AREAS.has(segs[0] ?? "")) return dispatchLearning(method, segs, rawBody, session, query);
   if (segs[0] === "students" && segs[1] !== "me") return dispatchStudents(method, segs, rawBody, session, query);
   if (segs[0] === "faculty") return dispatchFaculty(method, segs, rawBody, session, query);
@@ -658,6 +661,7 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
       if (!can(session.role, "ai:chat")) return forbidden();
       const parsed = ChatBody.safeParse(rawBody);
       if (!parsed.success) return err(400, "invalid_body", "Message must be 1–2000 characters.");
+      if (parsed.data.agent === "mentor") return mentorChat(session, parsed.data);
       return ok(chatReply(parsed.data.agent, cleanText(parsed.data.message, 2000)));
     }
     case "POST ai/generate": {
