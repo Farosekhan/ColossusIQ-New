@@ -36,7 +36,7 @@ import { dispatchRecords } from "./records-router";
 import { dispatchLearning } from "./learning";
 import { dispatchCourses } from "./course-builder";
 import { dispatchTeaching } from "./teaching";
-import { dispatchAssignments } from "./assignments";
+import { assignmentNotifications, dispatchAssignments } from "./assignments";
 import { dispatchKnowledge } from "./knowledge-base";
 import { dispatchQuestionAi } from "./question-ai";
 import { dispatchMentor, mentorChat } from "./mentor";
@@ -335,7 +335,7 @@ export async function dispatch(method: string, segs: string[], rawBody: unknown,
 
     /* ── session & shell ── */
     case "GET notifications": {
-      const rawList = await getStore().notifications.forUser(session);
+      const rawList = [...(await assignmentNotifications(session)), ...(await getStore().notifications.forUser(session))];
       const cfg = (await getStore().settings.get(session.college, "notifications-config"))
         ?? (session.college !== "all" ? await getStore().settings.get("all", "notifications-config") : undefined);
       if (!cfg) return ok(rawList);

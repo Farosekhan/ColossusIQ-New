@@ -1,311 +1,226 @@
 import "server-only";
 import { z } from "zod";
 import type { SessionPayload } from "@/lib/auth/session";
-import { dataBackend, withRequestContext } from "@/lib/data";
-import { prisma } from "@/lib/data/postgres/db";
-import { AssignmentStatus } from "@prisma/client";
+import { dataBackend } from "@/lib/data";
+import type { Notification } from "@/lib/api/schemas";
+import {
+  AssignmentInput,
+  AssignmentPatch,
+  GradeBody,
+  SubmitBody,
+  type AssignmentItem,
+} from "@/lib/api/assignments-schemas";
+import { assignmentStore, type AssignmentRow } from "./assignment-store";
+import { getStudentAcademicProfile } from "./student-profile";
+import type { MockResult } from "./router";
 
-export interface AssignmentItem {
-  id: string;
-  title: string;
-  course: string;
-  due: string;
-  submitted: number;
-  status: "Open" | "Closed" | "Draft";
-  createdAt: string;
-}
+/*
+ * Assignments. Faculty write an assignment (title, course, instructions, marks, deadline) and publish it; it then appears
+ * in every student's Assignments page and notifications. Students hand in an answer (text and/or a link) before the
+ * deadline or late; faculty see who has submitted, then mark each piece of work and leave feedback, which the student
+ * sees. Drafts are visible to staff only; closing an assignment stops further submissions.
+ */
 
-export const AssignmentSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  course: z.string(),
-  due: z.string(),
-  submitted: z.number().min(0).max(100),
-  status: z.enum(["Open", "Closed", "Draft"]),
-  createdAt: z.string(),
+const ok = (body: unknown, status = 200): MockResult => ({ status, body });
+const err = (status: number, code: string, message: string, fields?: Record<string, string>): MockResult => ({
+  status,
+  body: { error: { code, message, ...(fields ? { fields } : {}) } },
 });
+const invalid = (e: z.ZodError): MockResult => {
+  const fields: Record<string, string> = {};
+  for (const i of e.issues) fields[String(i.path[0] ?? "_")] ??= i.message;
+  return err(422, "validation", "Please correct the highlighted fields.", fields);
+};
 
-export const CreateAssignmentInput = z.object({
-  title: z.string().min(2).max(120),
-  course: z.string().min(1).max(20),
-  due: z.string().min(1).max(30),
-  status: z.enum(["Open", "Closed", "Draft"]).default("Open"),
-  submitted: z.number().min(0).max(100).default(0),
-});
+const isStaff = (s: SessionPayload) => s.role === "faculty" || s.role === "admin" || s.role === "hod";
+const sweeping = (s: SessionPayload) => s.role === "admin" || s.role === "hod";
 
-export const UpdateAssignmentInput = CreateAssignmentInput.partial();
-
-// In-memory store initialized with seed assignments matching screenshots
-let INITIAL_ASSIGNMENTS: AssignmentItem[] = [
-  { id: "asn-101", title: "AI & Neural Networks Lab Assignment", course: "ML", due: "Nov 18", submitted: 0, status: "Open", createdAt: new Date().toISOString() },
-  { id: "asn-102", title: "Process Scheduling Simulation", course: "OS", due: "Nov 02", submitted: 0, status: "Open", createdAt: new Date().toISOString() },
-  { id: "asn-103", title: "ER diagram for library system", course: "ML", due: "Oct 2", submitted: 80, status: "Closed", createdAt: new Date().toISOString() },
-  { id: "asn-104", title: "SQL joins worksheet", course: "CN", due: "Oct 5", submitted: 58, status: "Closed", createdAt: new Date().toISOString() },
-  { id: "asn-105", title: "Scheduler simulation", course: "CN", due: "Oct 8", submitted: 61, status: "Closed", createdAt: new Date().toISOString() },
-  { id: "asn-106", title: "Subnetting problems", course: "DBMS", due: "Oct 11", submitted: 100, status: "Open", createdAt: new Date().toISOString() },
-  { id: "asn-107", title: "Linear regression notebook", course: "OS", due: "Oct 14", submitted: 53, status: "Open", createdAt: new Date().toISOString() },
-  { id: "asn-108", title: "Normalization case study", course: "DBMS", due: "Oct 17", submitted: 80, status: "Open", createdAt: new Date().toISOString() },
-  { id: "asn-109", title: "Banker's algorithm trace", course: "ML", due: "Oct 20", submitted: 77, status: "Draft", createdAt: new Date().toISOString() },
-  { id: "asn-110", title: "Mini-project proposal", course: "OS", due: "Oct 23", submitted: 69, status: "Draft", createdAt: new Date().toISOString() },
-];
-
-export async function listAssignments(session: SessionPayload): Promise<AssignmentItem[]> {
-  if (dataBackend() === "postgres") {
-    try {
-      return await withRequestContext({ scope: "all", sub: session.sub, readOnly: true }, async () => {
-        const college = session.college && session.college !== "all"
-          ? await prisma().college.findFirst({
-              where: {
-                OR: [
-                  { publicId: session.college },
-                  ...(isUuid(session.college) ? [{ id: session.college }] : []),
-                  { name: session.college },
-                ],
-              },
-              select: { id: true },
-            })
-          : null;
-
-        const whereClause = {
-          ...(college ? { collegeId: college.id } : {}),
-          ...(session.role === "student" ? { status: { in: ["Open", "Closed"] as AssignmentStatus[] } } : {}),
-        };
-
-        const rows = await prisma().assignment.findMany({
-          where: whereClause,
-          orderBy: { createdAt: "desc" },
-        });
-
-        if (rows.length > 0) {
-          return rows.map((r) => ({
-            id: r.id,
-            title: r.title,
-            course: r.course,
-            due: r.due,
-            submitted: r.submitted,
-            status: r.status as "Open" | "Closed" | "Draft",
-            createdAt: r.createdAt.toISOString(),
-          }));
-        }
-        return session.role === "student" ? INITIAL_ASSIGNMENTS.filter((a) => a.status !== "Draft") : [...INITIAL_ASSIGNMENTS];
-      });
-    } catch {
-      // Fall back to memory store if DB query fails or outside context
-    }
-  }
-
-  // Students only see published assignments (Open and Closed); Staff sees all including Drafts
-  if (session.role === "student") {
-    return INITIAL_ASSIGNMENTS.filter((a) => a.status !== "Draft");
-  }
-  return [...INITIAL_ASSIGNMENTS];
+/** The deadline as the people in the college read it (India time), e.g. "18 Nov, 5:00 pm". */
+export function dueLabel(iso: string): string {
+  return new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" }).format(new Date(iso));
 }
 
-export async function createAssignment(input: z.infer<typeof CreateAssignmentInput>, session: SessionPayload): Promise<AssignmentItem> {
-  if (dataBackend() === "postgres") {
-    try {
-      return await withRequestContext({ scope: "all", sub: session.sub }, async () => {
-        const college = session.college && session.college !== "all"
-          ? await prisma().college.findFirst({
-              where: {
-                OR: [
-                  { publicId: session.college },
-                  ...(isUuid(session.college) ? [{ id: session.college }] : []),
-                  { name: session.college },
-                ],
-              },
-              select: { id: true },
-            })
-          : await prisma().college.findFirst({ select: { id: true } });
+function ago(iso: string): string {
+  const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60_000));
+  if (m < 1) return "Just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  return h < 24 ? `${h}h ago` : `${Math.round(h / 24)}d ago`;
+}
 
-        if (college) {
-          const row = await prisma().assignment.create({
-            data: {
-              collegeId: college.id,
-              title: input.title,
-              course: input.course,
-              due: input.due,
-              submitted: input.submitted ?? 0,
-              status: input.status as AssignmentStatus,
-            },
-          });
-          return {
-            id: row.id,
-            title: row.title,
-            course: row.course,
-            due: row.due,
-            submitted: row.submitted,
-            status: row.status as "Open" | "Closed" | "Draft",
-            createdAt: row.createdAt.toISOString(),
-          };
-        }
-        throw new Error("No college found");
-      });
-    } catch {
-      // Fall back to memory store
-    }
-  }
+const pastDue = (iso: string | null) => iso !== null && Date.parse(iso) < Date.now();
 
-  const newAssignment: AssignmentItem = {
-    id: `asn-${Date.now().toString(36)}`,
-    title: input.title,
-    course: input.course,
-    due: input.due,
-    submitted: input.submitted ?? 0,
-    status: input.status ?? "Open",
-    createdAt: new Date().toISOString(),
+function item(r: AssignmentRow, s: SessionPayload, extra: Pick<AssignmentItem, "stats" | "mine">): AssignmentItem {
+  return {
+    id: r.id,
+    title: r.title,
+    course: r.course,
+    description: r.description,
+    maxMarks: r.maxMarks,
+    dueAt: r.dueAt,
+    due: r.due,
+    status: r.status,
+    authorName: r.authorName,
+    createdAt: r.createdAt,
+    canManage: isStaff(s) && (sweeping(s) || r.owned),
+    ...extra,
   };
-
-  INITIAL_ASSIGNMENTS.unshift(newAssignment);
-  return newAssignment;
 }
 
-const isUuid = (str: string) =>
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+async function staffItem(s: SessionPayload, r: AssignmentRow): Promise<AssignmentItem> {
+  const store = assignmentStore();
+  const [counts, enrolled] = await Promise.all([store.counts(s, [r.id]), store.enrolled(s)]);
+  const c = counts.get(r.id) ?? { submitted: 0, graded: 0 };
+  return item(r, s, { stats: { ...c, enrolled }, mine: null });
+}
 
-export async function updateAssignment(id: string, input: z.infer<typeof UpdateAssignmentInput>, session: SessionPayload): Promise<AssignmentItem | null> {
-  if (dataBackend() === "postgres") {
-    try {
-      return await withRequestContext({ scope: "all", sub: session.sub }, async () => {
-        const mockItem = INITIAL_ASSIGNMENTS.find((a) => a.id === id);
-        const target = await prisma().assignment.findFirst({
-          where: {
-            OR: [
-              ...(isUuid(id) ? [{ id }] : []),
-              { publicId: id },
-              ...(mockItem ? [{ title: mockItem.title }] : []),
-            ],
-          },
-        });
-
-        if (target) {
-          const row = await prisma().assignment.update({
-            where: { id: target.id },
-            data: {
-              ...(input.title ? { title: input.title } : {}),
-              ...(input.course ? { course: input.course } : {}),
-              ...(input.due ? { due: input.due } : {}),
-              ...(input.submitted !== undefined ? { submitted: input.submitted } : {}),
-              ...(input.status ? { status: input.status as AssignmentStatus } : {}),
-            },
-          });
-          return {
-            id: row.id,
-            title: row.title,
-            course: row.course,
-            due: row.due,
-            submitted: row.submitted,
-            status: row.status as "Open" | "Closed" | "Draft",
-            createdAt: row.createdAt.toISOString(),
-          };
-        }
-        return null;
-      });
-    } catch (err) {
-      console.error("updateAssignment postgres error:", err);
-    }
+async function listFor(s: SessionPayload): Promise<AssignmentItem[]> {
+  const store = assignmentStore();
+  if (isStaff(s)) {
+    const rows = await store.list(s, false);
+    const [counts, enrolled] = await Promise.all([store.counts(s, rows.map((r) => r.id)), store.enrolled(s)]);
+    return rows.map((r) => item(r, s, { stats: { ...(counts.get(r.id) ?? { submitted: 0, graded: 0 }), enrolled }, mine: null }));
   }
-
-  const index = INITIAL_ASSIGNMENTS.findIndex((a) => a.id === id);
-  if (index === -1) return null;
-
-  INITIAL_ASSIGNMENTS[index] = {
-    ...INITIAL_ASSIGNMENTS[index]!,
-    ...input,
-  };
-
-  return INITIAL_ASSIGNMENTS[index]!;
+  const rows = await store.list(s, true);
+  const mine = await store.mine(s, rows.map((r) => r.id));
+  return rows.map((r) => item(r, s, { stats: null, mine: mine.get(r.id) ?? null }));
 }
 
-export async function deleteAssignment(id: string, session: SessionPayload): Promise<boolean> {
-  if (dataBackend() === "postgres") {
-    try {
-      return await withRequestContext({ scope: "all", sub: session.sub }, async () => {
-        const mockItem = INITIAL_ASSIGNMENTS.find((a) => a.id === id);
-        const target = await prisma().assignment.findFirst({
-          where: {
-            OR: [
-              ...(isUuid(id) ? [{ id }] : []),
-              { publicId: id },
-              ...(mockItem ? [{ title: mockItem.title }] : []),
-            ],
-          },
-        });
-
-        if (target) {
-          await prisma().assignment.delete({ where: { id: target.id } });
-          INITIAL_ASSIGNMENTS = INITIAL_ASSIGNMENTS.filter((a) => a.id !== id && a.id !== target.id);
-          return true;
-        }
-
-        const initialLen = INITIAL_ASSIGNMENTS.length;
-        INITIAL_ASSIGNMENTS = INITIAL_ASSIGNMENTS.filter((a) => a.id !== id);
-        return INITIAL_ASSIGNMENTS.length < initialLen;
-      });
-    } catch (err) {
-      console.error("deleteAssignment postgres error:", err);
-    }
+/** The student's roll number, where the college keeps one. */
+async function rollNoOf(s: SessionPayload): Promise<string> {
+  if (dataBackend() !== "postgres") return "";
+  try {
+    return (await getStudentAcademicProfile(s)).rollNo;
+  } catch {
+    return "";
   }
-
-  const initialLen = INITIAL_ASSIGNMENTS.length;
-  INITIAL_ASSIGNMENTS = INITIAL_ASSIGNMENTS.filter((a) => a.id !== id);
-  return INITIAL_ASSIGNMENTS.length < initialLen;
 }
 
-export async function dispatchAssignments(
-  method: string,
-  segs: string[],
-  rawBody: unknown,
-  session: SessionPayload
-): Promise<{ status: number; body: unknown }> {
-  // GET /api/v1/assignments
+export async function dispatchAssignments(method: string, segs: string[], rawBody: unknown, s: SessionPayload): Promise<MockResult> {
+  const store = assignmentStore();
+  const id = segs[1];
+
+  // GET assignments
   if (method === "GET" && segs.length === 1) {
-    const list = await listAssignments(session);
-    return { status: 200, body: list };
+    if (!isStaff(s) && s.role !== "student") return err(403, "forbidden", "Assignments are for students and faculty.");
+    return ok(await listFor(s));
   }
 
-  // POST /api/v1/assignments
+  // POST assignments
   if (method === "POST" && segs.length === 1) {
-    if (session.role !== "faculty" && session.role !== "admin" && session.role !== "hod") {
-      return { status: 403, body: { error: { code: "forbidden", message: "Only faculty can create assignments." } } };
-    }
-    const parsed = CreateAssignmentInput.safeParse(rawBody);
-    if (!parsed.success) {
-      return { status: 400, body: { error: { code: "invalid_body", message: "Invalid assignment data." } } };
-    }
-    const created = await createAssignment(parsed.data, session);
-    return { status: 201, body: created };
+    if (!isStaff(s)) return err(403, "forbidden", "Only faculty can create assignments.");
+    const p = AssignmentInput.safeParse(rawBody);
+    if (!p.success) return invalid(p.error);
+    if (p.data.status === "Open" && pastDue(p.data.dueAt)) return err(422, "validation", "Pick a due date in the future.", { dueAt: "Pick a due date in the future" });
+    const row = await store.create(s, { ...p.data, due: dueLabel(p.data.dueAt) });
+    return ok(await staffItem(s, row), 201);
   }
 
-  // PUT /api/v1/assignments/:id
+  if (!id) return err(404, "not_found", "Resource not found.");
+
+  // PUT assignments/:id
   if (method === "PUT" && segs.length === 2) {
-    if (session.role !== "faculty" && session.role !== "admin" && session.role !== "hod") {
-      return { status: 403, body: { error: { code: "forbidden", message: "Only faculty can edit assignments." } } };
+    if (!isStaff(s)) return err(403, "forbidden", "Only faculty can edit assignments.");
+    const p = AssignmentPatch.safeParse(rawBody);
+    if (!p.success) return invalid(p.error);
+    const row = await store.get(s, id);
+    if (!row) return err(404, "not_found", "Assignment not found.");
+    if (!(sweeping(s) || row.owned)) return err(403, "forbidden", "You can only edit your own assignments.");
+
+    const status = p.data.status ?? row.status;
+    const dueAt = p.data.dueAt ?? row.dueAt;
+    const publishing = status === "Open" && (row.status !== "Open" || p.data.dueAt !== undefined);
+    if (publishing && pastDue(dueAt)) return err(422, "validation", "Move the due date into the future first.", { dueAt: "Pick a due date in the future" });
+    if (p.data.maxMarks !== undefined && p.data.maxMarks < row.maxMarks) {
+      const top = Math.max(0, ...(await store.submissions(s, id)).map((x) => x.marks ?? 0));
+      if (top > p.data.maxMarks) return err(422, "validation", "Some students already have more marks than that.", { maxMarks: `A student already has ${top} marks` });
     }
-    const id = segs[1]!;
-    const parsed = UpdateAssignmentInput.safeParse(rawBody);
-    if (!parsed.success) {
-      return { status: 400, body: { error: { code: "invalid_body", message: "Invalid assignment data." } } };
-    }
-    const updated = await updateAssignment(id, parsed.data, session);
-    if (!updated) {
-      return { status: 404, body: { error: { code: "not_found", message: "Assignment not found." } } };
-    }
-    return { status: 200, body: updated };
+    const updated = await store.update(s, id, { ...p.data, ...(p.data.dueAt ? { due: dueLabel(p.data.dueAt) } : {}) });
+    if (!updated) return err(404, "not_found", "Assignment not found.");
+    return ok(await staffItem(s, updated));
   }
 
-  // DELETE /api/v1/assignments/:id
+  // DELETE assignments/:id
   if (method === "DELETE" && segs.length === 2) {
-    if (session.role !== "faculty" && session.role !== "admin" && session.role !== "hod") {
-      return { status: 403, body: { error: { code: "forbidden", message: "Only faculty can delete assignments." } } };
-    }
-    const id = segs[1]!;
-    const deleted = await deleteAssignment(id, session);
-    if (!deleted) {
-      return { status: 404, body: { error: { code: "not_found", message: "Assignment not found." } } };
-    }
-    return { status: 200, body: { ok: true } };
+    if (!isStaff(s)) return err(403, "forbidden", "Only faculty can delete assignments.");
+    const row = await store.get(s, id);
+    if (!row) return err(404, "not_found", "Assignment not found.");
+    if (!(sweeping(s) || row.owned)) return err(403, "forbidden", "You can only delete your own assignments.");
+    await store.remove(s, id);
+    return ok({ ok: true });
   }
 
-  return { status: 404, body: { error: { code: "not_found", message: "Resource not found." } } };
+  // GET assignments/:id/submissions
+  if (method === "GET" && segs[2] === "submissions" && segs.length === 3) {
+    if (!isStaff(s)) return err(403, "forbidden", "Only faculty can see submissions.");
+    const row = await store.get(s, id);
+    if (!row) return err(404, "not_found", "Assignment not found.");
+    if (!(sweeping(s) || row.owned)) return err(403, "forbidden", "These are another teacher's submissions.");
+    return ok(await store.submissions(s, id));
+  }
+
+  // PATCH assignments/:id/submissions/:submissionId  (mark and feedback)
+  if (method === "PATCH" && segs[2] === "submissions" && segs.length === 4) {
+    if (!isStaff(s)) return err(403, "forbidden", "Only faculty can mark work.");
+    const g = GradeBody.safeParse(rawBody);
+    if (!g.success) return invalid(g.error);
+    const row = await store.get(s, id);
+    if (!row) return err(404, "not_found", "Assignment not found.");
+    if (!(sweeping(s) || row.owned)) return err(403, "forbidden", "These are another teacher's submissions.");
+    if (g.data.marks > row.maxMarks) return err(422, "validation", `Marks cannot be more than ${row.maxMarks}.`, { marks: `At most ${row.maxMarks}` });
+    const done = await store.grade(s, id, segs[3] ?? "", g.data.marks, g.data.feedback);
+    if (!done) return err(404, "not_found", "Submission not found.");
+    return ok(done);
+  }
+
+  // PUT assignments/:id/submission  (a student hands in, or replaces, their work)
+  if (method === "PUT" && segs[2] === "submission" && segs.length === 3) {
+    if (s.role !== "student") return err(403, "forbidden", "Only students hand in assignments.");
+    const b = SubmitBody.safeParse(rawBody);
+    if (!b.success) return invalid(b.error);
+    const row = await store.get(s, id);
+    if (!row || row.status === "Draft") return err(404, "not_found", "Assignment not found.");
+    if (row.status === "Closed") return err(409, "closed", "This assignment is closed, so it no longer takes submissions.");
+    const before = (await store.mine(s, [id])).get(id);
+    if (before && before.marks !== null) return err(409, "graded", "This has already been marked, so it can no longer be changed.");
+    const saved = await store.submit(s, id, { studentName: s.name, rollNo: await rollNoOf(s), text: b.data.text, link: b.data.link, late: pastDue(row.dueAt) });
+    return ok(saved, before ? 200 : 201);
+  }
+
+  return err(404, "not_found", "Resource not found.");
+}
+
+/** What the student's bell shows: work still to hand in (soonest first) and work that has just been marked. */
+export async function assignmentNotifications(s: SessionPayload): Promise<Notification[]> {
+  if (s.role !== "student") return [];
+  try {
+    const store = assignmentStore();
+    const rows = (await store.list(s, true)).filter((r) => r.status !== "Draft");
+    const mine = await store.mine(s, rows.map((r) => r.id));
+    const out: Notification[] = [];
+    const todo = rows
+      .filter((r) => r.status === "Open" && !mine.has(r.id))
+      .sort((a, b) => (a.dueAt ?? "9").localeCompare(b.dueAt ?? "9"))
+      .slice(0, 4);
+    for (const r of todo) {
+      const left = r.dueAt ? Date.parse(r.dueAt) - Date.now() : null;
+      const soon = left !== null && left < 48 * 3_600_000;
+      out.push({
+        id: `asn-${r.id}`,
+        title: left !== null && left < 0 ? `Overdue: ${r.title}` : `New assignment: ${r.title}`,
+        body: `${r.course} · ${left !== null && left < 0 ? "was due" : "due"} ${r.due}`,
+        when: ago(r.createdAt),
+        unread: true,
+        tone: left !== null && left < 0 ? "rose" : soon ? "amber" : "sky",
+      });
+    }
+    for (const r of rows) {
+      const m = mine.get(r.id);
+      if (!m || m.marks === null || !m.gradedAt || Date.now() - Date.parse(m.gradedAt) > 14 * 86_400_000) continue;
+      out.push({ id: `asn-graded-${r.id}`, title: `Marked: ${r.title}`, body: `You scored ${m.marks} / ${r.maxMarks}`, when: ago(m.gradedAt), unread: true, tone: "teal" });
+    }
+    return out;
+  } catch {
+    return [];
+  }
 }
