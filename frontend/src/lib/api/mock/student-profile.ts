@@ -555,9 +555,9 @@ export async function getStudentAcademicProfile(
       if (colCourses.length > 0) {
         // Map database courses to EnrolledSubject format
         subjects = colCourses.map((c, idx) => {
-          const matchingAttempts = studentRecord?.quizAttempts.filter((q) => q.quiz?.title?.includes(c.title) || q.quiz?.courseCode === c.code) || [];
+          const matchingAttempts = studentRecord?.quizAttempts.filter((q) => q.quiz?.title?.includes(c.title)) || [];
           const avgScore = matchingAttempts.length > 0
-            ? Math.round(matchingAttempts.reduce((sum, a) => sum + (a.score / (a.maxScore || 100)) * 100, 0) / matchingAttempts.length)
+            ? Math.round(matchingAttempts.reduce((sum, a) => sum + (a.score !== null ? a.score : 70), 0) / matchingAttempts.length)
             : 68 + ((idx * 7) % 24);
 
           return {
@@ -565,7 +565,7 @@ export async function getStudentAcademicProfile(
             title: c.title,
             shortName: c.title.length > 15 ? c.code : c.title,
             credits: c.credits || 4,
-            facultyName: c.faculty || `Prof. ${idx % 2 === 0 ? "Dr. Meena Raghavan" : "Prof. R. Balaji"}`,
+            facultyName: c.facultyName || `Prof. ${idx % 2 === 0 ? "Dr. Meena Raghavan" : "Prof. R. Balaji"}`,
             facultyDesignation: "Faculty",
             semester: semester,
             attendancePercent: Math.min(100, 82 + ((idx * 5) % 15)),
