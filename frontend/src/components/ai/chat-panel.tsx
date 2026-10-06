@@ -3,6 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { apiFetch, ApiError } from "@/lib/api/client";
+import { CHAT_HISTORY_TURNS } from "@/lib/api/mentor-schemas";
 import { ChatReply } from "@/lib/api/schemas";
 import { cleanText } from "@/lib/security/sanitize";
 import { createRateLimiter } from "@/lib/security/throttle";
@@ -51,7 +52,8 @@ export function ChatPanel({
   const inputId = `chat-${useId()}`;
 
   const mutation = useMutation({
-    mutationFn: (message: string) => apiFetch("/api/v1/ai/chat", ChatReply, { method: "POST", body: { agent, message } }),
+    mutationFn: ({ message, history }: { message: string; history: Array<{ from: "user" | "ai"; text: string }> }) =>
+      apiFetch("/api/v1/ai/chat", ChatReply, { method: "POST", body: { agent, message, history } }),
     onSuccess: (reply) => setMessages((m) => [...m, { id: ++idRef.current, from: "ai", text: reply.message, reply, at: timeNow() }]),
     onError: (e) => setNotice(e instanceof ApiError ? e.message : "Could not reach the AI service."),
   });
@@ -78,9 +80,11 @@ export function ChatPanel({
       return;
     }
     setNotice(null);
+    // The last few turns go with the question so the answer can follow the conversation.
+    const history = messages.slice(-CHAT_HISTORY_TURNS).map((m) => ({ from: m.from, text: m.text.slice(0, 4000) }));
     setMessages((m) => [...m, { id: ++idRef.current, from: "user", text, at: timeNow() }]);
     setInput("");
-    mutation.mutate(text);
+    mutation.mutate({ message: text, history });
   };
 
   return (
